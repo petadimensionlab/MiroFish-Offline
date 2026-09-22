@@ -4,7 +4,7 @@
 simulation on a local **oMLX / MLX** inference server instead of Ollama, and splits
 the models per pipeline stage (speed vs. quality).
 
-Languages: **English** | [日本語](README.ja.md)
+**Language: English (primary).** &nbsp;·&nbsp; [日本語 / Japanese README](README.ja.md) &nbsp;·&nbsp; [Original README (pre-rewrite, archived)](README.original.md)
 
 ---
 

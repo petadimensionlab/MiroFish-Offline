@@ -4,7 +4,7 @@
 Ollama ではなくローカルの **oMLX / MLX** 推論サーバーで実行し、**段階ごとにモデルを使い分け**
 ます（速度 vs 品質）。
 
-言語: [English](README.md) | **日本語**
+**主体は English** → [English README](README.md) &nbsp;·&nbsp; **日本語（本ファイル）** &nbsp;·&nbsp; [旧 README（保存版）](README.ja.original.md)
 
 ---
 
