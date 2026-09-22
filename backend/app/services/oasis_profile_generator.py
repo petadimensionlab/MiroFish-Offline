@@ -9,6 +9,7 @@ Optimization improvements:
 """
 
 import json
+import os
 import random
 import time
 from typing import Dict, Any, List, Optional
@@ -19,6 +20,7 @@ from openai import OpenAI
 
 from ..config import Config
 from ..utils.logger import get_logger
+from ..utils.llm_client import reasoning_kwargs
 from .entity_reader import EntityNode
 from ..storage import GraphStorage
 
@@ -194,7 +196,8 @@ class OasisProfileGenerator:
 
         self.client = OpenAI(
             api_key=self.api_key,
-            base_url=self.base_url
+            base_url=self.base_url,
+            timeout=float(os.environ.get("LLM_TIMEOUT", "1800")),
         )
 
         # GraphStorage for hybrid search enrichment
@@ -466,7 +469,7 @@ class OasisProfileGenerator:
             )
 
         # Try multiple times until successful or max retry attempts reached
-        max_attempts = 3
+        max_attempts = int(os.environ.get("LLM_MAX_ATTEMPTS", "5"))
         last_error = None
 
         for attempt in range(max_attempts):
@@ -478,8 +481,9 @@ class OasisProfileGenerator:
                         {"role": "user", "content": prompt}
                     ],
                     response_format={"type": "json_object"},
-                    temperature=0.7 - (attempt * 0.1)  # Lower temperature with each retry
+                    temperature=0.7 - (attempt * 0.1),  # Lower temperature with each retry
                     # Don't set max_tokens, let LLM generate freely
+                    **reasoning_kwargs(),
                 )
 
                 content = response.choices[0].message.content
@@ -825,9 +829,37 @@ Important:
             self.graph_id = graph_id
 
         total = len(entities)
-        profiles = [None] * total  # Pre-allocate list to maintain order
+        profiles: List[Optional[OasisAgentProfile]] = [None] * total  # Pre-allocate list to maintain order
         completed_count = [0]  # Use list for modification in closure
         lock = Lock()
+
+        # Resume: reuse profiles already written by a previous run (reddit JSON)
+        if realtime_output_path and output_platform == "reddit" and os.path.exists(realtime_output_path):
+            try:
+                with open(realtime_output_path, "r", encoding="utf-8") as f:
+                    saved = json.load(f)
+                for item in saved:
+                    uid = item.get("user_id")
+                    if isinstance(uid, int) and 0 <= uid < total:
+                        profiles[uid] = OasisAgentProfile(
+                            user_id=uid,
+                            user_name=item.get("username") or item.get("user_name", ""),
+                            name=item.get("name", ""),
+                            bio=item.get("bio", ""),
+                            persona=item.get("persona", ""),
+                            karma=item.get("karma", 1000),
+                            age=item.get("age"),
+                            gender=item.get("gender"),
+                            mbti=item.get("mbti"),
+                            country=item.get("country"),
+                            profession=item.get("profession"),
+                            interested_topics=item.get("interested_topics") or [],
+                            created_at=item.get("created_at", datetime.now().strftime("%Y-%m-%d")),
+                        )
+                        completed_count[0] += 1
+                logger.info(f"[resume] reused {completed_count[0]} existing profiles from {realtime_output_path}")
+            except Exception as e:
+                logger.warning(f"[resume] failed to reuse existing profiles: {e}")
 
         # Helper function for real-time file writing
         def save_profiles_realtime():
@@ -842,21 +874,31 @@ Important:
                     return
 
                 try:
+                    # Write atomically (temp + os.replace) so an interrupted run
+                    # can never leave a truncated/corrupt profiles file.
                     if output_platform == "reddit":
                         # Reddit JSON format
                         profiles_data = [p.to_reddit_format() for p in existing_profiles]
-                        with open(realtime_output_path, 'w', encoding='utf-8') as f:
+                        tmp = realtime_output_path + ".tmp"
+                        with open(tmp, 'w', encoding='utf-8') as f:
                             json.dump(profiles_data, f, ensure_ascii=False, indent=2)
+                            f.flush()
+                            os.fsync(f.fileno())
+                        os.replace(tmp, realtime_output_path)
                     else:
                         # Twitter CSV format
                         import csv
                         profiles_data = [p.to_twitter_format() for p in existing_profiles]
                         if profiles_data:
                             fieldnames = list(profiles_data[0].keys())
-                            with open(realtime_output_path, 'w', encoding='utf-8', newline='') as f:
+                            tmp = realtime_output_path + ".tmp"
+                            with open(tmp, 'w', encoding='utf-8', newline='') as f:
                                 writer = csv.DictWriter(f, fieldnames=fieldnames)
                                 writer.writeheader()
                                 writer.writerows(profiles_data)
+                                f.flush()
+                                os.fsync(f.fileno())
+                            os.replace(tmp, realtime_output_path)
                 except Exception as e:
                     logger.warning(f"Real-time profile save failed: {e}")
         
@@ -901,6 +943,7 @@ Important:
             future_to_entity = {
                 executor.submit(generate_single_profile, idx, entity): (idx, entity)
                 for idx, entity in enumerate(entities)
+                if profiles[idx] is None
             }
 
             # Collect results
@@ -951,7 +994,7 @@ Important:
         print(f"Persona generation complete! Generated {len([p for p in profiles if p])} agents")
         print(f"{'='*60}\n")
         
-        return profiles
+        return [p for p in profiles if p is not None]
     
     def _print_generated_profile(self, entity_name: str, entity_type: str, profile: OasisAgentProfile):
         """Real-time output generated persona to console (complete content, not truncated)"""

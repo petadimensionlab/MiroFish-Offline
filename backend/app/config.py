@@ -31,6 +31,24 @@ class Config:
     LLM_API_KEY = os.environ.get('LLM_API_KEY')
     LLM_BASE_URL = os.environ.get('LLM_BASE_URL', 'http://localhost:11434/v1')
     LLM_MODEL_NAME = os.environ.get('LLM_MODEL_NAME', 'qwen2.5:32b')
+    # Larger-context variant used ONLY by stages that need it (ontology / config /
+    # report). Bulk stages (NER, profiles, simulation) use LLM_MODEL_NAME (small
+    # num_ctx) so they run fast and parallelize. Empty -> same as LLM_MODEL_NAME.
+    LLM_MODEL_NAME_LARGE = os.environ.get('LLM_MODEL_NAME_LARGE', '') or LLM_MODEL_NAME
+
+    # Ollama context window per request. Most steps use the small default;
+    # ontology generation needs a larger one (it may feed up to 50,000 chars).
+    # NOTE: Ollama's OpenAI-compatible endpoint ignores extra_body.options.num_ctx,
+    # so the effective per-slot context is the *derived model's* num_ctx.
+    OLLAMA_NUM_CTX = int(os.environ.get('OLLAMA_NUM_CTX', '4096'))
+    OLLAMA_NUM_CTX_ONTOLOGY = int(os.environ.get('OLLAMA_NUM_CTX_ONTOLOGY', '16384'))
+
+    # Reasoning/"thinking" control for reasoning models (e.g. qwen3.5). Ollama
+    # returns thinking in a separate `reasoning` field, and the OpenAI-compatible
+    # response's `content` can be empty if the model spends its whole budget
+    # thinking. Set to 'none' to force direct answers for JSON pipelines.
+    # Empty string = do not send the parameter (non-reasoning models unaffected).
+    LLM_REASONING_EFFORT = os.environ.get('LLM_REASONING_EFFORT', '')
 
     # Neo4j configuration
     NEO4J_URI = os.environ.get('NEO4J_URI', 'bolt://localhost:7687')
@@ -40,6 +58,11 @@ class Config:
     # Embedding configuration
     EMBEDDING_MODEL = os.environ.get('EMBEDDING_MODEL', 'nomic-embed-text')
     EMBEDDING_BASE_URL = os.environ.get('EMBEDDING_BASE_URL', 'http://localhost:11434')
+    # Embedding API style: 'auto' | 'ollama' | 'openai'.
+    # 'auto' selects Ollama's native /api/embed for *:11434, otherwise OpenAI /v1/embeddings.
+    EMBEDDING_API_STYLE = os.environ.get('EMBEDDING_API_STYLE', 'auto')
+    # API key for the OpenAI-compatible embedding endpoint (ignored by Ollama).
+    EMBEDDING_API_KEY = os.environ.get('EMBEDDING_API_KEY')
 
     # File upload configuration
     MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50MB

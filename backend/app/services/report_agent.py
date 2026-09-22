@@ -905,7 +905,10 @@ class ReportAgent:
         self.simulation_id = simulation_id
         self.simulation_requirement = simulation_requirement
 
-        self.llm = llm_client or LLMClient()
+        self.llm = llm_client or LLMClient(
+            use_large=True,
+            timeout=float(os.environ.get("LLM_TIMEOUT_LARGE", "1800")),
+        )
         if graph_tools is None:
             raise ValueError(
                 "graph_tools (GraphToolsService) is required. "

@@ -21,12 +21,12 @@ ONTOLOGY:
 {ontology_description}
 
 RULES:
-1. Only extract entity types and relation types defined in the ontology.
-2. Normalize entity names: strip whitespace, use canonical form (e.g., "Jack Ma" not "ma jack").
-3. Each entity must have: name, type (from ontology), and optional attributes.
-4. Each relation must have: source entity name, target entity name, type (from ontology), and a fact sentence describing the relationship.
-5. If no entities or relations are found, return empty lists.
-6. Be precise — only extract what is explicitly stated or strongly implied in the text.
+1. Extract every explicit named entity (people, organizations, institutions, agencies, groups) that fits ANY ontology type. Personal names, including authors in reference lists and citations, count as entities.
+2. If an entity does not fit an ontology type, still extract it and use the closest type, or "Entity".
+3. Normalize entity names: strip whitespace, use canonical form (e.g., "Jack Ma" not "ma jack").
+4. Each entity must have: name, type, and optional attributes.
+5. Each relation must have: source entity name, target entity name, a type (preferably from the ontology), and a fact sentence describing the relationship. Only add relations you are confident about.
+6. Prefer recall for entities: do not return empty lists when named entities are present.
 
 Return ONLY valid JSON in this exact format:
 {{

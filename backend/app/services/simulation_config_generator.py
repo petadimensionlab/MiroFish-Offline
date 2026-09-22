@@ -12,6 +12,7 @@ Adopt step-by-step generation strategy to avoid failures from generating too lon
 
 import json
 import math
+import os
 from typing import Dict, Any, List, Optional, Callable
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
@@ -20,6 +21,7 @@ from openai import OpenAI
 
 from ..config import Config
 from ..utils.logger import get_logger
+from ..utils.llm_client import reasoning_kwargs
 from .entity_reader import EntityNode
 
 logger = get_logger('mirofish.simulation_config')
@@ -229,16 +231,51 @@ class SimulationConfigGenerator:
     ):
         self.api_key = api_key or Config.LLM_API_KEY
         self.base_url = base_url or Config.LLM_BASE_URL
-        self.model_name = model_name or Config.LLM_MODEL_NAME
+        self.model_name = model_name or Config.LLM_MODEL_NAME_LARGE
 
         if not self.api_key:
             raise ValueError("LLM_API_KEY not configured")
 
         self.client = OpenAI(
             api_key=self.api_key,
-            base_url=self.base_url
+            base_url=self.base_url,
+            timeout=float(os.environ.get("LLM_TIMEOUT_CONFIG", os.environ.get("LLM_TIMEOUT", "900"))),
         )
     
+    def _partial_state_path(self, simulation_id: str) -> str:
+        return os.path.join(
+            Config.OASIS_SIMULATION_DATA_DIR, simulation_id, "simulation_config.partial.json"
+        )
+
+    def _load_partial_state(self, simulation_id: str) -> Dict[str, Any]:
+        path = self._partial_state_path(simulation_id)
+        if os.path.exists(path):
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception as e:
+                logger.warning(f"Failed to load partial config state: {e}")
+        return {}
+
+    def _save_partial_state(self, simulation_id: str, state: Dict[str, Any]) -> None:
+        path = self._partial_state_path(simulation_id)
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            tmp = path + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(state, f, ensure_ascii=False)
+            os.replace(tmp, path)
+        except Exception as e:
+            logger.warning(f"Failed to save partial config state: {e}")
+
+    def _remove_partial_state(self, simulation_id: str) -> None:
+        path = self._partial_state_path(simulation_id)
+        try:
+            if os.path.exists(path):
+                os.remove(path)
+        except Exception as e:
+            logger.warning(f"Failed to remove partial config state: {e}")
+
     def generate_config(
         self,
         simulation_id: str,
@@ -290,39 +327,81 @@ class SimulationConfigGenerator:
         )
         
         reasoning_parts = []
-        
+        partial = self._load_partial_state(simulation_id)
+        saved_batches = partial.get("batch_results", {})
+
         # ========== Step 1: Generate time configuration ==========
-        report_progress(1, "Generating time configuration...")
         num_entities = len(entities)
-        time_config_result = self._generate_time_config(context, num_entities)
+        if "time_config_result" in partial:
+            logger.info("[resume] reusing saved time configuration")
+            time_config_result = partial["time_config_result"]
+        else:
+            report_progress(1, "Generating time configuration...")
+            time_config_result = self._generate_time_config(context, num_entities)
+            partial["time_config_result"] = time_config_result
+            self._save_partial_state(simulation_id, partial)
         time_config = self._parse_time_config(time_config_result, num_entities)
         reasoning_parts.append(f"Time config: {time_config_result.get('reasoning', 'Success')}")
 
         # ========== Step 2: Generate event configuration ==========
-        report_progress(2, "Generating event configuration and hot topics...")
-        event_config_result = self._generate_event_config(context, simulation_requirement, entities)
+        if "event_config_result" in partial:
+            logger.info("[resume] reusing saved event configuration")
+            event_config_result = partial["event_config_result"]
+        else:
+            report_progress(2, "Generating event configuration and hot topics...")
+            event_config_result = self._generate_event_config(context, simulation_requirement, entities)
+            partial["event_config_result"] = event_config_result
+            self._save_partial_state(simulation_id, partial)
         event_config = self._parse_event_config(event_config_result)
         reasoning_parts.append(f"Event config: {event_config_result.get('reasoning', 'Success')}")
 
-        # ========== Step 3-N: Generate agent configurations in batches ==========
+        # ========== Step 3-N: Generate agent configurations (parallel and resumable) ==========
+        # Batches cover disjoint entity ranges, so they are independent; completed
+        # batches are persisted and reused on restart.
+        import concurrent.futures
+        import threading
         all_agent_configs = []
-        for batch_idx in range(num_batches):
+        max_workers = max(1, int(os.environ.get("CONFIG_BATCH_PARALLEL", "4")))
+        save_lock = threading.Lock()
+
+        def _generate_one_batch(batch_idx: int):
             start_idx = batch_idx * self.AGENTS_PER_BATCH
             end_idx = min(start_idx + self.AGENTS_PER_BATCH, len(entities))
-            batch_entities = entities[start_idx:end_idx]
-
-            report_progress(
-                3 + batch_idx,
-                f"Generating agent configuration ({start_idx + 1}-{end_idx}/{len(entities)})..."
-            )
-            
-            batch_configs = self._generate_agent_configs_batch(
+            return batch_idx, self._generate_agent_configs_batch(
                 context=context,
-                entities=batch_entities,
+                entities=entities[start_idx:end_idx],
                 start_idx=start_idx,
                 simulation_requirement=simulation_requirement
             )
-            all_agent_configs.extend(batch_configs)
+
+        pending_batches = [i for i in range(num_batches) if str(i) not in saved_batches]
+        if len(pending_batches) < num_batches:
+            logger.info(
+                f"[resume] reusing {num_batches - len(pending_batches)}/{num_batches} saved "
+                f"agent-config batches; generating {len(pending_batches)}"
+            )
+
+        completed_batches = num_batches - len(pending_batches)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_batch = {executor.submit(_generate_one_batch, i): i for i in pending_batches}
+            for future in concurrent.futures.as_completed(future_to_batch):
+                batch_idx, batch_configs = future.result()
+                with save_lock:
+                    saved_batches[str(batch_idx)] = [asdict(c) for c in batch_configs]
+                    partial["batch_results"] = saved_batches
+                    self._save_partial_state(simulation_id, partial)
+                completed_batches += 1
+                end_idx = min(batch_idx * self.AGENTS_PER_BATCH + self.AGENTS_PER_BATCH, len(entities))
+                report_progress(
+                    3 + completed_batches - 1,
+                    f"Generating agent configuration (batch {completed_batches}/{num_batches}, up to {end_idx}/{len(entities)} agents)..."
+                )
+
+        for i in range(num_batches):
+            for cfg in (saved_batches.get(str(i)) or []):
+                all_agent_configs.append(
+                    cfg if isinstance(cfg, AgentActivityConfig) else AgentActivityConfig(**cfg)
+                )
         
         reasoning_parts.append(f"Agent config: Successfully generated {len(all_agent_configs)}")
 
@@ -375,6 +454,7 @@ class SimulationConfigGenerator:
         
         logger.info(f"Simulation configuration generation complete: {len(params.agent_configs)} agent configurations")
 
+        self._remove_partial_state(simulation_id)
         return params
 
     def _build_context(
@@ -446,8 +526,9 @@ class SimulationConfigGenerator:
                         {"role": "user", "content": prompt}
                     ],
                     response_format={"type": "json_object"},
-                    temperature=0.7 - (attempt * 0.1)  # Lower temperature with each retry
-                    # Don't set max_tokens, let LLM generate freely
+                    temperature=0.7 - (attempt * 0.1),  # Lower temperature with each retry
+                    extra_body={"options": {"num_ctx": int(os.environ.get("OLLAMA_NUM_CTX_CONFIG", "16384"))}},
+                    **reasoning_kwargs(),
                 )
 
                 content = response.choices[0].message.content

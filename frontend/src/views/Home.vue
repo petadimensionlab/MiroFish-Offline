@@ -128,11 +128,14 @@
             </div>
 
             <div :style="s.btnSection">
-              <button :style="s.startEngineBtn" @click="startSimulation" :disabled="!canSubmit || loading">
+              <button :style="startEngineStyle" @click="startSimulation" :disabled="!canSubmit || loading">
                 <span v-if="!loading">Start Engine</span>
                 <span v-else>Initializing...</span>
                 <span>→</span>
               </button>
+              <div v-if="startHintText && !loading" :style="s.startHint">
+                {{ startHintText }}
+              </div>
             </div>
           </div>
         </div>
@@ -215,6 +218,7 @@ const s = reactive({
   modelBadge: { position: 'absolute', bottom: '10px', right: '15px', fontFamily: mono, fontSize: '0.7rem', color: '#AAA' },
   btnSection: { padding: '0 20px 20px' },
   startEngineBtn: { width: '100%', background: '#000', color: '#fff', border: 'none', padding: '20px', fontFamily: mono, fontWeight: '700', fontSize: '1.1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', letterSpacing: '1px' },
+  startHint: { marginTop: '10px', fontFamily: mono, fontSize: '0.75rem', color: '#999' },
 })
 
 const steps = [
@@ -236,6 +240,20 @@ const fileInput = ref(null)
 
 const canSubmit = computed(() => {
   return formData.value.simulationRequirement.trim() !== '' && files.value.length > 0
+})
+
+const startEngineStyle = computed(() => {
+  if (canSubmit.value && !loading.value) return s.startEngineBtn
+  return { ...s.startEngineBtn, opacity: '0.45', cursor: 'not-allowed' }
+})
+
+const startHintText = computed(() => {
+  const hasPrompt = formData.value.simulationRequirement.trim() !== ''
+  const hasFiles = files.value.length > 0
+  if (!hasFiles && !hasPrompt) return 'Add a document and a simulation prompt to enable "Start Engine".'
+  if (!hasFiles) return 'Add at least one document (PDF/MD/TXT) to enable "Start Engine".'
+  if (!hasPrompt) return 'Enter a simulation prompt to enable "Start Engine".'
+  return ''
 })
 
 const triggerFileInput = () => { if (!loading.value) fileInput.value?.click() }

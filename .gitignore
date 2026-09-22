@@ -59,3 +59,15 @@ backend/uploads/
 # Docker 数据
 data/backend/venv311/
 backend/venv311/
+
+# local env backups / agent state
+.env.bak*
+.env.*.bak
+
+# local agent/tool state (not project source)
+.omc/
+.omo/
+.playwright-mcp/
+
+# test input document (not project source; avoid publishing third-party PDFs)
+paper.pdf

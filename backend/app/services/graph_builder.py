@@ -3,6 +3,7 @@ Graph building service.
 Uses GraphStorage (Neo4j) to replace Zep Cloud API.
 """
 
+import os
 import time
 import logging
 import threading
@@ -196,44 +197,41 @@ class GraphBuilderService:
 
         logger.info(f"[graph_build] Starting: {total_chunks} chunks, {total_batches} batches (batch_size={batch_size})")
 
-        for i in range(0, total_chunks, batch_size):
-            batch_chunks = chunks[i:i + batch_size]
-            batch_num = i // batch_size + 1
+        # Chunks are independent, so process them concurrently. Uses spare
+        # NUM_PARALLEL slots; Neo4j driver sessions are thread-safe.
+        import concurrent.futures
+        workers = max(1, int(os.environ.get("GRAPH_BUILD_PARALLEL", "4")))
+        results: Dict[int, str] = {}
+        completed = 0
 
-            if progress_callback:
-                progress = (i + len(batch_chunks)) / total_chunks
-                progress_callback(
-                    f"Processing batch {batch_num}/{total_batches} ({len(batch_chunks)} chunks)...",
-                    progress
-                )
+        def _process_chunk(index_and_chunk):
+            index, chunk = index_and_chunk
+            return index, self.storage.add_text(graph_id, chunk)
 
-            for j, chunk in enumerate(batch_chunks):
-                chunk_idx = i + j + 1
-                chunk_preview = chunk[:80].replace('\n', ' ')
-                logger.info(
-                    f"[graph_build] Chunk {chunk_idx}/{total_chunks} "
-                    f"({len(chunk)} chars): \"{chunk_preview}...\""
-                )
-                t0 = time.time()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
+            future_to_index = {
+                executor.submit(_process_chunk, (idx, chunk)): idx
+                for idx, chunk in enumerate(chunks)
+            }
+            for future in concurrent.futures.as_completed(future_to_index):
+                idx = future_to_index[future]
                 try:
-                    episode_id = self.storage.add_text(graph_id, chunk)
-                    episode_uuids.append(episode_id)
-                    elapsed = time.time() - t0
-                    logger.info(
-                        f"[graph_build] Chunk {chunk_idx}/{total_chunks} done in {elapsed:.1f}s"
-                    )
+                    _, episode_id = future.result()
+                    results[idx] = episode_id
                 except Exception as e:
-                    elapsed = time.time() - t0
-                    logger.error(
-                        f"[graph_build] Chunk {chunk_idx}/{total_chunks} FAILED "
-                        f"after {elapsed:.1f}s: {e}"
-                    )
+                    logger.error(f"[graph_build] Chunk {idx + 1}/{total_chunks} FAILED: {e}")
                     if progress_callback:
-                        progress_callback(f"Batch {batch_num} processing failed: {str(e)}", 0)
+                        progress_callback(f"Chunk {idx + 1}/{total_chunks} failed: {str(e)}", 0)
                     raise
+                completed += 1
+                if progress_callback:
+                    progress_callback(
+                        f"Processed {completed}/{total_chunks} chunks...",
+                        completed / total_chunks
+                    )
 
         logger.info(f"[graph_build] All {total_chunks} chunks processed successfully")
-        return episode_uuids
+        return [results[i] for i in sorted(results)]
 
     def _get_graph_info(self, graph_id: str) -> GraphInfo:
         """Get graph information"""

@@ -4,7 +4,9 @@ Interface 1: Analyze text content and generate entity and relationship type defi
 """
 
 import json
+import os
 from typing import Dict, Any, List, Optional
+from ..config import Config
 from ..utils.llm_client import LLMClient
 
 
@@ -162,7 +164,10 @@ class OntologyGenerator:
     """
 
     def __init__(self, llm_client: Optional[LLMClient] = None):
-        self.llm_client = llm_client or LLMClient()
+        self.llm_client = llm_client or LLMClient(
+            use_large=True,
+            timeout=float(os.environ.get("LLM_TIMEOUT_LARGE", "1800")),
+        )
 
     def generate(
         self,
@@ -197,7 +202,8 @@ class OntologyGenerator:
         result = self.llm_client.chat_json(
             messages=messages,
             temperature=0.3,
-            max_tokens=4096
+            max_tokens=4096,
+            num_ctx=Config.OLLAMA_NUM_CTX_ONTOLOGY
         )
 
         # Validate and post-process
