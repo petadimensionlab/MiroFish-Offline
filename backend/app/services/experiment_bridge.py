@@ -36,7 +36,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional
 from ..config import Config
 from ..utils.logger import get_logger
 from .game_decision import (
-    render_decision_prompt, parse_decision, wants_no_think, display_label,
+    render_decision_prompt, parse_decision, wants_no_think, make_labels, Labels, LABEL_SCHEMES,
     render_belief_prompt, parse_likert, DEFAULT_BELIEF_STATEMENT,
     render_comprehension_prompt, parse_comprehension,
 )
@@ -77,7 +77,11 @@ class BridgeSettings:
     num_rounds: int = 10
     default_choice: str = COOPERATE   # used when the answer cannot be parsed
     no_think: str = 'auto'            # auto (qwen3 only) | on | off
-    swap_labels: bool = False         # agents see A/B swapped (label bias control)
+    # What agents see for the internal A (cooperate) / B (defect) (NOTES.md #39, #40)
+    label_scheme: str = 'symbols'     # letters | symbols
+    label_randomize: bool = True      # mapping and listing order drawn at random
+    label_unit: str = 'session'       # session | agent: who shares one random mapping (NOTES.md #43)
+    swap_labels: bool = False         # letters, fixed: agents see A/B swapped
     payoffs: Dict[str, int] = field(default_factory=lambda: dict(DEFAULT_PAYOFFS))
     # debate phase (llm policy)
     debate_rounds: int = 0            # 0 = no-debate treatment
@@ -171,6 +175,12 @@ class ExperimentBridge:
         policy = kwargs.get('policy')
         if policy is not None and policy not in POLICIES:
             raise ValueError(f"unknown policy: {policy} (expected one of {POLICIES})")
+        scheme = kwargs.get('label_scheme')
+        if scheme is not None and scheme not in LABEL_SCHEMES:
+            raise ValueError(f"unknown label_scheme: {scheme} (expected one of {LABEL_SCHEMES})")
+        unit = kwargs.get('label_unit')
+        if unit is not None and unit not in ('session', 'agent'):
+            raise ValueError(f"unknown label_unit: {unit} (expected session or agent)")
         inject = kwargs.get('inject_results')
         if inject is not None and inject not in INJECT_MODES:
             raise ValueError(f"unknown inject_results: {inject} (expected one of {INJECT_MODES})")
@@ -185,7 +195,8 @@ class ExperimentBridge:
             if settings['policy'] == 'llm':
                 self._simulation_dir(state.settings)  # validate early
         self._log(session_code, {'event': 'configure', 'settings': settings,
-                                 'n_agents': len(state.agents)})
+                                 'n_agents': len(state.agents),
+                                 'labels': self._labels_summary(session_code, state)})
         if settings['policy'] == 'llm' and state.agents:
             def opening():
                 if state.settings.comprehension_check:
@@ -195,6 +206,22 @@ class ExperimentBridge:
                 self._debate_phase(session_code, state.settings, 0, [])
             self.prefetch(session_code, 1, before=opening)
         return {**settings, 'n_agents': len(state.agents)}
+
+    @staticmethod
+    def _labels(session_code: str, settings: BridgeSettings,
+                agent_id: Optional[int] = None) -> Labels:
+        key = session_code
+        if settings.label_unit == 'agent' and agent_id is not None:
+            key = f"{session_code}:agent{agent_id}"
+        return make_labels(key, scheme=settings.label_scheme,
+                           randomize=settings.label_randomize, swap=settings.swap_labels,
+                           seed=settings.seed)
+
+    def _labels_summary(self, session_code: str, state: SessionState) -> Dict[str, Any]:
+        if state.settings.label_unit == 'agent':
+            return {str(a): self._labels(session_code, state.settings, a).to_dict()
+                    for a in sorted(state.agents)}
+        return self._labels(session_code, state.settings).to_dict()
 
     @staticmethod
     def _simulation_dir(settings: BridgeSettings) -> str:
@@ -377,6 +404,7 @@ class ExperimentBridge:
         client = SimulationIPCClient(self._simulation_dir(settings))
         model = os.environ.get('LLM_MODEL_NAME', 'llm')
         no_think = wants_no_think(settings.no_think, model)
+        labels = {a: self._labels(state.session_code, settings, a) for a in agent_ids}
         t0 = time.time()
         decisions: Dict[int, Decision] = {}
         pending = list(agent_ids)
@@ -388,8 +416,7 @@ class ExperimentBridge:
             interviews = [
                 dict(agent_id=a, prompt=render_decision_prompt(
                     round_number, settings.num_rounds, settings.payoffs, histories.get(a, []),
-                    include_feed=settings.include_feed, strict=strict, no_think=no_think,
-                    swap_labels=settings.swap_labels))
+                    labels[a], include_feed=settings.include_feed, strict=strict, no_think=no_think))
                 for a in pending
             ]
             response = client.send_game_interview(interviews, platform=settings.platform,
@@ -402,9 +429,7 @@ class ExperimentBridge:
             retry = []
             for agent_id in pending:
                 answer = answers.get(agent_id, {})
-                choice, reason, error = parse_decision(answer.get('response'))
-                if choice is not None:
-                    choice = display_label(choice, settings.swap_labels)  # back to internal
+                choice, reason, error = parse_decision(answer.get('response'), labels[agent_id])
                 if answer.get('error'):
                     error = answer['error']
                 self._log_prompt(state.session_code, {
@@ -439,8 +464,12 @@ class ExperimentBridge:
 
     @staticmethod
     def result_posts(settings: BridgeSettings, agents: Dict[int, int], round_number: int,
-                     outcomes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Posts that write round results back into the social space."""
+                     outcomes: List[Dict[str, Any]], labels: Optional[Labels]) -> List[Dict[str, Any]]:
+        """Posts that write round results back into the social space.
+
+        labels=None writes them in points only: with per-agent labels a post
+        naming a label would mean different things to different readers.
+        """
         if settings.inject_results == 'none' or not outcomes:
             return []
         by_agent = {int(o['agent_id']): o for o in outcomes}
@@ -448,13 +477,16 @@ class ExperimentBridge:
             posts = []
             for agent_id, o in sorted(by_agent.items()):
                 partner = by_agent.get(agents.get(agent_id, -1))
-                other = partner['choice'] if partner else '?'
-                own = display_label(o['choice'], settings.swap_labels)
-                other = display_label(other, settings.swap_labels)
-                posts.append(dict(agent_id=agent_id, content=(
-                    f"Decision task, round {round_number}: I chose Option {own}, "
-                    f"the other person chose Option {other}. "
-                    f"I got {int(float(o.get('payoff') or 0))} points.")))
+                own_points = int(float(o.get('payoff') or 0))
+                if labels is None:
+                    other_points = int(float(partner.get('payoff') or 0)) if partner else '?'
+                    content = (f"Decision task, round {round_number}: I got {own_points} points, "
+                               f"the other person got {other_points} points.")
+                else:
+                    other = labels.show(partner['choice'] if partner else '?')
+                    content = (f"Decision task, round {round_number}: I chose Option {labels.show(o['choice'])}, "
+                               f"the other person chose Option {other}. I got {own_points} points.")
+                posts.append(dict(agent_id=agent_id, content=content))
             return posts
         # summary
         seen, both_a, both_b, mixed = set(), 0, 0, 0
@@ -470,12 +502,17 @@ class ExperimentBridge:
                 both_b += 1
             else:
                 mixed += 1
-        rate = sum(o['choice'] == 'A' for o in by_agent.values()) / len(by_agent)
         announcer = settings.announcer_agent_id if settings.announcer_agent_id >= 0 else min(agents)
-        c = display_label('A', settings.swap_labels)
-        d = display_label('B', settings.swap_labels)
-        # list the counts in the A, B order of the labels agents see
-        counts = sorted([(c, both_a), (d, both_b)])
+        m = settings.payoffs
+        if labels is None:
+            return [dict(agent_id=announcer, content=(
+                f"Decision task, round {round_number} results: {both_a} pairs both got {m['R']} points, "
+                f"{both_b} pairs both got {m['P']} points, and in {mixed} pairs one person got "
+                f"{m['T']} and the other {m['S']}."))]
+        rate = sum(o['choice'] == 'A' for o in by_agent.values()) / len(by_agent)
+        c, d = labels.show('A'), labels.show('B')
+        # list the counts in the order options are shown to agents
+        counts = sorted([(c, both_a), (d, both_b)], key=lambda x: labels.order.index(x[0]))
         return [dict(agent_id=announcer, content=(
             f"Decision task, round {round_number} results: "
             f"{counts[0][1]} pairs both chose Option {counts[0][0]}, "
@@ -498,7 +535,8 @@ class ExperimentBridge:
             opening = [dict(agent_id=poster, content=settings.opening_post)]
         posts = opening
         if round_number > 0:
-            posts = posts + self.result_posts(settings, state.agents, round_number, outcomes)
+            shared = None if settings.label_unit == 'agent' else self._labels(session_code, settings)
+            posts = posts + self.result_posts(settings, state.agents, round_number, outcomes, shared)
 
         record: Dict[str, Any] = {'event': 'debate_phase', 'after_round': round_number,
                                   'posts': len(posts), 'debate_rounds': settings.debate_rounds}
@@ -561,13 +599,15 @@ class ExperimentBridge:
         state = self._session(session_code)
         settings = BridgeSettings(**asdict(state.settings))
         model = os.environ.get('LLM_MODEL_NAME', 'llm')
-        prompt, expected = render_comprehension_prompt(
-            settings.payoffs, swap_labels=settings.swap_labels,
-            no_think=wants_no_think(settings.no_think, model))
+        labels = {a: self._labels(session_code, settings, a) for a in state.agents}
+        no_think = wants_no_think(settings.no_think, model)
+        prompts = {a: render_comprehension_prompt(settings.payoffs, labels[a], no_think=no_think)
+                   for a in state.agents}
+        expected = next(iter(prompts.values()))[1]  # same cells for every mapping
         client = SimulationIPCClient(self._simulation_dir(settings))
         t0 = time.time()
         response = client.send_game_interview(
-            [dict(agent_id=a, prompt=prompt) for a in sorted(state.agents)],
+            [dict(agent_id=a, prompt=prompts[a][0]) for a in sorted(state.agents)],
             platform=settings.platform, timeout=GAME_INTERVIEW_TIMEOUT_SEC)
         if response.status != CommandStatus.COMPLETED:
             raise RuntimeError(f"comprehension check failed: {response.error}")
@@ -580,7 +620,8 @@ class ExperimentBridge:
             self._append(session_code, 'comprehension.jsonl', {
                 'agent_id': answer.get('agent_id'), 'answer': got, 'expected': expected,
                 'correct': correct, 'parse_error': error or answer.get('error'),
-                'swap_labels': settings.swap_labels, 'response': answer.get('response'),
+                'labels': labels[answer.get('agent_id')].to_dict() if answer.get('agent_id') in labels else None,
+                'response': answer.get('response'),
             })
         summary = {'event': 'comprehension_check', 'n': len(answers), 'correct': n_correct,
                    'expected': expected, 'elapsed_sec': round(time.time() - t0, 1)}

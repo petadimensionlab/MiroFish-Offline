@@ -82,6 +82,7 @@ def summarize(otree_csv, sim_dir, session=None):
                          if answers else None),
     )
     mismatches = sum(len(e.get("mismatches", [])) for e in bridge_log if e.get("event") == "round_complete")
+    configure = next((e for e in bridge_log if e.get("event") == "configure"), {})
     debate = [e for e in bridge_log if e.get("event") == "debate_phase"]
     failures = [e for e in bridge_log if e.get("event") in ("debate_failed", "prefetch_failed")]
 
@@ -100,7 +101,18 @@ def summarize(otree_csv, sim_dir, session=None):
         debate_seconds=round(sum(e.get("elapsed_sec", 0) for e in debate), 1),
     )
 
-    return dict(session=session, rounds=rounds, conditional_cooperation=conditional,
+    comprehension = load_jsonl(os.path.join(game_dir, "comprehension.jsonl"))
+    beliefs = load_jsonl(os.path.join(game_dir, "beliefs.jsonl"))
+    belief_means = {}
+    for phase in ("pre", "post"):
+        scores = [b["score"] for b in beliefs if b.get("phase") == phase and b.get("score") is not None]
+        belief_means[phase] = round(sum(scores) / len(scores), 3) if scores else None
+
+    return dict(session=session, labels=configure.get("labels"),
+                model=configure.get("settings", {}).get("policy"),
+                comprehension_correct=(f"{sum(1 for c in comprehension if c.get('correct'))}/{len(comprehension)}"
+                                       if comprehension else None),
+                beliefs=belief_means, rounds=rounds, conditional_cooperation=conditional,
                 decision_sources=dict(sources), llm=llm, mismatches=mismatches,
                 failures=failures, discourse=discourse)
 
@@ -116,7 +128,7 @@ def main():
     if args.json:
         print(json.dumps(s, ensure_ascii=False, indent=2))
         return
-    print(f"session {s['session']}")
+    print(f"session {s['session']}  labels {s['labels']}  comprehension {s['comprehension_correct']}  beliefs {s['beliefs']}")
     print("round  n  coop  AA  BB  AB  missing  mean_payoff")
     for r in s["rounds"]:
         print(f"{r['round']:>5} {r['n']:>2} {r['cooperation_rate']:>5.2f} {r['mutual_cooperation']:>3} "

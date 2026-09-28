@@ -1,10 +1,18 @@
 """
 Prompt rendering and response parsing for LLM game decisions.
+
+Internally choices are always A = cooperate, B = defect (the oTree data use
+these). What agents see is decided by a Labels mapping, because qwen3:4b
+picked the letter A as "the cooperative one" even when A was the defect
+option in the payoff table it had just read correctly (NOTES.md #39, #40).
 """
 
+import hashlib
 import json
 import os
+import random
 import re
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
@@ -23,31 +31,80 @@ _env = Environment(
     auto_reload=False,
 )
 
-
-def display_label(internal: str, swap_labels: bool) -> str:
-    """Internal choices are A = cooperate, B = defect. With swap_labels the
-    agent sees them the other way round, to control for label / position
-    bias (plan.md §5). The mapping is its own inverse."""
-    if not swap_labels:
-        return internal
-    return {'A': 'B', 'B': 'A'}.get(internal, internal)
+INTERNAL = ('A', 'B')  # A = cooperate, B = defect
+# Outline shapes: no alphabetical order, no positive / negative valence
+SYMBOL_POOL = ('△', '□', '○', '◇')
+LABEL_SCHEMES = ('letters', 'symbols')
 
 
-def _payoff_rows(payoffs: Dict[str, int], swap_labels: bool) -> List[Dict[str, Any]]:
-    c, d = display_label('A', swap_labels), display_label('B', swap_labels)
-    rows = [
-        (c, c, payoffs['R'], payoffs['R']),
-        (c, d, payoffs['S'], payoffs['T']),
-        (d, c, payoffs['T'], payoffs['S']),
-        (d, d, payoffs['P'], payoffs['P']),
-    ]
-    rows.sort(key=lambda r: (r[0], r[1]))  # always list A before B
-    out = []
-    for own, other, own_pts, other_pts in rows:
-        text = (f"Both choose {own}" if own == other
-                else f"You choose {own}, the other chooses {other}")
-        out.append(dict(text=text, own=own_pts, other=other_pts))
-    return out
+@dataclass(frozen=True)
+class Labels:
+    """How the two internal choices are shown to agents.
+
+    shown: internal choice -> label the agent sees
+    order: the two shown labels in the order options are listed
+    """
+    shown: Dict[str, str]
+    order: Tuple[str, str]
+
+    def show(self, internal: str) -> str:
+        return self.shown.get(internal, internal)
+
+    def internal(self, shown: str) -> Optional[str]:
+        for k, v in self.shown.items():
+            if v == shown:
+                return k
+        return None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {'cooperate': self.shown['A'], 'defect': self.shown['B'], 'order': list(self.order)}
+
+
+def make_labels(session_code: str, scheme: str = 'letters', randomize: bool = False,
+                swap: bool = False, seed: int = 0) -> Labels:
+    """
+    Args:
+        scheme: "letters" (A / B) or "symbols" (two shapes from SYMBOL_POOL)
+        randomize: pick the mapping and listing order per session, seeded by
+            session_code, so label effects cancel out across sessions
+        swap: letters only, without randomize: show A/B swapped (fixed)
+    """
+    if scheme not in LABEL_SCHEMES:
+        raise ValueError(f"unknown label scheme: {scheme} (expected one of {LABEL_SCHEMES})")
+    digest = hashlib.sha256(f"labels:{seed}:{session_code}".encode()).hexdigest()
+    rng = random.Random(int(digest[:16], 16))
+    pair = list(rng.sample(SYMBOL_POOL, 2)) if scheme == 'symbols' else ['A', 'B']
+    if randomize:
+        rng.shuffle(pair)
+        shown = {'A': pair[0], 'B': pair[1]}
+        order = tuple(rng.sample(pair, 2))
+    else:
+        if swap and scheme == 'letters':
+            pair = ['B', 'A']
+        shown = {'A': pair[0], 'B': pair[1]}
+        order = tuple(sorted(pair)) if scheme == 'letters' else (pair[0], pair[1])
+    return Labels(shown=shown, order=order)
+
+
+def _points(payoffs: Dict[str, int], own: str, other: str) -> int:
+    if own == 'A':
+        return payoffs['R'] if other == 'A' else payoffs['S']
+    return payoffs['T'] if other == 'A' else payoffs['P']
+
+
+def _option_blocks(payoffs: Dict[str, int], labels: Labels) -> List[Dict[str, Any]]:
+    """Payoffs restated per option: for each option the agent could pick, what
+    each of the other's choices would give both players."""
+    blocks = []
+    for own_shown in labels.order:
+        own = labels.internal(own_shown)
+        cases = []
+        for other_shown in labels.order:
+            other = labels.internal(other_shown)
+            cases.append(dict(other=other_shown, own_points=_points(payoffs, own, other),
+                              other_points=_points(payoffs, other, own)))
+        blocks.append(dict(label=own_shown, cases=cases))
+    return blocks
 
 
 def render_decision_prompt(
@@ -55,23 +112,24 @@ def render_decision_prompt(
     num_rounds: int,
     payoffs: Dict[str, int],
     history: List[Dict[str, Any]],
+    labels: Labels,
     include_feed: bool = True,
     strict: bool = False,
     no_think: bool = False,
-    swap_labels: bool = False,
 ) -> str:
     """
     Args:
+        history: internal choices; shown through `labels`
         no_think: append qwen3's soft switch to skip thinking mode. In thinking
             mode qwen3:4b spends 1000+ tokens per answer (NOTES.md #27).
     """
     shown_history = [
-        {**h, 'own': display_label(h['own'], swap_labels),
-         'partner': display_label(h['partner'], swap_labels)}
+        {**h, 'own': labels.show(h['own']), 'partner': labels.show(h['partner'])}
         for h in history
     ]
     return _env.get_template('game_decision.j2').render(
-        rows=_payoff_rows(payoffs, swap_labels),
+        options=labels.order,
+        blocks=_option_blocks(payoffs, labels),
         round_number=round_number,
         num_rounds=num_rounds,
         history=shown_history,
@@ -84,22 +142,35 @@ def render_decision_prompt(
 
 _THINK_RE = re.compile(r'<think>.*?</think>', re.DOTALL | re.IGNORECASE)
 _FENCE_RE = re.compile(r'```(?:json)?', re.IGNORECASE)
-_CHOICE_RE = re.compile(r'"choice"\s*:\s*"?\s*(?:option\s*)?([AB])\b', re.IGNORECASE)
 
 
-def parse_decision(text: Optional[str]) -> Tuple[Optional[str], str, Optional[str]]:
-    """Parse an agent's answer.
-
-    Returns:
-        (choice "A"/"B" or None, reason, error). error is None on success.
-    """
-    if not text:
-        return None, '', 'empty response'
+def _clean(text: str) -> str:
     cleaned = _THINK_RE.sub('', text)
     # An unterminated <think> block (truncated output) leaves nothing usable
     if '<think>' in cleaned.lower():
-        cleaned = cleaned.lower().split('</think>')[-1]
-    cleaned = _FENCE_RE.sub('', cleaned).strip()
+        cleaned = cleaned.split('</think>')[-1]
+    return _FENCE_RE.sub('', cleaned).strip()
+
+
+def _normalize_choice(value: Any, labels: Labels) -> Optional[str]:
+    """Shown label -> internal choice, tolerating 'Option X' and case."""
+    raw = str(value or '').strip().strip('"\'')
+    raw = re.sub(r'^option\s*', '', raw, flags=re.IGNORECASE).strip()
+    for shown in labels.order:
+        if raw == shown or raw.upper() == shown.upper():
+            return labels.internal(shown)
+    return None
+
+
+def parse_decision(text: Optional[str], labels: Labels) -> Tuple[Optional[str], str, Optional[str]]:
+    """Parse an agent's answer.
+
+    Returns:
+        (internal choice "A"/"B" or None, reason, error). error is None on success.
+    """
+    if not text:
+        return None, '', 'empty response'
+    cleaned = _clean(text)
 
     for match in re.finditer(r'\{.*?\}', cleaned, re.DOTALL):
         try:
@@ -108,14 +179,18 @@ def parse_decision(text: Optional[str]) -> Tuple[Optional[str], str, Optional[st
             continue
         if not isinstance(obj, dict):
             continue
-        choice = str(obj.get('choice', '')).strip().upper().replace('OPTION', '').strip()
-        if choice in ('A', 'B'):
+        choice = _normalize_choice(obj.get('choice'), labels)
+        if choice is not None:
             return choice, str(obj.get('reason', '')).strip(), None
 
     # Broken JSON but a readable "choice" field
-    match = _CHOICE_RE.search(cleaned)
+    alternatives = '|'.join(re.escape(s) for s in labels.order)
+    match = re.search(r'"choice"\s*:\s*"?\s*(?:option\s*)?(' + alternatives + r')',
+                      cleaned, re.IGNORECASE)
     if match:
-        return match.group(1).upper(), '', None
+        choice = _normalize_choice(match.group(1), labels)
+        if choice is not None:
+            return choice, '', None
     return None, '', f'unparseable response: {cleaned[:200]!r}'
 
 
@@ -151,7 +226,7 @@ def parse_likert(text: Optional[str]) -> Tuple[Optional[int], str, Optional[str]
     """Returns (score 1-7 or None, reason, error)."""
     if not text:
         return None, '', 'empty response'
-    cleaned = _FENCE_RE.sub('', _THINK_RE.sub('', text)).strip()
+    cleaned = _clean(text)
     for match in re.finditer(r'\{.*?\}', cleaned, re.DOTALL):
         try:
             obj = json.loads(match.group(0))
@@ -174,13 +249,7 @@ def parse_likert(text: Optional[str]) -> Tuple[Optional[int], str, Optional[str]
 COMPREHENSION_CELLS = (('B', 'A'), ('B', 'B'))
 
 
-def _points(payoffs: Dict[str, int], own: str, other: str) -> int:
-    if own == 'A':
-        return payoffs['R'] if other == 'A' else payoffs['S']
-    return payoffs['T'] if other == 'A' else payoffs['P']
-
-
-def render_comprehension_prompt(payoffs: Dict[str, int], swap_labels: bool = False,
+def render_comprehension_prompt(payoffs: Dict[str, int], labels: Labels,
                                 no_think: bool = False) -> Tuple[str, Dict[str, int]]:
     """Payoff-table comprehension check (NOTES.md #39).
 
@@ -188,9 +257,10 @@ def render_comprehension_prompt(payoffs: Dict[str, int], swap_labels: bool = Fal
     """
     (o1, t1), (o2, t2) = COMPREHENSION_CELLS
     prompt = _env.get_template('comprehension_check.j2').render(
-        rows=_payoff_rows(payoffs, swap_labels),
-        q1=dict(own=display_label(o1, swap_labels), other=display_label(t1, swap_labels)),
-        q2=dict(own=display_label(o2, swap_labels), other=display_label(t2, swap_labels)),
+        options=labels.order,
+        blocks=_option_blocks(payoffs, labels),
+        q1=dict(own=labels.show(o1), other=labels.show(t1)),
+        q2=dict(own=labels.show(o2), other=labels.show(t2)),
         no_think=no_think,
     )
     return prompt, {'q1': _points(payoffs, o1, t1), 'q2': _points(payoffs, o2, t2)}
@@ -199,7 +269,7 @@ def render_comprehension_prompt(payoffs: Dict[str, int], swap_labels: bool = Fal
 def parse_comprehension(text: Optional[str]) -> Tuple[Optional[Dict[str, int]], Optional[str]]:
     if not text:
         return None, 'empty response'
-    cleaned = _FENCE_RE.sub('', _THINK_RE.sub('', text)).strip()
+    cleaned = _clean(text)
     for match in re.finditer(r'\{.*?\}', cleaned, re.DOTALL):
         try:
             obj = json.loads(match.group(0))

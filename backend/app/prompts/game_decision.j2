@@ -1,14 +1,12 @@
 Based on your persona, all your past memories and the posts below, reply directly to me with text without calling any tools.
 
-You are taking part in a decision task with one other person. It is always the same person, every round. In each round you both choose Option A or Option B at the same time, without seeing the other's choice.
+You are taking part in a decision task with one other person. It is always the same person, every round. In each round you both choose {{ options[0] }} or {{ options[1] }} at the same time, without seeing the other's choice.
 
-Points per round:
-{% if rows is defined %}{% for r in rows %}- {{ r.text }}: you get {{ r.own }}, the other gets {{ r.other }}
-{% endfor %}{% else %}- Both choose A: you get {{ m.R }}, the other gets {{ m.R }}
-- You choose A, the other chooses B: you get {{ m.S }}, the other gets {{ m.T }}
-- You choose B, the other chooses A: you get {{ m.T }}, the other gets {{ m.S }}
-- Both choose B: you get {{ m.P }}, the other gets {{ m.P }}
-{% endif %}
+Points per round, for each option you can choose:
+{% for b in blocks %}
+If you choose {{ b.label }}:
+{% for c in b.cases %}- and the other chooses {{ c.other }}: you get {{ c.own_points }} points, the other gets {{ c.other_points }} points
+{% endfor %}{% endfor %}
 This is round {{ round_number }} of {{ num_rounds }}.
 {% if history %}
 What happened so far:
@@ -23,6 +21,6 @@ These are the social media posts you currently see:
 {% if strict %}
 Your previous answer could not be read. Answer with the JSON object only, no other text.
 {% endif %}
-Reply with only a JSON object: {"choice": "A" or "B", "reason": "one sentence explaining your choice"}
+Reply with only a JSON object: {"choice": "{{ options[0] }}" or "{{ options[1] }}", "reason": "one sentence explaining your choice"}
 {% if no_think %}/no_think
 {% endif %}
