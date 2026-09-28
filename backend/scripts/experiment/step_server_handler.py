@@ -304,7 +304,8 @@ class ExperimentIPCHandler(rps.ParallelIPCHandler):
         for item in args.get("interviews", []):
             agent_id = int(item.get("agent_id"))
             prompt = item.get("prompt", "")
-            answer: Dict[str, Any] = {"agent_id": agent_id, "response": None, "feed_posts": 0, "error": None}
+            answer: Dict[str, Any] = {"agent_id": agent_id, "response": None, "feed_posts": 0,
+                                      "feed": None, "error": None}
             answers[agent_id] = answer
             try:
                 agent = sim.agent_graph.get_agent(agent_id)
@@ -313,6 +314,11 @@ class ExperimentIPCHandler(rps.ParallelIPCHandler):
                     if posts.get("success") and posts.get("posts"):
                         feed = json.dumps(posts["posts"], indent=2, ensure_ascii=False)
                         answer["feed_posts"] = len(posts["posts"])
+                        # what the agent actually saw, for analysis (NOTES.md #37)
+                        answer["feed"] = [
+                            {k: p.get(k) for k in ("post_id", "user_id", "content", "num_likes")}
+                            for p in posts["posts"]
+                        ]
                     else:
                         feed = "(no posts)"
                     prompt = prompt.replace(FEED_PLACEHOLDER, feed)

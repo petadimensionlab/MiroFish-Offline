@@ -154,6 +154,7 @@ class GameInterviewAnswer(TypedDict, total=False):
     agent_id: int
     response: Optional[str]
     feed_posts: int                 # number of posts embedded in the prompt
+    feed: Optional[List[Dict[str, Any]]]  # those posts: post_id, user_id, content, num_likes
     error: Optional[str]
 
 

@@ -404,7 +404,8 @@ class ExperimentBridge:
                 self._log_prompt(state.session_code, {
                     'round_number': round_number, 'agent_id': agent_id, 'strict': strict,
                     'prompt': prompts[agent_id],  # feed is substituted by the step-server
-                    'feed_posts': answer.get('feed_posts'), 'response': answer.get('response'),
+                    'feed_posts': answer.get('feed_posts'), 'feed': answer.get('feed'),
+                    'response': answer.get('response'),
                     'parse_error': error,
                 })
                 if error is None:
@@ -538,6 +539,7 @@ class ExperimentBridge:
             self._append(session_code, 'beliefs.jsonl', {
                 'phase': phase, 'agent_id': answer.get('agent_id'), 'score': score,
                 'reason': reason, 'parse_error': error, 'feed_posts': answer.get('feed_posts'),
+                'feed': answer.get('feed'),
                 'statement': settings.belief_statement, 'response': answer.get('response'),
             })
         valid = [x for x in scores if x is not None]
