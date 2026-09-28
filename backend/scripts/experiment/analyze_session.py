@@ -15,7 +15,13 @@ import argparse
 import csv
 import json
 import os
+import re
 from collections import Counter, defaultdict
+
+
+# crude topic detector; check samples by hand before relying on it
+GAME_TERMS = re.compile(r"\btrust|look out for (your|my)self|same person|decision task|\bpoints\b"
+                        r"|the other person|cooperat|betray|selfish", re.I)
 
 
 def load_jsonl(path):
@@ -92,8 +98,19 @@ def summarize(otree_csv, sim_dir, session=None):
     real = [a for a in actions if "action_type" in a and a.get("round", 0) > 0
             and not a.get("action_args", {}).get("injected")]
     injected = [a for a in actions if "action_type" in a and a.get("action_args", {}).get("injected")]
+    def text(a):
+        args = a.get("action_args", {})
+        return " ".join(filter(None, [args.get("content"), args.get("quote_content")]))
+
+    # posts the bridge wrote: result posts and the opening/topic post
+    seeded = {a["action_args"].get("content") for a in injected}
+    engaged = [a for a in real if a.get("action_args", {}).get("original_content") in seeded]
+    on_topic = [a for a in real if GAME_TERMS.search(text(a))]
     discourse = dict(
         spontaneous_actions=len(real),
+        with_text=sum(1 for a in real if text(a).strip()),
+        engaging_seeded_posts=len(engaged),
+        mentioning_game_terms=len(on_topic),
         by_game_agents=sum(1 for a in real if a.get("agent_id") in game_agents),
         action_types=dict(Counter(a["action_type"] for a in real)),
         injected_posts=len(injected),
