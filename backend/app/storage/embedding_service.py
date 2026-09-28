@@ -1,14 +1,15 @@
 """
-EmbeddingService — local embedding via Ollama API
+EmbeddingService — local embedding via Ollama or any OpenAI-compatible server
 
-Replaces Zep Cloud's built-in embedding with local nomic-embed-text model.
-Uses Ollama's /api/embed endpoint for vector generation (768 dimensions).
+Default: Ollama's native /api/embed endpoint with nomic-embed-text (768 dims).
+Optional: OpenAI-compatible /v1/embeddings (vLLM, llama.cpp, etc.) via
+EMBEDDING_API_STYLE.
 """
 
 import time
 import logging
 from typing import List, Optional
-from functools import lru_cache
+from urllib.parse import urlsplit
 
 import requests
 
@@ -16,9 +17,12 @@ from ..config import Config
 
 logger = logging.getLogger('mirofish.embedding')
 
+# Must match the Neo4j vector index dimensions in storage/neo4j_schema.py.
+VECTOR_DIMENSION = 768
+
 
 class EmbeddingService:
-    """Generate embeddings using local Ollama server."""
+    """Generate embeddings using a local Ollama server or OpenAI-compatible endpoint."""
 
     def __init__(
         self,
@@ -26,17 +30,61 @@ class EmbeddingService:
         base_url: Optional[str] = None,
         max_retries: int = 3,
         timeout: int = 30,
+        api_style: Optional[str] = None,
+        api_key: Optional[str] = None,
     ):
         self.model = model or Config.EMBEDDING_MODEL
         self.base_url = (base_url or Config.EMBEDDING_BASE_URL).rstrip('/')
         self.max_retries = max_retries
         self.timeout = timeout
-        self._embed_url = f"{self.base_url}/api/embed"
+        self.api_style = self._resolve_api_style(
+            api_style or Config.EMBEDDING_API_STYLE, self.base_url
+        )
+        self.api_key = api_key or Config.EMBEDDING_API_KEY
+        self._embed_url = self._build_embed_url()
 
         # Simple in-memory cache (text -> embedding vector)
         # Using dict instead of lru_cache because lists aren't hashable
         self._cache: dict[str, List[float]] = {}
         self._cache_max_size = 2000
+
+    @staticmethod
+    def _resolve_api_style(style: str, base_url: str) -> str:
+        """Resolve 'auto' to Ollama for port 11434, otherwise the OpenAI-compatible style."""
+        style = (style or 'auto').lower()
+        if style in ('ollama', 'openai'):
+            return style
+        if urlsplit(base_url).path.rstrip('/').endswith('/v1'):
+            return 'openai'
+        try:
+            if urlsplit(base_url).port == 11434:
+                return 'ollama'
+        except ValueError:
+            pass
+        return 'ollama' if '11434' in base_url else 'openai'
+
+    def _build_embed_url(self) -> str:
+        if self.api_style == 'ollama':
+            return f"{self.base_url}/api/embed"
+        if self.base_url.endswith('/v1'):
+            return f"{self.base_url}/embeddings"
+        return f"{self.base_url}/v1/embeddings"
+
+    def _extract_embeddings(self, data: dict) -> List[List[float]]:
+        """Normalize Ollama (/api/embed) and OpenAI (/v1/embeddings) responses."""
+        if self.api_style == 'openai':
+            items = sorted(data.get("data", []), key=lambda item: item.get("index") or 0)
+            embeddings = [item["embedding"] for item in items]
+        else:
+            embeddings = data.get("embeddings", [])
+        for vector in embeddings:
+            if len(vector) != VECTOR_DIMENSION:
+                raise EmbeddingError(
+                    f"Embedding dimension {len(vector)} does not match the Neo4j vector "
+                    f"index ({VECTOR_DIMENSION}). Use a {VECTOR_DIMENSION}-dim embedding "
+                    f"model (e.g. nomic-embed-text); changing it requires rebuilding the graph."
+                )
+        return embeddings
 
     def embed(self, text: str) -> List[float]:
         """
@@ -98,7 +146,7 @@ class EmbeddingService:
                 uncached_texts.append(text)
             else:
                 # Empty text — zero vector
-                results[i] = [0.0] * 768
+                results[i] = [0.0] * VECTOR_DIMENSION
 
         # Batch-embed uncached texts
         if uncached_texts:
@@ -117,18 +165,18 @@ class EmbeddingService:
 
     def _request_embeddings(self, texts: List[str]) -> List[List[float]]:
         """
-        Make HTTP request to Ollama /api/embed endpoint with retry.
+        Make an embeddings HTTP request with retry.
 
-        Args:
-            texts: List of texts to embed (Ollama supports batch in single request)
-
-        Returns:
-            List of embedding vectors
+        Targets Ollama /api/embed or OpenAI-compatible /v1/embeddings
+        depending on the resolved api_style.
         """
         payload = {
             "model": self.model,
             "input": texts,
         }
+        headers = {"Content-Type": "application/json"}
+        if self.api_style == 'openai' and self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
 
         last_error = None
         for attempt in range(self.max_retries):
@@ -136,12 +184,13 @@ class EmbeddingService:
                 response = requests.post(
                     self._embed_url,
                     json=payload,
+                    headers=headers,
                     timeout=self.timeout,
                 )
                 response.raise_for_status()
                 data = response.json()
 
-                embeddings = data.get("embeddings", [])
+                embeddings = self._extract_embeddings(data)
                 if len(embeddings) != len(texts):
                     raise EmbeddingError(
                         f"Expected {len(texts)} embeddings, got {len(embeddings)}"
@@ -162,8 +211,8 @@ class EmbeddingService:
             except requests.exceptions.HTTPError as e:
                 last_error = e
                 logger.error(f"Ollama HTTP error: {e.response.status_code} - {e.response.text}")
-                if e.response.status_code >= 500:
-                    # Server error — retry
+                if e.response.status_code >= 500 or e.response.status_code in (408, 429):
+                    # Server error or rate limit — retry
                     pass
                 else:
                     # Client error (4xx) — don't retry

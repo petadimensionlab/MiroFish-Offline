@@ -1031,9 +1031,16 @@ def create_model(config: Dict[str, Any], use_boost: bool = False):
     
     print(f"{config_label} model={llm_model}, base_url={llm_base_url[:40] if llm_base_url else 'default'}...")
     
+    # Disable reasoning/"thinking" when configured (see LLM_REASONING_EFFORT):
+    # reasoning models such as qwen3.5 otherwise return empty `content`.
+    _model_config = {}
+    if os.environ.get("LLM_REASONING_EFFORT"):
+        _model_config["reasoning_effort"] = os.environ["LLM_REASONING_EFFORT"]
+    
     return ModelFactory.create(
         model_platform=ModelPlatformType.OPENAI,
         model_type=llm_model,
+        model_config_dict=_model_config,
     )
 
 
@@ -1200,7 +1207,7 @@ async def setup_platform_env(
         agent_graph=result.agent_graph,
         platform=platform_type,
         database_path=db_path,
-        semaphore=30,  # Limit maximum concurrent LLM requests to prevent API overload
+        semaphore=int(os.environ.get("OASIS_SEMAPHORE", "30")),  # concurrent LLM requests (lower for serialized backends)
     )
 
     await result.env.reset()
