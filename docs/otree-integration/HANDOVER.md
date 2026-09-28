@@ -9,6 +9,7 @@ oTree（行動実験フレームワーク）の経済ゲームを、MiroFish-Off
 **言説 → 行動 → 言説**の双方向フィードバックを作るのが狙い。
 
 設計の全体像は [plan.md](plan.md)、タスク表は [tasks.md](tasks.md)。
+**実装と結果のまとめは [REPORT.md](REPORT.md)（[HTML 版](report.html)）、技術仕様は [README.md](README.md) ／ [README.ja.md](README.ja.md)。**
 **作業中に気づいた異常・懸念は [NOTES.md](NOTES.md) に番号付きで記録している。着手前に必ず一読。**
 
 ## 現在地
