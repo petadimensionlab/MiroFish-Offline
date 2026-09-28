@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>oTree × MiroFish 統合レポート</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface-1: #fcfcfb;
+  --surface-2: #f3f2ee;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11,11,11,0.10);
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --accent: #2a78d6;
+  --critical: #d03b3b;
+  --good-text: #006300;
+  --warn-bg: #fff4dc;
+  --warn-ink: #6b4a00;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface-1: #1a1a19;
+    --surface-2: #232321;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255,255,255,0.10);
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --accent: #3987e5;
+    --good-text: #0ca30c;
+    --warn-bg: #3a2e12;
+    --warn-ink: #f3d48a;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d;
+  --surface-1: #1a1a19;
+  --surface-2: #232321;
+  --text-primary: #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted: #898781;
+  --grid: #2c2c2a;
+  --axis: #383835;
+  --border: rgba(255,255,255,0.10);
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --accent: #3987e5;
+  --good-text: #0ca30c;
+  --warn-bg: #3a2e12;
+  --warn-ink: #f3d48a;
+}
+* { box-sizing: border-box; }
+html, body { overflow-x: hidden; }
+body {
+  margin: 0; background: var(--page); color: var(--text-primary);
+  font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  line-height: 1.75; font-size: 16px;
+}
+.wrap { max-width: 1040px; margin: 0 auto; padding: 32px 16px 80px; }
+header.hero { padding: 24px 0 8px; }
+.eyebrow { color: var(--text-muted); font-size: 13px; letter-spacing: .04em; }
+h1 { font-size: 30px; line-height: 1.3; margin: 6px 0 12px; }
+h2 { font-size: 22px; margin: 48px 0 12px; padding-top: 8px; border-top: 1px solid var(--border); }
+h3 { font-size: 17px; margin: 28px 0 8px; }
+p, li { color: var(--text-primary); }
+.sub { color: var(--text-secondary); }
+a { color: var(--accent); }
+nav.toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 8px; }
+nav.toc a { font-size: 13px; text-decoration: none; padding: 4px 10px; border-radius: 999px;
+  background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--border); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr)); gap: 12px; margin: 20px 0; }
+.tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+.tile .k { font-size: 13px; color: var(--text-secondary); }
+.tile .v { font-size: 26px; font-weight: 650; margin-top: 2px; }
+.tile .n { font-size: 12px; color: var(--text-muted); }
+.card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; margin: 14px 0; }
+.callout { background: var(--warn-bg); color: var(--warn-ink); border-radius: 12px; padding: 14px 18px; margin: 16px 0; }
+.callout strong { color: inherit; }
+.findings { counter-reset: f; list-style: none; padding: 0; }
+.findings li { counter-increment: f; position: relative; padding: 12px 16px 12px 52px; margin: 10px 0;
+  background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; }
+.findings li::before { content: counter(f); position: absolute; left: 16px; top: 12px; width: 24px; height: 24px;
+  border-radius: 50%; background: var(--surface-2); color: var(--text-secondary); font-size: 13px; font-weight: 650;
+  display: grid; place-items: center; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { color: var(--text-secondary); font-weight: 600; background: var(--surface-2); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.table-scroll { overflow-x: auto; }
+code { overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; background: var(--surface-2);
+  padding: 1px 5px; border-radius: 4px; }
+pre { background: var(--surface-2); padding: 12px 14px; border-radius: 10px; overflow-x: auto; font-size: 13px; line-height: 1.5; }
+.flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr)); gap: 10px; margin: 14px 0; }
+.flow .step { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+.flow .step b { display: block; font-size: 14px; }
+.flow .step span { font-size: 13px; color: var(--text-secondary); }
+.pill { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--surface-2);
+  color: var(--text-secondary); border: 1px solid var(--border); white-space: nowrap; }
+.pill.done::before { content: "✓ "; color: var(--good-text); font-weight: 700; }
+.pill.wip::before { content: "… "; }
+/* charts */
+.chart-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.chart-head h3 { margin: 0; }
+.toggle { font-size: 13px; background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--border);
+  border-radius: 8px; padding: 4px 10px; cursor: pointer; }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--text-secondary); margin: 8px 0 0; }
+.legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+.legend i.bar { height: 10px; width: 10px; border-radius: 3px; }
+.multiples { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(290px, 100%), 1fr)); gap: 12px; margin-top: 12px; }
+.panel { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px 6px; }
+.panel .t { font-size: 13px; font-weight: 600; }
+.panel .d { font-size: 12px; color: var(--text-muted); min-height: 2.6em; }
+svg text { fill: var(--text-muted); font-size: 11px; font-family: inherit; }
+svg .grid { stroke: var(--grid); stroke-width: 1; }
+svg .axis { stroke: var(--axis); stroke-width: 1; }
+svg .line1 { fill: none; stroke: var(--series-1); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+svg .line2 { fill: none; stroke: var(--series-2); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+svg .dot1 { fill: var(--series-1); stroke: var(--surface-1); stroke-width: 2; }
+svg .dot2 { fill: var(--series-2); stroke: var(--surface-1); stroke-width: 2; }
+svg .bar1 { fill: var(--series-1); }
+svg .bar2 { fill: var(--series-2); }
+svg .hit { fill: transparent; cursor: crosshair; }
+svg .cross { stroke: var(--axis); stroke-width: 1; stroke-dasharray: 3 3; }
+svg .lbl { fill: var(--text-secondary); font-size: 11px; }
+#tip { position: fixed; pointer-events: none; z-index: 10; background: var(--surface-1); color: var(--text-primary);
+  border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: 12px; line-height: 1.5;
+  box-shadow: 0 4px 16px rgba(0,0,0,.12); display: none; max-width: 260px; }
+#tip .sw { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; }
+.hidden { display: none; }
+footer { margin-top: 56px; font-size: 13px; color: var(--text-muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">2026-09-28 ・ ブランチ feat/otree-step-server ・ 実装・検証レポート</div>
+  <h1>oTree × MiroFish-Offline 統合</h1>
+  <p class="sub">oTree の反復囚人のジレンマを MiroFish の LLM エージェントにプレイさせ、期と期の間に模擬 SNS で議論させる。
+    言説と行動が影響し合う「閉ループ」を作る試み。技術仕様は <a href="README.ja.md">README.ja.md</a>（<a href="README.md">English</a>）、観察ログは <a href="NOTES.md">NOTES.md</a>。音声版は <a href="audio/report_ja.mp3">report_ja.mp3</a>。</p>
+  <nav class="toc">
+    <a href="#summary">概要</a><a href="#plan">計画と実装</a><a href="#arch">構成</a><a href="#impl">実装の詳細</a>
+    <a href="#results">結果</a><a href="#findings">主な発見</a><a href="#fixes">不具合と対処</a><a href="#next">次の判断</a>
+  </nav>
+</header>
+
+<section id="summary">
+  <h2>1. 概要</h2>
+  <div class="tiles">
+    <div class="tile"><div class="k">完了したフェーズ</div><div class="v">0〜4</div><div class="n">Phase 5 着手、6 未着手</div></div>
+    <div class="tile"><div class="k">LLM ラン</div><div class="v">9 回</div><div class="n">各 8体×10期、計720件の決定</div></div>
+    <div class="tile"><div class="k">解釈できなかった回答</div><div class="v">最大 1 件/ラン</div><div class="n">再質問で回復、欠測 0</div></div>
+    <div class="tile"><div class="k">記録した不具合・懸念</div><div class="v">46 件</div><div class="n">NOTES.md</div></div>
+  </div>
+  <div class="card">
+    <p><strong>閉ループは動いた。</strong> oTree → bridge → step-server → LLM → oTree の往復と、期間の「結果の書き戻し → 議論 → 次の決定」が実 LLM で最後まで通った。
+      oTree の記録と bridge の決定の食い違いは全ランで 0。</p>
+    <p style="margin-bottom:0"><strong>ただし、LLM の意思決定の妥当性に大きな問題が見つかった。</strong> qwen3:4b は選択肢の文字 A を「協力的」と連想して選び、
+      gemma4:e4b は記号の見た目で選んで、相手が協力した後ほど裏切るという人間と逆の傾向を示した。議論も、ゲームの話にはほとんどならない。</p>
+  </div>
+  <div class="callout"><strong>結論:</strong> 現時点のデータは「言説が行動を変えた」証拠としては使えない。モデル比較、ラベルの扱い、話題誘導の強さの判断が次の課題。</div>
+</section>
+
+<section id="plan">
+  <h2>2. 計画と実装の対応</h2>
+  <div class="table-scroll"><table>
+    <thead><tr><th>フェーズ</th><th>計画</th><th>実装したこと</th><th>状態</th></tr></thead>
+    <tbody>
+      <tr><td>0 検証と足場</td><td>oTree 6 と MiroFish の実機検証</td><td>前セッションで完了。計画書の誤り3か所を訂正</td><td><span class="pill done">完了</span></td></tr>
+      <tr><td>R1 リファクタ</td><td>ラウンドループの関数化</td><td><code>setup_platform_env</code> / <code>publish_initial_posts</code> / <code>step_round</code> を抽出。既存ランナーは回帰確認済み</td><td><span class="pill done">完了</span></td></tr>
+      <tr><td>1 oTree アプリ</td><td>公共財ゲーム → <b>反復囚人のジレンマ</b>に変更</td><td><code>pd_debate</code>: 2人固定ペア×10期、ラウンドバリア、CSV 列定義、固定戦略 bot</td><td><span class="pill done">完了</span></td></tr>
+      <tr><td>2 bridge（ダミー）</td><td>LLM 抜きで end-to-end</td><td>HTTP API、例外を投げないクライアント、べき等性、障害注入、タイムアウトとリトライ</td><td><span class="pill done">完了</span></td></tr>
+      <tr><td>3 LLM 意思決定</td><td>INTERVIEW で決定、構造化出力</td><td>フィードを差し込む一括面接 <code>game_interview</code>、1期ぶんの先取り、JSON 解釈と再質問</td><td><span class="pill done">完了</span></td></tr>
+      <tr><td>4 議論の交互配置</td><td>run_rounds と inject_post の接続</td><td>結果注入 → 議論 → 次期の決定を自動実行、冒頭の話題投稿</td><td><span class="pill done">完了</span></td></tr>
+      <tr><td>5 実験デザイン</td><td>処置の切り替え、測定、妥当性</td><td>議論・注入・話題・ラベルの切り替え、理解テスト、信念調査、分析、一般人ペルソナ</td><td><span class="pill wip">着手</span></td></tr>
+      <tr><td>6 UI 統合</td><td>フロントに Game ステップ</td><td>—</td><td><span class="pill">未着手</span></td></tr>
+    </tbody>
+  </table></div>
+  <h3>途中で決まったこと（ユーザー判断）</h3>
+  <div class="table-scroll"><table>
+    <tbody>
+      <tr><th>ゲーム</th><td>反復囚人のジレンマ、2人固定ペア</td></tr>
+      <tr><th>参加者</th><td>エージェントのみ</td></tr>
+      <tr><th>規模</th><td>48体（24ペア）×10期。検証は 8体で実施</td></tr>
+      <tr><th>LLM</th><td>qwen3:4b → <b>gemma4:e4b</b>（Ollama を 8並列で再起動）</td></tr>
+      <tr><th>ラベル偏りへの対処</th><td>ランダム化・意味のない記号・選択肢ごとの利得の言い直し、の3つすべて</td></tr>
+      <tr><th>ペルソナ</th><td>一般人ペルソナのシミュレーションを別途生成</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="arch">
+  <h2>3. システム構成</h2>
+  <div class="flow">
+    <div class="step"><b>oTree 6（MIT）</b><span>ゲームの正典。bot が各期に <code>/decide</code>、全ペア提出後に <code>/round_complete</code></span></div>
+    <div class="step"><b>Flask bridge（AGPL）</b><span>1期ぶんの決定を先取り。べき等、oTree の記録と突き合わせ、議論フェーズを実行</span></div>
+    <div class="step"><b>step-server（OASIS）</b><span>議論0ラウンドで起動し、IPC で1ラウンドずつ進める。面接にフィードを差し込む</span></div>
+    <div class="step"><b>Ollama</b><span>gemma4:e4b、8並列</span></div>
+  </div>
+  <h3>1期の流れ</h3>
+  <ol>
+    <li>bot が <code>/decide</code> → bridge は先取り済みの決定を返す（計算中なら待つ）</li>
+    <li>全ペアが提出 → <code>/round_complete</code> で oTree の記録を送る（これが正）</li>
+    <li>bridge が裏で「結果を各自の投稿として注入 → 議論 k ラウンド → 次期の全員の決定を先取り」</li>
+    <li>次期の計算中の印は応答前に確保するので、議論が終わる前に決定が出ることはない</li>
+  </ol>
+  <p class="sub">先取りが必要なのは、oTree の bot 実行が完全に直列だから。1体ずつ LLM を呼ぶと所要時間が人数倍になる。</p>
+</section>
+
+<section id="impl">
+  <h2>4. 実装の詳細</h2>
+  <h3>step-server の IPC コマンド</h3>
+  <div class="table-scroll"><table>
+    <thead><tr><th>コマンド</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td><code>run_rounds</code></td><td>議論を k ラウンド。参加者の限定、時刻による活性化の無視、最低活性人数の保証</td></tr>
+      <tr><td><code>inject_post</code></td><td>複数の投稿を1回の step で公開。<code>injected: true</code> 付きで記録</td></tr>
+      <tr><td><code>game_interview</code></td><td>一括面接。各自の今のフィードを差し込み、見たフィードも返す</td></tr>
+      <tr><td><code>get_state</code></td><td>ラウンド数などの状態</td></tr>
+    </tbody>
+  </table></div>
+  <h3>意思決定プロンプト</h3>
+  <p>利得は選択肢ごとに言い直す。ラベルは A/B か記号（△□○◇）で、対応と並び順をセッション単位またはエージェント単位でランダムに決める。</p>
+<pre>If you choose △:
+- and the other chooses △: you get 30 points, the other gets 30 points
+- and the other chooses □: you get 0 points, the other gets 50 points
+
+If you choose □:
+- and the other chooses △: you get 50 points, the other gets 0 points
+- and the other chooses □: you get 10 points, the other gets 10 points</pre>
+  <h3>測定</h3>
+  <ul>
+    <li><b>理解テスト</b> — 第1期の前に「△ を選び相手が □ なら何点？」など2問</li>
+    <li><b>信念調査</b> — 「同じ相手なら信頼したほうがよい」への同意（7件法）をゲームの前後に</li>
+    <li><b>分析</b> — <code>analyze_session.py</code>: 協力率、相互協力・相互裏切り、条件付き協力、LLM の解釈、議論の行動と話題への反応</li>
+  </ul>
+</section>
+
+<section id="results">
+  <h2>5. 検証とシミュレーション結果</h2>
+  <h3>Phase 1〜2（LLM なし、48体×10期）</h3>
+  <div class="tiles">
+    <div class="tile"><div class="k">固定戦略 bot</div><div class="v">理論値と一致</div><div class="n">17秒で完走、累計利得 90 / 140 / 300 / 300</div></div>
+    <div class="tile"><div class="k">bridge（ランダム方策）</div><div class="v">480 / 480</div><div class="n">20秒、欠測 0</div></div>
+    <div class="tile"><div class="k">障害注入 30%</div><div class="v">欠測 17 / 480</div><div class="n">理論値 約13、残りはリトライで成功</div></div>
+  </div>
+
+  <h3>LLM ラン一覧（各 8体×10期）</h3>
+  <div class="table-scroll"><table id="runs-table">
+    <thead><tr><th>#</th><th>セッション</th><th>モデル</th><th>集団</th><th>ラベル</th><th>期間の議論</th><th>結果注入</th><th>冒頭投稿</th><th class="num">所要</th></tr></thead>
+    <tbody></tbody>
+  </table></div>
+
+  <div class="card">
+    <div class="chart-head">
+      <h3>期ごとの協力率（ラン別）</h3>
+      <button class="toggle" data-target="coop">表で見る</button>
+    </div>
+    <p class="sub" style="margin:4px 0 0">縦軸は協力を選んだ割合（0〜1）、横軸は期。</p>
+    <div id="coop-chart" class="multiples"></div>
+    <div id="coop-table" class="table-scroll hidden"></div>
+  </div>
+
+  <div class="card">
+    <div class="chart-head">
+      <h3>文字の偏り: 同じ条件でラベルの意味だけを入れ替える</h3>
+      <button class="toggle" data-target="swap">表で見る</button>
+    </div>
+    <p class="sub" style="margin:4px 0 0">ラン5（A＝協力）とラン6（A＝裏切りとして提示）。どちらも議論あり・結果注入なし。縦軸は協力の割合。</p>
+    <div id="swap-chart"></div>
+    <div class="legend"><span><i style="background:var(--series-1)"></i>ラン5: A＝協力</span><span><i style="background:var(--series-2)"></i>ラン6: A＝裏切り（入れ替え）</span></div>
+    <div id="swap-table" class="table-scroll hidden"></div>
+  </div>
+
+  <div class="card">
+    <div class="chart-head">
+      <h3>条件付き協力: 相手の前期の選択ごとの、自分の協力率</h3>
+      <button class="toggle" data-target="cond">表で見る</button>
+    </div>
+    <p class="sub" style="margin:4px 0 0">人間の反復囚人のジレンマでは、相手が協力した後のほうが高いのが典型。ラン8・9 は逆になっている。</p>
+    <div id="cond-chart"></div>
+    <div class="legend"><span><i class="bar" style="background:var(--series-1)"></i>相手が前期に協力した後</span><span><i class="bar" style="background:var(--series-2)"></i>相手が前期に裏切った後</span></div>
+    <div id="cond-table" class="table-scroll hidden"></div>
+  </div>
+
+  <h3>信念調査（7件法、「同じ相手なら信頼したほうがよい」）</h3>
+  <div class="table-scroll"><table id="belief-table">
+    <thead><tr><th>#</th><th>条件</th><th class="num">事前</th><th class="num">事後</th><th>第10期の協力率</th></tr></thead>
+    <tbody></tbody>
+  </table></div>
+</section>
+
+<section id="findings">
+  <h2>6. 主な発見</h2>
+  <ol class="findings">
+    <li><b>協力の崩壊は「期間の議論」に伴って起きる（qwen3:4b）。</b> 議論なし（ラン1）と冒頭投稿だけ（ラン4）は協力が続き、議論を挟んだラン2・3・5 はすべて崩れた。結果注入も冒頭投稿も必要条件ではなかった。</li>
+    <li><b>その「協力」は文字 A への偏りだった。</b> 意味を入れ替えると第1期に 8体中7体が A（今度は裏切り）を選び、理由は「相互の利益のために協力的な A」。理解テストは両条件で 8/8 正解で、読めているのに決定時は連想が勝つ。第2期以降はどちらも意味の上での相互裏切りに収束した。</li>
+    <li><b>議論の中身はゲームと無関係。</b> 研究者ペルソナは研究紹介、一般人ペルソナは趣味の投稿ばかり。話題の毎期再掲で反応は 3件 → 7件に増えたが、全約80件の一部。結果投稿への反応は 0。エージェントは自分の投稿を自分のフィードで読んでいた。</li>
+    <li><b>gemma4:e4b と記号ラベルでは別の偏り。</b> 「◇ is where the magic happens」のように記号の見た目とペルソナの作風で選ぶ。協力率は 0〜0.6 と低く、相手が協力した後ほど裏切る逆向きの相互主義。ラベルをエージェント単位にすると第1期の協力率は 0.12 → 0.38。</li>
+    <li><b>信念調査は行動と一致しない（qwen3:4b）。</b> 全員が裏切り合った直後でも「信頼したほうがよい」が 7.0 に上がった。gemma4:e4b では下がり、行動と同じ向きに動いた。</li>
+  </ol>
+</section>
+
+<section id="fixes">
+  <h2>7. 見つかった不具合と対処（抜粋）</h2>
+  <div class="table-scroll"><table>
+    <thead><tr><th>#</th><th>現象</th><th>対処</th></tr></thead>
+    <tbody>
+      <tr><td class="num">6</td><td>初期投稿が最初のラウンドのログに二重記録（既存の不具合）</td><td>初期投稿後の DB 位置から数え始める</td></tr>
+      <tr><td class="num">9, 18</td><td>注入投稿や面接が「自発的な行動」として議論ログに混入</td><td>注入・面接の直後に DB を読み進める</td></tr>
+      <tr><td class="num">19</td><td>既存の面接結果の読み出しは、失敗時に前回の回答を返しうる</td><td>ゲーム用の面接では今回の分だけ読む</td></tr>
+      <tr><td class="num">20</td><td>意思決定時のフィードが空（推薦テーブルが古い）</td><td>面接前に推薦テーブルを更新</td></tr>
+      <tr><td class="num">22, 23</td><td>リローダーで bridge が再起動し、黙ってランダム方策で答え続けた</td><td><code>FLASK_DEBUG=false</code> 必須、未設定セッションは 409 で拒否</td></tr>
+      <tr><td class="num">26</td><td>止めたはずの旧 step-server が次のランのコマンドを横取り</td><td>pid ファイルで二重起動を拒否</td></tr>
+      <tr><td class="num">31</td><td>模擬時計が進むと議論が空回り</td><td>時刻による活性化を無視、最低活性人数を保証</td></tr>
+      <tr><td class="num">33</td><td>ラン中のテンプレート編集で途中からプロンプトが変わる</td><td>自動再読み込みを無効化</td></tr>
+      <tr><td class="num">39, 40</td><td>文字 A への偏り</td><td>記号ラベル、ランダム化、選択肢ごとの利得の言い直し</td></tr>
+    </tbody>
+  </table></div>
+  <h3>限界</h3>
+  <ul>
+    <li>すべて 8体・各条件1ラン。条件間の差について因果は主張できない</li>
+    <li>記号ラベルをセッション単位でランダムにすると、1セッション内では全員が同じ偏りを受ける</li>
+    <li>意思決定時のフィードは2件程度に固定されていて、議論の窓が狭い</li>
+    <li>oTree の bot 実行は直列なので、並行アクセス時の安全性は未検証</li>
+    <li><code>OLLAMA_NUM_PARALLEL=8</code> は OS の再起動で消える</li>
+  </ul>
+</section>
+
+<section id="next">
+  <h2>8. 次に判断が必要なこと</h2>
+  <ol class="findings">
+    <li><b>モデル比較</b> — gemma4:e4b の逆向きの相互主義がモデル固有かを、gemma4:12b などで確かめるか</li>
+    <li><b>話題誘導の強さ</b> — 議論ラウンド中の行動プロンプトに話題を入れるか（ゲームの話にはなるが誘導が強くなる）</li>
+    <li><b>ラベルのランダム化の単位</b> — セッション単位（現在の既定）か、エージェント単位か</li>
+    <li><b>本番規模（48体）の実行</b> — 現構成で、議論ありなら1ランあたり1〜1.5時間程度の見込み</li>
+  </ol>
+</section>
+
+<footer>MiroFish-Offline（AGPL-3.0）／ MiroFish-oTree（MIT）。データは各ランの oTree エクスポート（pd_debate_custom.csv）と bridge のログから集計。</footer>
+</div>
+<div id="tip" role="tooltip"></div>
+
+<script>
+const RUNS = [
+  {n:1, s:"okxlo3bf", model:"qwen3:4b", pop:"生態学研究者", labels:"A/B", debate:"なし", inject:"あり", opening:"なし", time:"26分",
+   coop:[1,1,1,1,1,1,1,1,0.875,0.875], cond:[0.972,1.0], bel:null},
+  {n:2, s:"2yzfogyz", model:"qwen3:4b", pop:"生態学研究者", labels:"A/B", debate:"2R（ほぼ空）", inject:"あり", opening:"あり", time:"33分",
+   coop:[1,1,0.625,0.625,0.5,0.625,0.625,0.375,0.25,0.25], cond:[0.778,0.148], bel:null},
+  {n:3, s:"kaoh1px4", model:"qwen3:4b", pop:"生態学研究者", labels:"A/B", debate:"2R", inject:"あり", opening:"あり", time:"54分",
+   coop:[1,1,0.875,0.75,0.75,0.625,0.375,0.125,0,0], cond:[0.773,0.071], bel:null},
+  {n:4, s:"vyxq2hq9", model:"qwen3:4b", pop:"生態学研究者", labels:"A/B", debate:"なし", inject:"なし", opening:"あり", time:"27分",
+   coop:[1,1,1,1,1,1,1,1,1,0.875], cond:[0.986,null], bel:[5.5,5.38]},
+  {n:5, s:"ur6otsyx", model:"qwen3:4b", pop:"生態学研究者", labels:"A/B", debate:"2R", inject:"なし", opening:"なし", time:"65分",
+   coop:[1,0.875,0.75,0.375,0.5,0.25,0.25,0.125,0,0], cond:[0.697,0.051], bel:[5.5,7.0]},
+  {n:6, s:"4zj9mo7g", model:"qwen3:4b", pop:"生態学研究者", labels:"A/B 入れ替え", debate:"2R", inject:"なし", opening:"なし", time:"66分",
+   coop:[0.125,0.25,0.5,0.125,0.125,0.125,0,0,0,0.25], cond:[0.2,0.145], bel:[5.5,6.88]},
+  {n:7, s:"dnffn1dr", model:"gemma4:e4b", pop:"一般人", labels:"記号・セッション単位", debate:"なし", inject:"なし", opening:"なし", time:"11分",
+   coop:[0.125,0.125,0.5,0.25,0,0.25,0.25,0.375,0,0.5], cond:[0.333,0.228], bel:[4.71,3.43]},
+  {n:8, s:"x00dronw", model:"gemma4:e4b", pop:"一般人", labels:"記号・セッション単位", debate:"2R", inject:"あり", opening:"あり", time:"25分",
+   coop:[0.125,0.25,0.375,0.375,0.375,0,0.125,0.375,0.125,0.125], cond:[0.059,0.291], bel:[3.67,3.25]},
+  {n:9, s:"hdbub0xm", model:"gemma4:e4b", pop:"一般人", labels:"記号・エージェント単位", debate:"2R", inject:"あり", opening:"毎期再掲", time:"24分",
+   coop:[0.375,0.125,0.625,0.25,0.375,0,0.25,0.25,0.375,0.375], cond:[0.143,0.353], bel:[3.38,2.75]},
+];
+const NS = "http://www.w3.org/2000/svg";
+const fmt = v => v == null ? "—" : v.toFixed(2);
+const tip = document.getElementById("tip");
+function el(name, attrs, parent) {
+  const e = document.createElementNS(NS, name);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function showTip(evt, html) {
+  tip.innerHTML = html; tip.style.display = "block";
+  const x = Math.min(evt.clientX + 14, window.innerWidth - tip.offsetWidth - 8);
+  const y = Math.max(evt.clientY - tip.offsetHeight - 10, 8);
+  tip.style.left = x + "px"; tip.style.top = y + "px";
+}
+function hideTip() { tip.style.display = "none"; }
+function sw(v) { return `<span class="sw" style="background:var(${v})"></span>`; }
+
+// Line chart: rounds 1..10 on x, 0..1 on y. series: [{values, cls, dotCls, name, colorVar}]
+function lineChart(parent, series, opts) {
+  const W = opts.width, H = opts.height, m = {l: 30, r: 10, t: 8, b: 22};
+  const svg = el("svg", {viewBox: `0 0 ${W} ${H}`, width: "100%", role: "img", "aria-label": opts.label}, parent);
+  const x = i => m.l + i * (W - m.l - m.r) / 9;
+  const y = v => m.t + (1 - v) * (H - m.t - m.b);
+  for (const g of [0, 0.5, 1]) {
+    el("line", {x1: m.l, x2: W - m.r, y1: y(g), y2: y(g), class: g === 0 ? "axis" : "grid"}, svg);
+    el("text", {x: m.l - 6, y: y(g) + 4, "text-anchor": "end"}, svg).textContent = g.toFixed(1);
+  }
+  for (const i of [0, 4, 9]) el("text", {x: x(i), y: H - 6, "text-anchor": "middle"}, svg).textContent = `${i + 1}期`;
+  for (const s of series) {
+    el("path", {d: s.values.map((v, i) => `${i ? "L" : "M"}${x(i)},${y(v)}`).join(""), class: s.cls}, svg);
+  }
+  const cross = el("line", {y1: m.t, y2: H - m.b, class: "cross", visibility: "hidden"}, svg);
+  const dots = series.map(s => el("circle", {r: 4, class: s.dotCls, visibility: "hidden"}, svg));
+  const hit = el("rect", {x: m.l - 6, y: 0, width: W - m.l - m.r + 12, height: H, class: "hit"}, svg);
+  hit.addEventListener("mousemove", evt => {
+    const pt = svg.createSVGPoint(); pt.x = evt.clientX; pt.y = evt.clientY;
+    const p = pt.matrixTransform(svg.getScreenCTM().inverse());
+    const i = Math.max(0, Math.min(9, Math.round((p.x - m.l) / ((W - m.l - m.r) / 9))));
+    cross.setAttribute("x1", x(i)); cross.setAttribute("x2", x(i)); cross.setAttribute("visibility", "visible");
+    series.forEach((s, k) => { dots[k].setAttribute("cx", x(i)); dots[k].setAttribute("cy", y(s.values[i])); dots[k].setAttribute("visibility", "visible"); });
+    showTip(evt, `<b>${i + 1}期</b><br>` + series.map(s => `${sw(s.colorVar)}${s.name}: ${fmt(s.values[i])}`).join("<br>"));
+  });
+  hit.addEventListener("mouseleave", () => { hideTip(); cross.setAttribute("visibility", "hidden"); dots.forEach(d => d.setAttribute("visibility", "hidden")); });
+  return svg;
+}
+
+// runs table
+const tbody = document.querySelector("#runs-table tbody");
+for (const r of RUNS) {
+  tbody.insertAdjacentHTML("beforeend", `<tr><td class="num">${r.n}</td><td><code>${r.s}</code></td><td>${r.model}</td><td>${r.pop}</td><td>${r.labels}</td><td>${r.debate}</td><td>${r.inject}</td><td>${r.opening}</td><td class="num">${r.time}</td></tr>`);
+}
+
+// small multiples
+const coopChart = document.getElementById("coop-chart");
+for (const r of RUNS) {
+  const p = document.createElement("div"); p.className = "panel";
+  p.innerHTML = `<div class="t">ラン${r.n}（${r.model}）</div><div class="d">${r.pop}・${r.labels}・議論 ${r.debate}・注入 ${r.inject}・冒頭 ${r.opening}</div>`;
+  coopChart.appendChild(p);
+  lineChart(p, [{values: r.coop, cls: "line1", dotCls: "dot1", name: "協力率", colorVar: "--series-1"}],
+            {width: 300, height: 120, label: `ラン${r.n}の期ごとの協力率`});
+}
+function roundTable(rows, rowLabel) {
+  let h = `<table><thead><tr><th>${rowLabel}</th>` + [...Array(10)].map((_, i) => `<th class="num">${i + 1}</th>`).join("") + "</tr></thead><tbody>";
+  for (const [label, vals] of rows) h += `<tr><td>${label}</td>` + vals.map(v => `<td class="num">${fmt(v)}</td>`).join("") + "</tr>";
+  return h + "</tbody></table>";
+}
+document.getElementById("coop-table").innerHTML = roundTable(RUNS.map(r => [`ラン${r.n}`, r.coop]), "ラン \\ 期");
+
+// swap comparison
+const r5 = RUNS[4], r6 = RUNS[5];
+lineChart(document.getElementById("swap-chart"), [
+  {values: r5.coop, cls: "line1", dotCls: "dot1", name: "ラン5 A＝協力", colorVar: "--series-1"},
+  {values: r6.coop, cls: "line2", dotCls: "dot2", name: "ラン6 A＝裏切り", colorVar: "--series-2"},
+], {width: 760, height: 220, label: "ラベル入れ替えの比較"});
+document.getElementById("swap-table").innerHTML = roundTable([["ラン5 A＝協力", r5.coop], ["ラン6 A＝裏切り", r6.coop]], "条件 \\ 期");
+
+// conditional cooperation grouped bars
+(function () {
+  const W = 760, H = 240, m = {l: 34, r: 10, t: 10, b: 28};
+  const svg = el("svg", {viewBox: `0 0 ${W} ${H}`, width: "100%", role: "img", "aria-label": "条件付き協力"}, document.getElementById("cond-chart"));
+  const y = v => m.t + (1 - v) * (H - m.t - m.b);
+  for (const g of [0, 0.5, 1]) {
+    el("line", {x1: m.l, x2: W - m.r, y1: y(g), y2: y(g), class: g === 0 ? "axis" : "grid"}, svg);
+    el("text", {x: m.l - 6, y: y(g) + 4, "text-anchor": "end"}, svg).textContent = g.toFixed(1);
+  }
+  const band = (W - m.l - m.r) / RUNS.length, bw = Math.min(22, band / 3);
+  RUNS.forEach((r, i) => {
+    const cx = m.l + band * (i + 0.5);
+    el("text", {x: cx, y: H - 8, "text-anchor": "middle"}, svg).textContent = `ラン${r.n}`;
+    [[r.cond[0], "bar1", "相手が協力した後", "--series-1", -1], [r.cond[1], "bar2", "相手が裏切った後", "--series-2", 1]].forEach(([v, cls, name, cv, side]) => {
+      const x0 = cx + (side < 0 ? -bw - 1 : 1);
+      if (v == null) {
+        el("text", {x: x0 + bw / 2, y: y(0) - 4, "text-anchor": "middle", class: "lbl"}, svg).textContent = "—";
+      } else {
+        const top = y(v), h = Math.max(y(0) - top, 1), rr = Math.min(4, h / 2, bw / 2);
+        el("path", {d: `M${x0},${y(0)} V${top + rr} Q${x0},${top} ${x0 + rr},${top} H${x0 + bw - rr} Q${x0 + bw},${top} ${x0 + bw},${top + rr} V${y(0)} Z`, class: cls}, svg);
+      }
+      const hit = el("rect", {x: x0 - 2, y: m.t, width: bw + 4, height: H - m.t - m.b, class: "hit"}, svg);
+      hit.addEventListener("mousemove", evt => showTip(evt, `<b>ラン${r.n}（${r.model}）</b><br>${sw(cv)}${name}: ${fmt(v)}`));
+      hit.addEventListener("mouseleave", hideTip);
+    });
+    if (r.n === 8 || r.n === 9) {
+      el("text", {x: cx, y: y(Math.max(...r.cond.filter(v => v != null))) - 6, "text-anchor": "middle", class: "lbl"}, svg).textContent = "逆向き";
+    }
+  });
+  let h = "<table><thead><tr><th>ラン</th><th class='num'>相手が協力した後</th><th class='num'>相手が裏切った後</th></tr></thead><tbody>";
+  for (const r of RUNS) h += `<tr><td>ラン${r.n}（${r.model}）</td><td class="num">${fmt(r.cond[0])}</td><td class="num">${fmt(r.cond[1])}</td></tr>`;
+  document.getElementById("cond-table").innerHTML = h + "</tbody></table>";
+})();
+
+// belief table
+const bt = document.querySelector("#belief-table tbody");
+for (const r of RUNS.filter(r => r.bel)) {
+  bt.insertAdjacentHTML("beforeend", `<tr><td class="num">${r.n}</td><td>${r.model}・議論 ${r.debate}・ラベル ${r.labels}</td><td class="num">${r.bel[0].toFixed(2)}</td><td class="num">${r.bel[1].toFixed(2)}</td><td>${fmt(r.coop[9])}</td></tr>`);
+}
+
+// chart / table toggles
+document.querySelectorAll(".toggle").forEach(b => b.addEventListener("click", () => {
+  const t = b.dataset.target;
+  const chart = document.getElementById(`${t}-chart`), table = document.getElementById(`${t}-table`);
+  const toTable = table.classList.contains("hidden");
+  table.classList.toggle("hidden", !toTable); chart.classList.toggle("hidden", toTable);
+  const legend = chart.parentElement.querySelector(".legend"); if (legend) legend.classList.toggle("hidden", toTable);
+  b.textContent = toTable ? "グラフで見る" : "表で見る";
+}));
+</script>
+</body>
+</html>

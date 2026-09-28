@@ -26,6 +26,12 @@ class CommandType(str, Enum):
     INTERVIEW = "interview"           # Single Agent interview
     BATCH_INTERVIEW = "batch_interview"  # Batch interview
     CLOSE_ENV = "close_env"           # Close environment
+    # Experiment step-server only (scripts/run_experiment_env.py); keep in sync
+    # with scripts/experiment/ipc_protocol.py
+    RUN_ROUNDS = "run_rounds"
+    INJECT_POST = "inject_post"
+    GET_STATE = "get_state"
+    GAME_INTERVIEW = "game_interview"
 
 
 class CommandStatus(str, Enum):
@@ -250,6 +256,57 @@ class SimulationIPCClient:
             timeout=timeout
         )
     
+    def send_game_interview(
+        self,
+        interviews: List[Dict[str, Any]],
+        platform: str = "twitter",
+        timeout: float = 900.0,
+        exclude_own_posts: bool = False
+    ) -> IPCResponse:
+        """
+        Send game decision interviews (experiment step-server only)
+
+        Args:
+            interviews: [{"agent_id": int, "prompt": str}], prompt may contain "{{FEED}}",
+                replaced per agent with the posts it currently sees
+            platform: "twitter" or "reddit"
+        """
+        return self.send_command(
+            command_type=CommandType.GAME_INTERVIEW,
+            args={"interviews": interviews, "platform": platform,
+                  "exclude_own_posts": exclude_own_posts},
+            timeout=timeout
+        )
+
+    def send_run_rounds(self, rounds: int, platform: str = "both", timeout: float = 1800.0,
+                        agent_ids: Optional[List[int]] = None,
+                        ignore_active_hours: bool = False, min_active: int = 0) -> IPCResponse:
+        """Advance k debate rounds (experiment step-server only)
+
+        Args:
+            agent_ids: if given, only these agents can be activated
+            ignore_active_hours: select by activity_level only, not time of day
+            min_active: guarantee at least this many active agents per round
+        """
+        args = {"rounds": rounds, "platform": platform,
+                "ignore_active_hours": ignore_active_hours, "min_active": min_active}
+        if agent_ids:
+            args["agent_ids"] = list(agent_ids)
+        return self.send_command(
+            command_type=CommandType.RUN_ROUNDS,
+            args=args,
+            timeout=timeout
+        )
+
+    def send_inject_posts(self, posts: List[Dict[str, Any]], platform: str = "both",
+                          timeout: float = 300.0) -> IPCResponse:
+        """Publish posts [{"agent_id", "content"}] in one step (experiment step-server only)"""
+        return self.send_command(
+            command_type=CommandType.INJECT_POST,
+            args={"posts": posts, "platform": platform},
+            timeout=timeout
+        )
+
     def send_close_env(self, timeout: float = 30.0) -> IPCResponse:
         """
         Send close environment command
