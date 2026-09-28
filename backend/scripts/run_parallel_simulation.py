@@ -74,7 +74,7 @@ import signal
 import sqlite3
 import warnings
 from datetime import datetime
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Callable, Dict, Any, List, Optional, Tuple
 
 
 # Global variables: for signal handling
@@ -1096,397 +1096,350 @@ class PlatformSimulation:
         self.env = None
         self.agent_graph = None
         self.total_actions = 0
+        self.agent_names: Dict[int, str] = {}
+        self.db_path: Optional[str] = None
+
+
+# Per-platform differences between Twitter and Reddit bootstrap
+_PLATFORM_SPECS = {
+    "twitter": {
+        "label": "Twitter",
+        # Twitter use common LLM configuration
+        "use_boost": False,
+        # OASIS Twitter uses CSV format
+        "profile_file": "twitter_profiles.csv",
+        "db_file": "twitter_simulation.db",
+    },
+    "reddit": {
+        "label": "Reddit",
+        # Reddit use acceleration LLM configuration(if available，otherwise fallback toCommon configuration）
+        "use_boost": True,
+        "profile_file": "reddit_profiles.json",
+        "db_file": "reddit_simulation.db",
+    },
+}
+
+
+async def setup_platform_env(
+    platform: str,
+    config: Dict[str, Any],
+    simulation_dir: str,
+    log_info: Callable[[str], None],
+) -> PlatformSimulation:
+    """Create agent graph and OASIS environment for one platform, with no rounds executed
+
+    Args:
+        platform: "twitter" or "reddit"
+        config: Simulation configuration
+        simulation_dir: Simulation directory
+        log_info: Logging function
+
+    Returns:
+        PlatformSimulation: env / agent_graph / agent_names / db_path are set.
+        env is None if the profile file does not exist.
+    """
+    spec = _PLATFORM_SPECS[platform]
+    result = PlatformSimulation()
+
+    model = create_model(config, use_boost=spec["use_boost"])
+
+    profile_path = os.path.join(simulation_dir, spec["profile_file"])
+    if not os.path.exists(profile_path):
+        log_info(f"Error: Profile file does not exist: {profile_path}")
+        return result
+
+    if platform == "twitter":
+        result.agent_graph = await generate_twitter_agent_graph(
+            profile_path=profile_path,
+            model=model,
+            available_actions=TWITTER_ACTIONS,
+        )
+        platform_type = oasis.DefaultPlatformType.TWITTER
+    else:
+        result.agent_graph = await generate_reddit_agent_graph(
+            profile_path=profile_path,
+            model=model,
+            available_actions=REDDIT_ACTIONS,
+        )
+        platform_type = oasis.DefaultPlatformType.REDDIT
+
+    # Get Agent real name mapping from config (use entity_name instead of default Agent_X)
+    agent_names = get_agent_names_from_config(config)
+    # If an agent is not in config, use OASIS default name
+    for agent_id, agent in result.agent_graph.get_agents():
+        if agent_id not in agent_names:
+            agent_names[agent_id] = getattr(agent, 'name', f'Agent_{agent_id}')
+    result.agent_names = agent_names
+
+    db_path = os.path.join(simulation_dir, spec["db_file"])
+    if os.path.exists(db_path):
+        os.remove(db_path)
+    result.db_path = db_path
+
+    result.env = oasis.make(
+        agent_graph=result.agent_graph,
+        platform=platform_type,
+        database_path=db_path,
+        semaphore=30,  # Limit maximum concurrent LLM requests to prevent API overload
+    )
+
+    await result.env.reset()
+    log_info("Environment started")
+
+    return result
+
+
+async def publish_initial_posts(
+    result: PlatformSimulation,
+    config: Dict[str, Any],
+    action_logger: Optional[PlatformActionLogger],
+    log_info: Callable[[str], None],
+    allow_multiple_per_agent: bool,
+) -> Tuple[int, int]:
+    """Execute initial events as round 0
+
+    Args:
+        allow_multiple_per_agent: If True, multiple initial posts by the same agent are all
+            published (Reddit behavior). If False, the last one wins (Twitter behavior).
+
+    Returns:
+        (number of logged initial actions, last trace rowid after the initial posts).
+        Start step_round() from this rowid so round 1 does not re-log the initial posts.
+    """
+    event_config = config.get("event_config", {})
+    initial_posts = event_config.get("initial_posts", [])
+
+    # Log round 0 start (initial event phase)
+    if action_logger:
+        action_logger.log_round_start(0, 0)  # round 0, simulated_hour 0
+
+    initial_action_count = 0
+    if initial_posts:
+        initial_actions = {}
+        for post in initial_posts:
+            agent_id = post.get("poster_agent_id", 0)
+            content = post.get("content", "")
+            try:
+                agent = result.env.agent_graph.get_agent(agent_id)
+                action = ManualAction(
+                    action_type=ActionType.CREATE_POST,
+                    action_args={"content": content}
+                )
+                if allow_multiple_per_agent and agent in initial_actions:
+                    if not isinstance(initial_actions[agent], list):
+                        initial_actions[agent] = [initial_actions[agent]]
+                    initial_actions[agent].append(action)
+                else:
+                    initial_actions[agent] = action
+
+                if action_logger:
+                    action_logger.log_action(
+                        round_num=0,
+                        agent_id=agent_id,
+                        agent_name=result.agent_names.get(agent_id, f"Agent_{agent_id}"),
+                        action_type="CREATE_POST",
+                        action_args={"content": content}
+                    )
+                    initial_action_count += 1
+            except Exception:
+                pass
+
+        if initial_actions:
+            await result.env.step(initial_actions)
+            log_info(f"Published {len(initial_actions)} initial posts")
+
+    # Advance the watermark past sign-ups and initial posts (already logged above)
+    _, last_rowid = fetch_new_actions_from_db(result.db_path, 0, result.agent_names)
+
+    # Log round 0 end
+    if action_logger:
+        action_logger.log_round_end(0, initial_action_count)
+
+    return initial_action_count, last_rowid
+
+
+async def step_round(
+    result: PlatformSimulation,
+    config: Dict[str, Any],
+    round_num: int,
+    minutes_per_round: int,
+    last_rowid: int,
+    action_logger: Optional[PlatformActionLogger] = None,
+) -> Tuple[List[Dict[str, Any]], int]:
+    """Execute one simulation round
+
+    Args:
+        result: Initialized platform (see setup_platform_env)
+        config: Simulation configuration
+        round_num: 0-indexed round number (logged as round_num + 1)
+        minutes_per_round: Simulated minutes per round
+        last_rowid: Last processed trace rowid in Database
+
+    Returns:
+        (actual executed actions of this round, new last_rowid)
+    """
+    simulated_minutes = round_num * minutes_per_round
+    simulated_hour = (simulated_minutes // 60) % 24
+
+    active_agents = get_active_agents_for_round(
+        result.env, config, simulated_hour, round_num
+    )
+
+    # Log round start regardless of active agents
+    if action_logger:
+        action_logger.log_round_start(round_num + 1, simulated_hour)
+
+    if not active_agents:
+        # Log round end even without active agents (actions_count=0)
+        if action_logger:
+            action_logger.log_round_end(round_num + 1, 0)
+        return [], last_rowid
+
+    actions = {agent: LLMAction() for _, agent in active_agents}
+    await result.env.step(actions)
+
+    # Get actual executed actions from Database and log
+    actual_actions, last_rowid = fetch_new_actions_from_db(
+        result.db_path, last_rowid, result.agent_names
+    )
+
+    if action_logger:
+        for action_data in actual_actions:
+            action_logger.log_action(
+                round_num=round_num + 1,
+                agent_id=action_data['agent_id'],
+                agent_name=action_data['agent_name'],
+                action_type=action_data['action_type'],
+                action_args=action_data['action_args']
+            )
+        action_logger.log_round_end(round_num + 1, len(actual_actions))
+
+    return actual_actions, last_rowid
+
+
+async def _run_platform_simulation(
+    platform: str,
+    config: Dict[str, Any],
+    simulation_dir: str,
+    action_logger: Optional[PlatformActionLogger],
+    main_logger: Optional[SimulationLogManager],
+    max_rounds: Optional[int],
+) -> PlatformSimulation:
+    label = _PLATFORM_SPECS[platform]["label"]
+
+    def log_info(msg):
+        if main_logger:
+            main_logger.info(f"[{label}] {msg}")
+        print(f"[{label}] {msg}")
+
+    log_info("Initializing...")
+
+    result = await setup_platform_env(platform, config, simulation_dir, log_info)
+    if result.env is None:
+        return result
+
+    if action_logger:
+        action_logger.log_simulation_start(config)
+
+    # Track last processed row in Database (use rowid to avoid created_at format differences)
+    total_actions, last_rowid = await publish_initial_posts(
+        result, config, action_logger, log_info,
+        allow_multiple_per_agent=(platform == "reddit"),
+    )
+
+    # Main simulation loop
+    time_config = config.get("time_config", {})
+    total_hours = time_config.get("total_simulation_hours", 72)
+    minutes_per_round = time_config.get("minutes_per_round", 30)
+    total_rounds = (total_hours * 60) // minutes_per_round
+
+    # If maximum rounds specified, truncate
+    if max_rounds is not None and max_rounds > 0:
+        original_rounds = total_rounds
+        total_rounds = min(total_rounds, max_rounds)
+        if total_rounds < original_rounds:
+            log_info(f"Rounds truncated: {original_rounds} -> {total_rounds} (max_rounds={max_rounds})")
+
+    start_time = datetime.now()
+
+    for round_num in range(total_rounds):
+        # Check if received exit signal
+        if _shutdown_event and _shutdown_event.is_set():
+            if main_logger:
+                main_logger.info(f"Received exit signal，at round {round_num + 1} stop simulation")
+            break
+
+        actual_actions, last_rowid = await step_round(
+            result, config, round_num, minutes_per_round, last_rowid, action_logger
+        )
+        if action_logger:
+            total_actions += len(actual_actions)
+
+        if (round_num + 1) % 20 == 0:
+            simulated_minutes = round_num * minutes_per_round
+            simulated_hour = (simulated_minutes // 60) % 24
+            simulated_day = simulated_minutes // (60 * 24) + 1
+            progress = (round_num + 1) / total_rounds * 100
+            log_info(f"Day {simulated_day}, {simulated_hour:02d}:00 - Round {round_num + 1}/{total_rounds} ({progress:.1f}%)")
+
+    # Note: Do not close environment, keep for Interview use
+
+    if action_logger:
+        action_logger.log_simulation_end(total_rounds, total_actions)
+
+    result.total_actions = total_actions
+    elapsed = (datetime.now() - start_time).total_seconds()
+    log_info(f"Simulation loop completed! Time taken: {elapsed:.1f}seconds, Total actions: {total_actions}")
+
+    return result
 
 
 async def run_twitter_simulation(
-    config: Dict[str, Any], 
+    config: Dict[str, Any],
     simulation_dir: str,
     action_logger: Optional[PlatformActionLogger] = None,
     main_logger: Optional[SimulationLogManager] = None,
     max_rounds: Optional[int] = None
 ) -> PlatformSimulation:
     """Run Twitter simulation
-    
+
     Args:
         config: Simulation configuration
         simulation_dir: Simulation directory
         action_logger: Action logger
         main_logger: Main logger manager
         max_rounds: Maximum simulation rounds (optional, used to truncate long simulations)
-        
+
     Returns:
         PlatformSimulation: Result object containing env and agent_graph
     """
-    result = PlatformSimulation()
-    
-    def log_info(msg):
-        if main_logger:
-            main_logger.info(f"[Twitter] {msg}")
-        print(f"[Twitter] {msg}")
-    
-    log_info("Initializing...")
-    
-    # Twitter use common LLM configuration
-    model = create_model(config, use_boost=False)
-    
-    # OASIS Twitter uses CSV format
-    profile_path = os.path.join(simulation_dir, "twitter_profiles.csv")
-    if not os.path.exists(profile_path):
-        log_info(f"Error: Profile file does not exist: {profile_path}")
-        return result
-    
-    result.agent_graph = await generate_twitter_agent_graph(
-        profile_path=profile_path,
-        model=model,
-        available_actions=TWITTER_ACTIONS,
+    return await _run_platform_simulation(
+        "twitter", config, simulation_dir, action_logger, main_logger, max_rounds
     )
-    
-    # Get Agent real name mapping from config (use entity_name instead of default Agent_X)
-    agent_names = get_agent_names_from_config(config)
-    # If an agent is not in config, use OASIS default name
-    for agent_id, agent in result.agent_graph.get_agents():
-        if agent_id not in agent_names:
-            agent_names[agent_id] = getattr(agent, 'name', f'Agent_{agent_id}')
-    
-    db_path = os.path.join(simulation_dir, "twitter_simulation.db")
-    if os.path.exists(db_path):
-        os.remove(db_path)
-    
-    result.env = oasis.make(
-        agent_graph=result.agent_graph,
-        platform=oasis.DefaultPlatformType.TWITTER,
-        database_path=db_path,
-        semaphore=30,  # Limit maximum concurrent LLM requests to prevent API overload
-    )
-    
-    await result.env.reset()
-    log_info("Environment started")
-    
-    if action_logger:
-        action_logger.log_simulation_start(config)
-    
-    total_actions = 0
-    last_rowid = 0  # Track last processed row in Database (use rowid to avoid created_at format differences)
-    
-    # Execute initial events
-    event_config = config.get("event_config", {})
-    initial_posts = event_config.get("initial_posts", [])
-    
-    # Log round 0 start (initial event phase)
-    if action_logger:
-        action_logger.log_round_start(0, 0)  # round 0, simulated_hour 0
-    
-    initial_action_count = 0
-    if initial_posts:
-        initial_actions = {}
-        for post in initial_posts:
-            agent_id = post.get("poster_agent_id", 0)
-            content = post.get("content", "")
-            try:
-                agent = result.env.agent_graph.get_agent(agent_id)
-                initial_actions[agent] = ManualAction(
-                    action_type=ActionType.CREATE_POST,
-                    action_args={"content": content}
-                )
-                
-                if action_logger:
-                    action_logger.log_action(
-                        round_num=0,
-                        agent_id=agent_id,
-                        agent_name=agent_names.get(agent_id, f"Agent_{agent_id}"),
-                        action_type="CREATE_POST",
-                        action_args={"content": content}
-                    )
-                    total_actions += 1
-                    initial_action_count += 1
-            except Exception:
-                pass
-        
-        if initial_actions:
-            await result.env.step(initial_actions)
-            log_info(f"Published {len(initial_actions)} initial posts")
-    
-    # Log round 0 end
-    if action_logger:
-        action_logger.log_round_end(0, initial_action_count)
-    
-    # Main simulation loop
-    time_config = config.get("time_config", {})
-    total_hours = time_config.get("total_simulation_hours", 72)
-    minutes_per_round = time_config.get("minutes_per_round", 30)
-    total_rounds = (total_hours * 60) // minutes_per_round
-    
-    # If maximum rounds specified, truncate
-    if max_rounds is not None and max_rounds > 0:
-        original_rounds = total_rounds
-        total_rounds = min(total_rounds, max_rounds)
-        if total_rounds < original_rounds:
-            log_info(f"Rounds truncated: {original_rounds} -> {total_rounds} (max_rounds={max_rounds})")
-    
-    start_time = datetime.now()
-    
-    for round_num in range(total_rounds):
-        # Check if received exit signal
-        if _shutdown_event and _shutdown_event.is_set():
-            if main_logger:
-                main_logger.info(f"Received exit signal，at round {round_num + 1} stop simulation")
-            break
-        
-        simulated_minutes = round_num * minutes_per_round
-        simulated_hour = (simulated_minutes // 60) % 24
-        simulated_day = simulated_minutes // (60 * 24) + 1
-        
-        active_agents = get_active_agents_for_round(
-            result.env, config, simulated_hour, round_num
-        )
-        
-        # Log round start regardless of active agents
-        if action_logger:
-            action_logger.log_round_start(round_num + 1, simulated_hour)
-        
-        if not active_agents:
-            # Log round end even without active agents (actions_count=0)
-            if action_logger:
-                action_logger.log_round_end(round_num + 1, 0)
-            continue
-        
-        actions = {agent: LLMAction() for _, agent in active_agents}
-        await result.env.step(actions)
-        
-        # Get actual executed actions from Database and log
-        actual_actions, last_rowid = fetch_new_actions_from_db(
-            db_path, last_rowid, agent_names
-        )
-        
-        round_action_count = 0
-        for action_data in actual_actions:
-            if action_logger:
-                action_logger.log_action(
-                    round_num=round_num + 1,
-                    agent_id=action_data['agent_id'],
-                    agent_name=action_data['agent_name'],
-                    action_type=action_data['action_type'],
-                    action_args=action_data['action_args']
-                )
-                total_actions += 1
-                round_action_count += 1
-        
-        if action_logger:
-            action_logger.log_round_end(round_num + 1, round_action_count)
-        
-        if (round_num + 1) % 20 == 0:
-            progress = (round_num + 1) / total_rounds * 100
-            log_info(f"Day {simulated_day}, {simulated_hour:02d}:00 - Round {round_num + 1}/{total_rounds} ({progress:.1f}%)")
-    
-    # Note: Do not close environment, keep for Interview use
-    
-    if action_logger:
-        action_logger.log_simulation_end(total_rounds, total_actions)
-    
-    result.total_actions = total_actions
-    elapsed = (datetime.now() - start_time).total_seconds()
-    log_info(f"Simulation loop completed! Time taken: {elapsed:.1f}seconds, Total actions: {total_actions}")
-    
-    return result
 
 
 async def run_reddit_simulation(
-    config: Dict[str, Any], 
+    config: Dict[str, Any],
     simulation_dir: str,
     action_logger: Optional[PlatformActionLogger] = None,
     main_logger: Optional[SimulationLogManager] = None,
     max_rounds: Optional[int] = None
 ) -> PlatformSimulation:
     """Run Reddit simulation
-    
+
     Args:
         config: Simulation configuration
         simulation_dir: Simulation directory
         action_logger: Action logger
         main_logger: Main logger manager
         max_rounds: Maximum simulation rounds (optional, used to truncate long simulations)
-        
+
     Returns:
         PlatformSimulation: Result object containing env and agent_graph
     """
-    result = PlatformSimulation()
-    
-    def log_info(msg):
-        if main_logger:
-            main_logger.info(f"[Reddit] {msg}")
-        print(f"[Reddit] {msg}")
-    
-    log_info("Initializing...")
-    
-    # Reddit use acceleration LLM configuration(if available，otherwise fallback toCommon configuration）
-    model = create_model(config, use_boost=True)
-    
-    profile_path = os.path.join(simulation_dir, "reddit_profiles.json")
-    if not os.path.exists(profile_path):
-        log_info(f"Error: Profile file does not exist: {profile_path}")
-        return result
-    
-    result.agent_graph = await generate_reddit_agent_graph(
-        profile_path=profile_path,
-        model=model,
-        available_actions=REDDIT_ACTIONS,
+    return await _run_platform_simulation(
+        "reddit", config, simulation_dir, action_logger, main_logger, max_rounds
     )
-    
-    # Get Agent real name mapping from config (use entity_name instead of default Agent_X)
-    agent_names = get_agent_names_from_config(config)
-    # If an agent is not in config, use OASIS default name
-    for agent_id, agent in result.agent_graph.get_agents():
-        if agent_id not in agent_names:
-            agent_names[agent_id] = getattr(agent, 'name', f'Agent_{agent_id}')
-    
-    db_path = os.path.join(simulation_dir, "reddit_simulation.db")
-    if os.path.exists(db_path):
-        os.remove(db_path)
-    
-    result.env = oasis.make(
-        agent_graph=result.agent_graph,
-        platform=oasis.DefaultPlatformType.REDDIT,
-        database_path=db_path,
-        semaphore=30,  # Limit maximum concurrent LLM requests to prevent API overload
-    )
-    
-    await result.env.reset()
-    log_info("Environment started")
-    
-    if action_logger:
-        action_logger.log_simulation_start(config)
-    
-    total_actions = 0
-    last_rowid = 0  # Track last processed row in Database (use rowid to avoid created_at format differences)
-    
-    # Execute initial events
-    event_config = config.get("event_config", {})
-    initial_posts = event_config.get("initial_posts", [])
-    
-    # Log round 0 start (initial event phase)
-    if action_logger:
-        action_logger.log_round_start(0, 0)  # round 0, simulated_hour 0
-    
-    initial_action_count = 0
-    if initial_posts:
-        initial_actions = {}
-        for post in initial_posts:
-            agent_id = post.get("poster_agent_id", 0)
-            content = post.get("content", "")
-            try:
-                agent = result.env.agent_graph.get_agent(agent_id)
-                if agent in initial_actions:
-                    if not isinstance(initial_actions[agent], list):
-                        initial_actions[agent] = [initial_actions[agent]]
-                    initial_actions[agent].append(ManualAction(
-                        action_type=ActionType.CREATE_POST,
-                        action_args={"content": content}
-                    ))
-                else:
-                    initial_actions[agent] = ManualAction(
-                        action_type=ActionType.CREATE_POST,
-                        action_args={"content": content}
-                    )
-                
-                if action_logger:
-                    action_logger.log_action(
-                        round_num=0,
-                        agent_id=agent_id,
-                        agent_name=agent_names.get(agent_id, f"Agent_{agent_id}"),
-                        action_type="CREATE_POST",
-                        action_args={"content": content}
-                    )
-                    total_actions += 1
-                    initial_action_count += 1
-            except Exception:
-                pass
-        
-        if initial_actions:
-            await result.env.step(initial_actions)
-            log_info(f"Published {len(initial_actions)} initial posts")
-    
-    # Log round 0 end
-    if action_logger:
-        action_logger.log_round_end(0, initial_action_count)
-    
-    # Main simulation loop
-    time_config = config.get("time_config", {})
-    total_hours = time_config.get("total_simulation_hours", 72)
-    minutes_per_round = time_config.get("minutes_per_round", 30)
-    total_rounds = (total_hours * 60) // minutes_per_round
-    
-    # If maximum rounds specified, truncate
-    if max_rounds is not None and max_rounds > 0:
-        original_rounds = total_rounds
-        total_rounds = min(total_rounds, max_rounds)
-        if total_rounds < original_rounds:
-            log_info(f"Rounds truncated: {original_rounds} -> {total_rounds} (max_rounds={max_rounds})")
-    
-    start_time = datetime.now()
-    
-    for round_num in range(total_rounds):
-        # Check if received exit signal
-        if _shutdown_event and _shutdown_event.is_set():
-            if main_logger:
-                main_logger.info(f"Received exit signal，at round {round_num + 1} stop simulation")
-            break
-        
-        simulated_minutes = round_num * minutes_per_round
-        simulated_hour = (simulated_minutes // 60) % 24
-        simulated_day = simulated_minutes // (60 * 24) + 1
-        
-        active_agents = get_active_agents_for_round(
-            result.env, config, simulated_hour, round_num
-        )
-        
-        # Log round start regardless of active agents
-        if action_logger:
-            action_logger.log_round_start(round_num + 1, simulated_hour)
-        
-        if not active_agents:
-            # Log round end even without active agents (actions_count=0)
-            if action_logger:
-                action_logger.log_round_end(round_num + 1, 0)
-            continue
-        
-        actions = {agent: LLMAction() for _, agent in active_agents}
-        await result.env.step(actions)
-        
-        # Get actual executed actions from Database and log
-        actual_actions, last_rowid = fetch_new_actions_from_db(
-            db_path, last_rowid, agent_names
-        )
-        
-        round_action_count = 0
-        for action_data in actual_actions:
-            if action_logger:
-                action_logger.log_action(
-                    round_num=round_num + 1,
-                    agent_id=action_data['agent_id'],
-                    agent_name=action_data['agent_name'],
-                    action_type=action_data['action_type'],
-                    action_args=action_data['action_args']
-                )
-                total_actions += 1
-                round_action_count += 1
-        
-        if action_logger:
-            action_logger.log_round_end(round_num + 1, round_action_count)
-        
-        if (round_num + 1) % 20 == 0:
-            progress = (round_num + 1) / total_rounds * 100
-            log_info(f"Day {simulated_day}, {simulated_hour:02d}:00 - Round {round_num + 1}/{total_rounds} ({progress:.1f}%)")
-    
-    # Note: Do not close environment, keep for Interview use
-    
-    if action_logger:
-        action_logger.log_simulation_end(total_rounds, total_actions)
-    
-    result.total_actions = total_actions
-    elapsed = (datetime.now() - start_time).total_seconds()
-    log_info(f"Simulation loop completed! Time taken: {elapsed:.1f}seconds, Total actions: {total_actions}")
-    
-    return result
 
 
 async def main():
