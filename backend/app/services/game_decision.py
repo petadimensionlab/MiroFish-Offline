@@ -167,3 +167,43 @@ def parse_likert(text: Optional[str]) -> Tuple[Optional[int], str, Optional[str]
     if match:
         return int(match.group(1)), '', None
     return None, '', f'unparseable response: {cleaned[:200]!r}'
+
+
+# Cells asked in the comprehension check, as (own, other) internal choices:
+# the temptation cell and mutual defection.
+COMPREHENSION_CELLS = (('B', 'A'), ('B', 'B'))
+
+
+def _points(payoffs: Dict[str, int], own: str, other: str) -> int:
+    if own == 'A':
+        return payoffs['R'] if other == 'A' else payoffs['S']
+    return payoffs['T'] if other == 'A' else payoffs['P']
+
+
+def render_comprehension_prompt(payoffs: Dict[str, int], swap_labels: bool = False,
+                                no_think: bool = False) -> Tuple[str, Dict[str, int]]:
+    """Payoff-table comprehension check (NOTES.md #39).
+
+    Returns (prompt, expected answers {"q1", "q2"}).
+    """
+    (o1, t1), (o2, t2) = COMPREHENSION_CELLS
+    prompt = _env.get_template('comprehension_check.j2').render(
+        rows=_payoff_rows(payoffs, swap_labels),
+        q1=dict(own=display_label(o1, swap_labels), other=display_label(t1, swap_labels)),
+        q2=dict(own=display_label(o2, swap_labels), other=display_label(t2, swap_labels)),
+        no_think=no_think,
+    )
+    return prompt, {'q1': _points(payoffs, o1, t1), 'q2': _points(payoffs, o2, t2)}
+
+
+def parse_comprehension(text: Optional[str]) -> Tuple[Optional[Dict[str, int]], Optional[str]]:
+    if not text:
+        return None, 'empty response'
+    cleaned = _FENCE_RE.sub('', _THINK_RE.sub('', text)).strip()
+    for match in re.finditer(r'\{.*?\}', cleaned, re.DOTALL):
+        try:
+            obj = json.loads(match.group(0))
+            return {'q1': int(obj['q1']), 'q2': int(obj['q2'])}, None
+        except (json.JSONDecodeError, KeyError, TypeError, ValueError):
+            continue
+    return None, f'unparseable response: {cleaned[:200]!r}'

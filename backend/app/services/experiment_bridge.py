@@ -38,6 +38,7 @@ from ..utils.logger import get_logger
 from .game_decision import (
     render_decision_prompt, parse_decision, wants_no_think, display_label,
     render_belief_prompt, parse_likert, DEFAULT_BELIEF_STATEMENT,
+    render_comprehension_prompt, parse_comprehension,
 )
 from .simulation_ipc import SimulationIPCClient, CommandStatus
 
@@ -92,6 +93,7 @@ class BridgeSettings:
     repeat_opening: bool = False      # re-post opening_post before every debate phase (NOTES.md #34)
     # internal state: Likert item before round 1 and after the last round
     belief_survey: bool = False
+    comprehension_check: bool = False  # payoff-table quiz before round 1 (NOTES.md #39)
     belief_statement: str = DEFAULT_BELIEF_STATEMENT
 
 
@@ -186,6 +188,8 @@ class ExperimentBridge:
                                  'n_agents': len(state.agents)})
         if settings['policy'] == 'llm' and state.agents:
             def opening():
+                if state.settings.comprehension_check:
+                    self.comprehension_check(session_code)
                 if state.settings.belief_survey:
                     self.belief_survey(session_code, 'pre')
                 self._debate_phase(session_code, state.settings, 0, [])
@@ -549,6 +553,37 @@ class ExperimentBridge:
         summary = {'event': 'belief_survey', 'phase': phase, 'n': len(scores), 'valid': len(valid),
                    'mean': round(sum(valid) / len(valid), 3) if valid else None,
                    'elapsed_sec': round(time.time() - t0, 1)}
+        self._log(session_code, summary)
+        return summary
+
+    def comprehension_check(self, session_code: str) -> Dict[str, Any]:
+        """Ask every game agent two payoff questions; append to comprehension.jsonl."""
+        state = self._session(session_code)
+        settings = BridgeSettings(**asdict(state.settings))
+        model = os.environ.get('LLM_MODEL_NAME', 'llm')
+        prompt, expected = render_comprehension_prompt(
+            settings.payoffs, swap_labels=settings.swap_labels,
+            no_think=wants_no_think(settings.no_think, model))
+        client = SimulationIPCClient(self._simulation_dir(settings))
+        t0 = time.time()
+        response = client.send_game_interview(
+            [dict(agent_id=a, prompt=prompt) for a in sorted(state.agents)],
+            platform=settings.platform, timeout=GAME_INTERVIEW_TIMEOUT_SEC)
+        if response.status != CommandStatus.COMPLETED:
+            raise RuntimeError(f"comprehension check failed: {response.error}")
+        n_correct = 0
+        answers = response.result.get('answers', [])
+        for answer in answers:
+            got, error = parse_comprehension(answer.get('response'))
+            correct = got == expected
+            n_correct += correct
+            self._append(session_code, 'comprehension.jsonl', {
+                'agent_id': answer.get('agent_id'), 'answer': got, 'expected': expected,
+                'correct': correct, 'parse_error': error or answer.get('error'),
+                'swap_labels': settings.swap_labels, 'response': answer.get('response'),
+            })
+        summary = {'event': 'comprehension_check', 'n': len(answers), 'correct': n_correct,
+                   'expected': expected, 'elapsed_sec': round(time.time() - t0, 1)}
         self._log(session_code, summary)
         return summary
 

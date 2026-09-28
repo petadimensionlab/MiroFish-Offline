@@ -1,0 +1,14 @@
+Reply directly to me with text without calling any tools.
+
+You are about to take part in a decision task with one other person. In each round you both choose Option A or Option B at the same time.
+
+Points per round:
+{% for r in rows %}- {{ r.text }}: you get {{ r.own }}, the other gets {{ r.other }}
+{% endfor %}
+Before starting, answer two questions about these rules.
+Question 1: If you choose {{ q1.own }} and the other chooses {{ q1.other }}, how many points do you get?
+Question 2: If you choose {{ q2.own }} and the other chooses {{ q2.other }}, how many points do you get?
+
+Reply with only a JSON object: {"q1": number, "q2": number}
+{% if no_think %}/no_think
+{% endif %}
