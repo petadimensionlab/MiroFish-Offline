@@ -1042,12 +1042,17 @@ def get_active_agents_for_round(
     config: Dict[str, Any],
     current_hour: int,
     round_num: int,
-    allowed_agent_ids: Optional[set] = None
+    allowed_agent_ids: Optional[set] = None,
+    ignore_active_hours: bool = False,
+    min_active: int = 0
 ) -> List:
     """Decide which Agents to activate this round based on time and configuration
 
     Args:
         allowed_agent_ids: if given, only these agents are candidates
+        ignore_active_hours: skip time-of-day filtering and multipliers (select by
+            activity_level only), e.g. for experiment debate rounds
+        min_active: top up with other eligible agents to at least this many
     """
     time_config = config.get("time_config", {})
     agent_configs = config.get("agent_configs", [])
@@ -1058,7 +1063,9 @@ def get_active_agents_for_round(
     peak_hours = time_config.get("peak_hours", [9, 10, 11, 14, 15, 20, 21, 22])
     off_peak_hours = time_config.get("off_peak_hours", [0, 1, 2, 3, 4, 5])
     
-    if current_hour in peak_hours:
+    if ignore_active_hours:
+        multiplier = 1.0
+    elif current_hour in peak_hours:
         multiplier = time_config.get("peak_activity_multiplier", 1.5)
     elif current_hour in off_peak_hours:
         multiplier = time_config.get("off_peak_activity_multiplier", 0.3)
@@ -1068,6 +1075,7 @@ def get_active_agents_for_round(
     target_count = int(random.uniform(base_min, base_max) * multiplier)
     
     candidates = []
+    eligible = []
     for cfg in agent_configs:
         agent_id = cfg.get("agent_id", 0)
         if allowed_agent_ids is not None and agent_id not in allowed_agent_ids:
@@ -1075,8 +1083,9 @@ def get_active_agents_for_round(
         active_hours = cfg.get("active_hours", list(range(8, 23)))
         activity_level = cfg.get("activity_level", 0.5)
         
-        if current_hour not in active_hours:
+        if not ignore_active_hours and current_hour not in active_hours:
             continue
+        eligible.append(agent_id)
         
         if random.random() < activity_level:
             candidates.append(agent_id)
@@ -1085,6 +1094,10 @@ def get_active_agents_for_round(
         candidates, 
         min(target_count, len(candidates))
     ) if candidates else []
+
+    if len(selected_ids) < min_active:
+        rest = [a for a in eligible if a not in selected_ids]
+        selected_ids += random.sample(rest, min(min_active - len(selected_ids), len(rest)))
     
     active_agents = []
     for agent_id in selected_ids:
@@ -1273,6 +1286,8 @@ async def step_round(
     last_rowid: int,
     action_logger: Optional[PlatformActionLogger] = None,
     allowed_agent_ids: Optional[set] = None,
+    ignore_active_hours: bool = False,
+    min_active: int = 0,
 ) -> Tuple[List[Dict[str, Any]], int]:
     """Execute one simulation round
 
@@ -1283,6 +1298,7 @@ async def step_round(
         minutes_per_round: Simulated minutes per round
         last_rowid: Last processed trace rowid in Database
         allowed_agent_ids: if given, only these agents can be activated
+        ignore_active_hours, min_active: see get_active_agents_for_round
 
     Returns:
         (actual executed actions of this round, new last_rowid)
@@ -1291,7 +1307,8 @@ async def step_round(
     simulated_hour = (simulated_minutes // 60) % 24
 
     active_agents = get_active_agents_for_round(
-        result.env, config, simulated_hour, round_num, allowed_agent_ids
+        result.env, config, simulated_hour, round_num, allowed_agent_ids,
+        ignore_active_hours, min_active
     )
 
     # Log round start regardless of active agents

@@ -32,25 +32,25 @@
 
 成果物: LLM ゼロで end-to-end が通る状態
 
-## Phase 3 — 意思決定を MiroFish に接続（3〜5日）
+## Phase 3 — 意思決定を MiroFish に接続（2026-09-28 完了、[phase3-llm-decisions.md](phase3-llm-decisions.md)）
 
 - [x] `run_experiment_env.py` を新設（`run_parallel_simulation.py` の helper を import して再利用）
-- [x] `RUN_ROUNDS` / `INJECT_POST` / `GET_STATE` を追加（`experiment/ipc_protocol.py`。`CommandType` 本体への追加と `SimulationIPCClient` 側は未）
-- [ ] `/decide` を `send_batch_interview` 実装に差し替え
-- [ ] `llm_client.chat_json` と `oasis_profile_generator._try_fix_json` のパターンを流用して構造化出力の堅牢化
-- [ ] パース失敗時は再問→デフォルト値＋欠測フラグの処理を実装
-- [ ] プロンプトテンプレートを `prompts/game_decision.j2` として外出し
+- [x] `RUN_ROUNDS` / `INJECT_POST` / `GET_STATE` / `GAME_INTERVIEW` を追加（step-server と `simulation_ipc.py` の両方）
+- [x] `/decide` を step-server 経由の LLM 面接に差し替え（1期ぶんを一括で先取り）
+- [x] 構造化出力の堅牢化（`<think>`・コードフェンス除去、壊れた JSON からの `choice` 抽出）
+- [x] パース失敗時は厳格版で再質問 → デフォルト値＋欠測フラグ
+- [x] プロンプトテンプレートを `backend/app/prompts/game_decision.j2` として外出し
 
-成果物: エージェントが実際に oTree のゲームをプレイする
+成果物: エージェントが実際に oTree のゲームをプレイする（8体×10期で検証）
 
-## Phase 4 — 議論の交互配置と結果注入（3〜5日）
+## Phase 4 — 議論の交互配置と結果注入（2026-09-28 完了、同上）
 
-- [~] `run_rounds(k)` と `inject_post` を接続（step-server 側は実装・確認済み。bridge からの呼び出しは未）
-- [ ] 上記1サイクルを完成
-- [ ] 議論フェーズのトピック誘導: initial post としてゲーム争点を投入
-- [ ] ゲーム連動ログの `sim_xxx/game/` 配下への格納確認
+- [x] `run_rounds(k)` と `inject_post` を接続（`/round_complete` → 結果注入 → 議論 → 次期の先取り）
+- [x] 上記1サイクルを完成
+- [x] 議論フェーズのトピック誘導: 冒頭の話題投稿（`opening_post`）
+- [x] ゲーム連動ログを `<sim_dir>/game/<session_code>/` に格納
 
-成果物: 閉ループ動作 + `sim_xxx/game/` 配下にゲーム連動ログ
+成果物: 閉ループ動作 + ゲーム連動ログ。**議論の空回り（NOTES #31）への対処を再検証中**
 
 ## Phase 5 — 実験デザインと妥当性検証（5〜7日）
 

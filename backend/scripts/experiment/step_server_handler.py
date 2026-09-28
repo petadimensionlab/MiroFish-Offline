@@ -194,7 +194,11 @@ class ExperimentIPCHandler(rps.ParallelIPCHandler):
         platform = args.get("platform", "both")
         k = int(args.get("rounds", 0))
         agent_ids = args.get("agent_ids")
-        allowed = {int(a) for a in agent_ids} if agent_ids else None
+        activation = dict(
+            allowed_agent_ids={int(a) for a in agent_ids} if agent_ids else None,
+            ignore_active_hours=bool(args.get("ignore_active_hours", False)),
+            min_active=int(args.get("min_active", 0)),
+        )
         if k <= 0:
             self.send_response(command_id, "failed", error="rounds must be >= 1")
             return True
@@ -208,11 +212,11 @@ class ExperimentIPCHandler(rps.ParallelIPCHandler):
             result: Dict[str, Any] = {}
             if platform in ("twitter", "both") and self.twitter_env:
                 result["twitter"] = await self._run_rounds_one_platform(
-                    "twitter", self.twitter_env, self.twitter_state, k, allowed,
+                    "twitter", self.twitter_env, self.twitter_state, k, activation,
                 )
             if platform in ("reddit", "both") and self.reddit_env:
                 result["reddit"] = await self._run_rounds_one_platform(
-                    "reddit", self.reddit_env, self.reddit_state, k, allowed,
+                    "reddit", self.reddit_env, self.reddit_state, k, activation,
                 )
             if not result:
                 self.send_response(command_id, "failed", error=f"platform unavailable: {platform}")
@@ -224,7 +228,7 @@ class ExperimentIPCHandler(rps.ParallelIPCHandler):
 
     async def _run_rounds_one_platform(
         self, platform: str, env, state: PlatformRoundState, k: int,
-        allowed_agent_ids: Optional[set] = None,
+        activation: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Run up to k rounds via rps.step_round(), resumable via `state`."""
         sim = self._sims[platform]
@@ -241,7 +245,7 @@ class ExperimentIPCHandler(rps.ParallelIPCHandler):
                     break
                 actual_actions, state.last_rowid = await rps.step_round(
                     sim, self._config, state.round_num, state.minutes_per_round,
-                    state.last_rowid, action_logger, allowed_agent_ids,
+                    state.last_rowid, action_logger, **(activation or {}),
                 )
                 actions_this_call += len(actual_actions)
                 state.total_actions += len(actual_actions)

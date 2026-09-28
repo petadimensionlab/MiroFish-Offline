@@ -76,6 +76,10 @@ class BridgeSettings:
     # debate phase (llm policy)
     debate_rounds: int = 0            # 0 = no-debate treatment
     debate_players_only: bool = True  # only game agents can be active in debate rounds
+    # The simulated clock advances with every debate round, so time-of-day
+    # activation leaves debates empty by midday / night (NOTES.md #31)
+    debate_ignore_hours: bool = True
+    debate_min_active: int = 2
     inject_results: str = 'each'      # none | each | summary
     announcer_agent_id: int = -1      # poster for 'summary'; -1 = lowest agent id
     opening_post: str = ''            # topic seeding before round 1
@@ -479,7 +483,9 @@ class ExperimentBridge:
         if settings.debate_rounds > 0:
             resp = client.send_run_rounds(
                 settings.debate_rounds, platform=settings.platform, timeout=RUN_ROUNDS_TIMEOUT_SEC,
-                agent_ids=sorted(state.agents) if settings.debate_players_only else None)
+                agent_ids=sorted(state.agents) if settings.debate_players_only else None,
+                ignore_active_hours=settings.debate_ignore_hours,
+                min_active=settings.debate_min_active)
             if resp.status != CommandStatus.COMPLETED:
                 raise RuntimeError(f"run_rounds failed: {resp.error}")
             record['run_rounds'] = resp.result

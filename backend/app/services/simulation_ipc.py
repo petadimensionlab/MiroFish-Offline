@@ -277,13 +277,17 @@ class SimulationIPCClient:
         )
 
     def send_run_rounds(self, rounds: int, platform: str = "both", timeout: float = 1800.0,
-                        agent_ids: Optional[List[int]] = None) -> IPCResponse:
+                        agent_ids: Optional[List[int]] = None,
+                        ignore_active_hours: bool = False, min_active: int = 0) -> IPCResponse:
         """Advance k debate rounds (experiment step-server only)
 
         Args:
             agent_ids: if given, only these agents can be activated
+            ignore_active_hours: select by activity_level only, not time of day
+            min_active: guarantee at least this many active agents per round
         """
-        args = {"rounds": rounds, "platform": platform}
+        args = {"rounds": rounds, "platform": platform,
+                "ignore_active_hours": ignore_active_hours, "min_active": min_active}
         if agent_ids:
             args["agent_ids"] = list(agent_ids)
         return self.send_command(
