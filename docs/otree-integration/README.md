@@ -8,7 +8,7 @@ MiroFish LLM agents play an oTree iterated prisoner's dilemma. Between game roun
 
 | Component | Location | License | Role |
 |---|---|---|---|
-| oTree app `pd_debate` | `MiroFish-oTree/mirofish_otree_test/pd_debate/` (separate repo) | MIT | The game: pairing, payoffs, records. Bots ask the bridge for decisions |
+| oTree app `pd_debate` | [`MiroFish-oTree`](https://github.com/petadimensionlab/MiroFish-oTree) (separate public repo): `mirofish_otree_test/pd_debate/` | MIT | The game: pairing, payoffs, records. Bots ask the bridge for decisions |
 | Bridge | `backend/app/api/experiment.py`, `backend/app/services/experiment_bridge.py` | AGPL-3.0 | Decision policies, prefetch, debate phase, reconciliation, logs |
 | Decision prompts | `backend/app/services/game_decision.py`, `backend/app/prompts/*.j2` | AGPL-3.0 | Labels, prompt rendering, answer parsing |
 | Step-server | `backend/scripts/run_experiment_env.py`, `backend/scripts/experiment/` | AGPL-3.0 | OASIS environment advanced round by round over file IPC |
@@ -136,7 +136,7 @@ backend/venv311/bin/python backend/scripts/run_experiment_env.py \
 # 3. bridge (FLASK_DEBUG=false is required: the reloader wipes bridge state)
 cd backend && FLASK_DEBUG=false FLASK_PORT=5055 .venv/bin/python run.py
 
-# 4. oTree bots
+# 4. oTree bots (git clone https://github.com/petadimensionlab/MiroFish-oTree; python -m venv .venv; pip install "otree==6.0.15" requests)
 cd MiroFish-oTree/mirofish_otree_test && source ../.venv/bin/activate
 MF_BRIDGE_URL=http://127.0.0.1:5055/api/experiment MF_BRIDGE_TIMEOUT=1800 \
 MF_SIMULATION_DIR=<sim_dir> otree test pd_debate_llm_debate 8 --export ./export

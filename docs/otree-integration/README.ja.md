@@ -8,7 +8,7 @@ MiroFish の LLM エージェントに oTree の反復囚人のジレンマを�
 
 | 構成要素 | 場所 | ライセンス | 役割 |
 |---|---|---|---|
-| oTree アプリ `pd_debate` | `MiroFish-oTree/mirofish_otree_test/pd_debate/`（別リポジトリ） | MIT | ゲーム本体（ペア・利得・記録）。bot が bridge に決定を問い合わせる |
+| oTree アプリ `pd_debate` | [`MiroFish-oTree`](https://github.com/petadimensionlab/MiroFish-oTree)（別の公開リポジトリ）の `mirofish_otree_test/pd_debate/` | MIT | ゲーム本体（ペア・利得・記録）。bot が bridge に決定を問い合わせる |
 | bridge | `backend/app/api/experiment.py`、`backend/app/services/experiment_bridge.py` | AGPL-3.0 | 意思決定の方策、先取り、議論フェーズ、突き合わせ、ログ |
 | 意思決定プロンプト | `backend/app/services/game_decision.py`、`backend/app/prompts/*.j2` | AGPL-3.0 | ラベル、プロンプト生成、応答の解釈 |
 | step-server | `backend/scripts/run_experiment_env.py`、`backend/scripts/experiment/` | AGPL-3.0 | OASIS 環境をファイル IPC で1ラウンドずつ進める |
@@ -136,7 +136,7 @@ backend/venv311/bin/python backend/scripts/run_experiment_env.py \
 # 3. bridge（FLASK_DEBUG=false が必須。リローダーが bridge の状態を消す）
 cd backend && FLASK_DEBUG=false FLASK_PORT=5055 .venv/bin/python run.py
 
-# 4. oTree の bot
+# 4. oTree の bot（git clone https://github.com/petadimensionlab/MiroFish-oTree; python -m venv .venv; pip install "otree==6.0.15" requests）
 cd MiroFish-oTree/mirofish_otree_test && source ../.venv/bin/activate
 MF_BRIDGE_URL=http://127.0.0.1:5055/api/experiment MF_BRIDGE_TIMEOUT=1800 \
 MF_SIMULATION_DIR=<sim_dir> otree test pd_debate_llm_debate 8 --export ./export

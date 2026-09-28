@@ -71,7 +71,7 @@ backend/app/prompts/game_decision.j2       ← 意思決定プロンプト
 backend/app/services/simulation_ipc.py     ← 新コマンドのクライアント（send_game_interview 等）
 ```
 
-**oTree 側**（`/Users/petadimensionlab/workspace/research/MiroFish-oTree/`、MIT、独立 git リポジトリ）:
+**oTree 側**（`/Users/petadimensionlab/workspace/research/MiroFish-oTree/`、MIT、GitHub 公開リポジトリ https://github.com/petadimensionlab/MiroFish-oTree）:
 
 ```
 .venv/                              ← otree 6.0.15 / Python 3.12.12
