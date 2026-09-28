@@ -299,6 +299,7 @@ class ExperimentIPCHandler(rps.ParallelIPCHandler):
         if any(FEED_PLACEHOLDER in item.get("prompt", "") for item in args.get("interviews", [])):
             await sim.env.platform.update_rec_table()
 
+        exclude_own = bool(args.get("exclude_own_posts", False))
         answers: Dict[int, Dict[str, Any]] = {}
         actions = {}
         for item in args.get("interviews", []):
@@ -311,6 +312,9 @@ class ExperimentIPCHandler(rps.ParallelIPCHandler):
                 agent = sim.agent_graph.get_agent(agent_id)
                 if FEED_PLACEHOLDER in prompt:
                     posts = await agent.env.action.refresh()
+                    if exclude_own and posts.get("success"):
+                        # agents otherwise read their own posts back as evidence (NOTES.md #38)
+                        posts["posts"] = [p for p in posts.get("posts") or [] if p.get("user_id") != agent_id]
                     if posts.get("success") and posts.get("posts"):
                         feed = json.dumps(posts["posts"], indent=2, ensure_ascii=False)
                         answer["feed_posts"] = len(posts["posts"])

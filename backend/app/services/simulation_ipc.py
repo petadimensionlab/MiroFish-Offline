@@ -260,7 +260,8 @@ class SimulationIPCClient:
         self,
         interviews: List[Dict[str, Any]],
         platform: str = "twitter",
-        timeout: float = 900.0
+        timeout: float = 900.0,
+        exclude_own_posts: bool = False
     ) -> IPCResponse:
         """
         Send game decision interviews (experiment step-server only)
@@ -272,7 +273,8 @@ class SimulationIPCClient:
         """
         return self.send_command(
             command_type=CommandType.GAME_INTERVIEW,
-            args={"interviews": interviews, "platform": platform},
+            args={"interviews": interviews, "platform": platform,
+                  "exclude_own_posts": exclude_own_posts},
             timeout=timeout
         )
 

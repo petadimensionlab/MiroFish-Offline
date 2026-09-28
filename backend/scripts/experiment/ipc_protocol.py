@@ -148,6 +148,7 @@ class GameInterviewItem(TypedDict):
 class GameInterviewArgs(TypedDict, total=False):
     platform: Literal["twitter", "reddit"]   # default "twitter"
     interviews: List[GameInterviewItem]
+    exclude_own_posts: bool                  # drop the agent's own posts from its feed
 
 
 class GameInterviewAnswer(TypedDict, total=False):

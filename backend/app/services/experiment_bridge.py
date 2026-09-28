@@ -72,6 +72,7 @@ class BridgeSettings:
     simulation_dir: str = ''          # overrides simulation_id (tests)
     platform: str = 'twitter'
     include_feed: bool = True
+    feed_exclude_own: bool = False    # drop the agent's own posts from its decision feed
     num_rounds: int = 10
     default_choice: str = COOPERATE   # used when the answer cannot be parsed
     no_think: str = 'auto'            # auto (qwen3 only) | on | off
@@ -388,7 +389,8 @@ class ExperimentBridge:
                 for a in pending
             ]
             response = client.send_game_interview(interviews, platform=settings.platform,
-                                                   timeout=GAME_INTERVIEW_TIMEOUT_SEC)
+                                                   timeout=GAME_INTERVIEW_TIMEOUT_SEC,
+                                                   exclude_own_posts=settings.feed_exclude_own)
             if response.status != CommandStatus.COMPLETED:
                 raise RuntimeError(f"game_interview failed: {response.error}")
             answers = {int(a['agent_id']): a for a in response.result.get('answers', [])}
@@ -527,7 +529,8 @@ class ExperimentBridge:
         t0 = time.time()
         response = client.send_game_interview(
             [dict(agent_id=a, prompt=prompt) for a in sorted(state.agents)],
-            platform=settings.platform, timeout=GAME_INTERVIEW_TIMEOUT_SEC)
+            platform=settings.platform, timeout=GAME_INTERVIEW_TIMEOUT_SEC,
+            exclude_own_posts=settings.feed_exclude_own)
         if response.status != CommandStatus.COMPLETED:
             raise RuntimeError(f"belief survey failed: {response.error}")
         scores = []
