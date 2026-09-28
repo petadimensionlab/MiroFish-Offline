@@ -35,7 +35,10 @@ from typing import Any, Callable, Dict, Iterable, List, Optional
 
 from ..config import Config
 from ..utils.logger import get_logger
-from .game_decision import render_decision_prompt, parse_decision, wants_no_think
+from .game_decision import (
+    render_decision_prompt, parse_decision, wants_no_think, display_label,
+    render_belief_prompt, parse_likert, DEFAULT_BELIEF_STATEMENT,
+)
 from .simulation_ipc import SimulationIPCClient, CommandStatus
 
 logger = get_logger('mirofish.experiment_bridge')
@@ -72,6 +75,7 @@ class BridgeSettings:
     num_rounds: int = 10
     default_choice: str = COOPERATE   # used when the answer cannot be parsed
     no_think: str = 'auto'            # auto (qwen3 only) | on | off
+    swap_labels: bool = False         # agents see A/B swapped (label bias control)
     payoffs: Dict[str, int] = field(default_factory=lambda: dict(DEFAULT_PAYOFFS))
     # debate phase (llm policy)
     debate_rounds: int = 0            # 0 = no-debate treatment
@@ -84,6 +88,10 @@ class BridgeSettings:
     announcer_agent_id: int = -1      # poster for 'summary'; -1 = lowest agent id
     opening_post: str = ''            # topic seeding before round 1
     opening_agent_id: int = -1        # -1 = announcer
+    repeat_opening: bool = False      # re-post opening_post before every debate phase (NOTES.md #34)
+    # internal state: Likert item before round 1 and after the last round
+    belief_survey: bool = False
+    belief_statement: str = DEFAULT_BELIEF_STATEMENT
 
 
 @dataclass
@@ -176,8 +184,11 @@ class ExperimentBridge:
         self._log(session_code, {'event': 'configure', 'settings': settings,
                                  'n_agents': len(state.agents)})
         if settings['policy'] == 'llm' and state.agents:
-            self.prefetch(session_code, 1,
-                          before=lambda: self._debate_phase(session_code, state.settings, 0, []))
+            def opening():
+                if state.settings.belief_survey:
+                    self.belief_survey(session_code, 'pre')
+                self._debate_phase(session_code, state.settings, 0, [])
+            self.prefetch(session_code, 1, before=opening)
         return {**settings, 'n_agents': len(state.agents)}
 
     @staticmethod
@@ -372,7 +383,8 @@ class ExperimentBridge:
             interviews = [
                 dict(agent_id=a, prompt=render_decision_prompt(
                     round_number, settings.num_rounds, settings.payoffs, histories.get(a, []),
-                    include_feed=settings.include_feed, strict=strict, no_think=no_think))
+                    include_feed=settings.include_feed, strict=strict, no_think=no_think,
+                    swap_labels=settings.swap_labels))
                 for a in pending
             ]
             response = client.send_game_interview(interviews, platform=settings.platform,
@@ -385,6 +397,8 @@ class ExperimentBridge:
             for agent_id in pending:
                 answer = answers.get(agent_id, {})
                 choice, reason, error = parse_decision(answer.get('response'))
+                if choice is not None:
+                    choice = display_label(choice, settings.swap_labels)  # back to internal
                 if answer.get('error'):
                     error = answer['error']
                 self._log_prompt(state.session_code, {
@@ -428,8 +442,10 @@ class ExperimentBridge:
             for agent_id, o in sorted(by_agent.items()):
                 partner = by_agent.get(agents.get(agent_id, -1))
                 other = partner['choice'] if partner else '?'
+                own = display_label(o['choice'], settings.swap_labels)
+                other = display_label(other, settings.swap_labels)
                 posts.append(dict(agent_id=agent_id, content=(
-                    f"Decision task, round {round_number}: I chose Option {o['choice']}, "
+                    f"Decision task, round {round_number}: I chose Option {own}, "
                     f"the other person chose Option {other}. "
                     f"I got {int(float(o.get('payoff') or 0))} points.")))
             return posts
@@ -449,10 +465,15 @@ class ExperimentBridge:
                 mixed += 1
         rate = sum(o['choice'] == 'A' for o in by_agent.values()) / len(by_agent)
         announcer = settings.announcer_agent_id if settings.announcer_agent_id >= 0 else min(agents)
+        c = display_label('A', settings.swap_labels)
+        d = display_label('B', settings.swap_labels)
+        # list the counts in the A, B order of the labels agents see
+        counts = sorted([(c, both_a), (d, both_b)])
         return [dict(agent_id=announcer, content=(
-            f"Decision task, round {round_number} results: {both_a} pairs both chose Option A, "
-            f"{both_b} pairs both chose Option B, {mixed} pairs split. "
-            f"{rate:.0%} of participants chose Option A."))]
+            f"Decision task, round {round_number} results: "
+            f"{counts[0][1]} pairs both chose Option {counts[0][0]}, "
+            f"{counts[1][1]} pairs both chose Option {counts[1][0]}, {mixed} pairs split. "
+            f"{rate:.0%} of participants chose Option {c}."))]
 
     def _debate_phase(self, session_code: str, settings: BridgeSettings, round_number: int,
                       outcomes: List[Dict[str, Any]]) -> None:
@@ -462,15 +483,15 @@ class ExperimentBridge:
         """
         state = self._session(session_code)
         client = SimulationIPCClient(self._simulation_dir(settings))
-        if round_number == 0:
-            posts = []
-            if settings.opening_post:
-                poster = settings.opening_agent_id
-                if poster < 0:
-                    poster = settings.announcer_agent_id if settings.announcer_agent_id >= 0 else min(state.agents)
-                posts = [dict(agent_id=poster, content=settings.opening_post)]
-        else:
-            posts = self.result_posts(settings, state.agents, round_number, outcomes)
+        opening = []
+        if settings.opening_post and (round_number == 0 or settings.repeat_opening):
+            poster = settings.opening_agent_id
+            if poster < 0:
+                poster = settings.announcer_agent_id if settings.announcer_agent_id >= 0 else min(state.agents)
+            opening = [dict(agent_id=poster, content=settings.opening_post)]
+        posts = opening
+        if round_number > 0:
+            posts = posts + self.result_posts(settings, state.agents, round_number, outcomes)
 
         record: Dict[str, Any] = {'event': 'debate_phase', 'after_round': round_number,
                                   'posts': len(posts), 'debate_rounds': settings.debate_rounds}
@@ -491,6 +512,47 @@ class ExperimentBridge:
             record['run_rounds'] = resp.result
         record['elapsed_sec'] = round(time.time() - t0, 1)
         self._log(session_code, record)
+
+    # -- belief survey ---------------------------------------------------------
+
+    def belief_survey(self, session_code: str, phase: str) -> Dict[str, Any]:
+        """Ask every game agent the Likert item; append to beliefs.jsonl."""
+        state = self._session(session_code)
+        settings = BridgeSettings(**asdict(state.settings))
+        model = os.environ.get('LLM_MODEL_NAME', 'llm')
+        prompt = render_belief_prompt(settings.belief_statement, include_feed=settings.include_feed,
+                                      no_think=wants_no_think(settings.no_think, model))
+        client = SimulationIPCClient(self._simulation_dir(settings))
+        t0 = time.time()
+        response = client.send_game_interview(
+            [dict(agent_id=a, prompt=prompt) for a in sorted(state.agents)],
+            platform=settings.platform, timeout=GAME_INTERVIEW_TIMEOUT_SEC)
+        if response.status != CommandStatus.COMPLETED:
+            raise RuntimeError(f"belief survey failed: {response.error}")
+        scores = []
+        for answer in response.result.get('answers', []):
+            score, reason, error = parse_likert(answer.get('response'))
+            if answer.get('error'):
+                error = answer['error']
+            scores.append(score)
+            self._append(session_code, 'beliefs.jsonl', {
+                'phase': phase, 'agent_id': answer.get('agent_id'), 'score': score,
+                'reason': reason, 'parse_error': error, 'feed_posts': answer.get('feed_posts'),
+                'statement': settings.belief_statement, 'response': answer.get('response'),
+            })
+        valid = [x for x in scores if x is not None]
+        summary = {'event': 'belief_survey', 'phase': phase, 'n': len(scores), 'valid': len(valid),
+                   'mean': round(sum(valid) / len(valid), 3) if valid else None,
+                   'elapsed_sec': round(time.time() - t0, 1)}
+        self._log(session_code, summary)
+        return summary
+
+    def _safe_survey(self, session_code: str, phase: str) -> None:
+        try:
+            self.belief_survey(session_code, phase)
+        except Exception as e:  # noqa: BLE001 -- the game itself is already over
+            logger.error(f"Belief survey failed session={session_code} phase={phase}: {e}")
+            self._log(session_code, {'event': 'belief_survey_failed', 'phase': phase, 'error': str(e)})
 
     # -- barrier ---------------------------------------------------------------
 
@@ -528,6 +590,10 @@ class ExperimentBridge:
             prefetch_next = (state.settings.policy == 'llm' and state.agents
                              and next_round <= state.settings.num_rounds)
         self._log(session_code, {'event': 'round_complete', 'round_number': round_number, **record})
+        if (settings.policy == 'llm' and settings.belief_survey
+                and round_number == settings.num_rounds):
+            threading.Thread(target=self._safe_survey, args=(session_code, 'post'),
+                             name=f"survey-{session_code}-post", daemon=True).start()
         prefetched = 0
         if prefetch_next:
             prefetched = self.prefetch(

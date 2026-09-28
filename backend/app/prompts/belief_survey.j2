@@ -1,0 +1,12 @@
+Based on your persona, all your past memories and the posts below, reply directly to me with text without calling any tools.
+
+{% if include_feed %}These are the social media posts you currently see:
+{{ feed_placeholder }}
+
+{% endif %}How much do you agree with this statement?
+"{{ statement }}"
+
+Answer on a scale from 1 (strongly disagree) to 7 (strongly agree).
+Reply with only a JSON object: {"score": 1 to 7, "reason": "one sentence"}
+{% if no_think %}/no_think
+{% endif %}
