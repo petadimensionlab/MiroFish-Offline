@@ -21,14 +21,14 @@
 
 成果物: bot で完走する実験アプリ + CSV エクスポートの列定義確定
 
-## Phase 2 — Bridge をダミー方針で貫通（2〜3日）
+## Phase 2 — Bridge をダミー方針で貫通（2026-09-28 完了、[phase2-bridge.md](phase2-bridge.md)）
 
-- [ ] `backend/app/api/experiment.py` を新設
-- [ ] `backend/app/services/experiment_bridge.py` を新設
-- [ ] `POST /decide` をランダム／固定戦略を返す実装（LLM 抜き）
-- [ ] `otree_social/bridge_client.py` から bot が呼び出せるように実装
-- [ ] N=4×10グループ、3期でのテスト実行
-- [ ] タイムアウト、リトライ、バリア（全員提出検出）の動作確認
+- [x] `backend/app/api/experiment.py` を新設
+- [x] `backend/app/services/experiment_bridge.py` を新設
+- [x] `POST /decide` をランダム／固定戦略を返す実装（LLM 抜き）
+- [x] `pd_debate/bridge_client.py` から bot が呼び出せるように実装
+- [x] テスト実行（PD に合わせて 48体 × 10期で代替）
+- [x] タイムアウト、リトライ、バリア（全員提出検出）の動作確認。あわせて in-flight 待ち合わせと oTree 記録との突き合わせを追加
 
 成果物: LLM ゼロで end-to-end が通る状態
 

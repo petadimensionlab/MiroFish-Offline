@@ -12,7 +12,7 @@ oTree（行動実験フレームワーク）の経済ゲームを、MiroFish-Off
 
 ## 現在地
 
-**Phase 0 完了、refactor R1 完了、step-server は実 LLM で end-to-end 動作確認済み。Phase 1（oTree `pd_debate`）完了 — [phase1-otree.md](phase1-otree.md)。次は Phase 2（bridge）。**
+**Phase 0 完了、refactor R1 完了、step-server は実 LLM で end-to-end 動作確認済み。Phase 1（oTree `pd_debate`）完了 — [phase1-otree.md](phase1-otree.md)。Phase 2（bridge ダミー貫通）完了 — [phase2-bridge.md](phase2-bridge.md)。次は Phase 3（意思決定を LLM に接続）。**
 
 作業中に気づいた異常・懸念は [NOTES.md](NOTES.md) の観察ログに記録している（着手前に一読）。
 
@@ -41,7 +41,7 @@ backend/venv311/                 ← Python 3.11.16（gitignore 済み）
 `run_experiment_env.py` は import は通るが `run_rounds()` / `init_platforms()` が
 意図的に `NotImplementedError` のまま。既存ファイルへのリファクタ（下記 R1）が前提。
 
-**oTree 側**（別ディレクトリ、MIT。ライセンス分離のため MiroFish リポジトリ外）:
+**oTree 側**（別ディレクトリ、MIT。ライセンス分離のため MiroFish リポジトリ外。2026-09-28 に独立した git リポジトリとして `git init` 済み）:
 
 ```
 /Users/petadimensionlab/workspace/research/MiroFish-oTree/
@@ -124,8 +124,9 @@ backend/venv311/                 ← Python 3.11.16（gitignore 済み）
 ## 次にやること
 
 1. ~~Phase 1~~ 完了（phase1-otree.md）
-2. Phase 2: bridge（`backend/app/api/experiment.py` ほか）をダミー方針で貫通
-3. NOTES #8（時刻のズレ）と #10（INTERVIEW に議論の文脈が入らない疑い）は Phase 3〜4 の設計に効く
+2. ~~Phase 2~~ 完了（phase2-bridge.md）
+3. Phase 3: bridge の `_compute` を step-server への INTERVIEW に差し替え。先に NOTES #10（INTERVIEW に議論の文脈が入るか）を確認
+4. NOTES #8（時刻のズレ）と #10（INTERVIEW に議論の文脈が入らない疑い）は Phase 3〜4 の設計に効く
 
 ## 決定事項（2026-09-28 ユーザー承認）
 
