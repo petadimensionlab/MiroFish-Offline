@@ -1,6 +1,6 @@
 # oTree × MiroFish-Offline 統合 実装・検証レポート
 
-作成日: 2026-09-28 ／ 対象ブランチ: `feat/otree-step-server`（MiroFish-Offline）、oTree 側は別リポジトリ `MiroFish-oTree`
+作成日: 2026-09-28 ／ 対象ブランチ: `feat/otree-step-server`（MiroFish-Offline）、oTree 側は別リポジトリ [`MiroFish-oTree`](https://github.com/petadimensionlab/MiroFish-oTree)（公開、MIT）
 
 技術仕様は [README.md](README.md)（英語）／[README.ja.md](README.ja.md)（日本語）。作業中の観察ログは [NOTES.md](NOTES.md)（46件）。
 グラフ付きの版は [report.html](report.html)、音声版は [audio/report_ja.mp3](audio/report_ja.mp3)（原稿 [narration/report_narration.txt](narration/report_narration.txt)）。
@@ -292,7 +292,7 @@ pid ファイルで二重起動を拒否する（止めたはずの旧プロセ�
 | `backend/scripts/experiment/make_general_sim.py` | 一般人ペルソナの生成 |
 | `backend/app/api/experiment.py`, `backend/app/services/experiment_bridge.py` | bridge |
 | `backend/app/services/game_decision.py`, `backend/app/prompts/*.j2` | プロンプトと解釈 |
-| `MiroFish-oTree/mirofish_otree_test/pd_debate/` | oTree アプリ |
+| [`MiroFish-oTree`](https://github.com/petadimensionlab/MiroFish-oTree) の `mirofish_otree_test/pd_debate/` | oTree アプリ |
 
 ## 付録 B. 用語
 

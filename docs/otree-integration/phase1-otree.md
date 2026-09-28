@@ -4,7 +4,7 @@
 
 ## 置き場所
 
-`/Users/petadimensionlab/workspace/research/MiroFish-oTree/mirofish_otree_test/pd_debate/`
+`/Users/petadimensionlab/workspace/research/MiroFish-oTree/mirofish_otree_test/pd_debate/`（GitHub: https://github.com/petadimensionlab/MiroFish-oTree）
 （MIT 側。ライセンス分離のため MiroFish リポジトリ外。**git 管理されていない** — NOTES #12）
 
 | ファイル | 内容 |
