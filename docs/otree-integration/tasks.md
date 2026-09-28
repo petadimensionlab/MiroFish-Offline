@@ -12,12 +12,12 @@
 - [x] `run_parallel_simulation.py` から `setup_platform_env` / `publish_initial_posts` / `step_round` を抽出
 - [x] `run_experiment_env.py` を `ExperimentIPCHandler` ベースで実装、実 LLM で IPC end-to-end 確認
 
-## Phase 1 — oTree アプリ単体（2〜3日）
+## Phase 1 — oTree アプリ単体（2026-09-28 完了、[phase1-otree.md](phase1-otree.md)）
 
-- [ ] `otree_social/pd_debate/__init__.py`: 反復囚人のジレンマ（`PLAYERS_PER_GROUP=2`、固定ペア、`C.NUM_ROUNDS=10`）。協力/裏切りの選択フィールド、`set_payoffs`。エージェント専用なので人間用 `DebatePage` は作らず、議論フェーズは WaitPage の `after_all_players_arrive` を起点にする
-- [ ] live_method は使わない（bot が通らないため）。通常の Page + form field 構成に統一
-- [ ] `tests.py` に固定戦略 bot を書き、`otree test` で headless に完走を確認
-- [ ] CSV エクスポートの列定義を確定
+- [x] `pd_debate/__init__.py`: 反復囚人のジレンマ（`PLAYERS_PER_GROUP=2`、固定ペア、`NUM_ROUNDS=10`）、`set_payoffs`、全グループのラウンドバリア `DebateBarrier`
+- [x] live_method は使わない。通常の Page + form field 構成
+- [x] `tests.py` に固定戦略 bot（tft/alld/allc/grim）、`otree test pd_debate 48` で完走・理論値と一致
+- [x] CSV エクスポートの列定義を確定（`custom_export`）
 
 成果物: bot で完走する実験アプリ + CSV エクスポートの列定義確定
 

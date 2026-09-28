@@ -12,7 +12,7 @@ oTree（行動実験フレームワーク）の経済ゲームを、MiroFish-Off
 
 ## 現在地
 
-**Phase 0 完了、refactor R1 完了、step-server は実 LLM で end-to-end 動作確認済み。Phase 1（oTree `pd_debate`）は未着手。**
+**Phase 0 完了、refactor R1 完了、step-server は実 LLM で end-to-end 動作確認済み。Phase 1（oTree `pd_debate`）完了 — [phase1-otree.md](phase1-otree.md)。次は Phase 2（bridge）。**
 
 作業中に気づいた異常・懸念は [NOTES.md](NOTES.md) の観察ログに記録している（着手前に一読）。
 
@@ -123,8 +123,7 @@ backend/venv311/                 ← Python 3.11.16（gitignore 済み）
 
 ## 次にやること
 
-1. Phase 1: `MiroFish-oTree/mirofish_otree_test/` 側に `pd_debate` アプリ（2人固定ペア×10期）と
-   固定戦略 bot を作り、`otree test` で完走させる。CSV 列定義を確定
+1. ~~Phase 1~~ 完了（phase1-otree.md）
 2. Phase 2: bridge（`backend/app/api/experiment.py` ほか）をダミー方針で貫通
 3. NOTES #8（時刻のズレ）と #10（INTERVIEW に議論の文脈が入らない疑い）は Phase 3〜4 の設計に効く
 
