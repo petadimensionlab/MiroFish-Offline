@@ -21,10 +21,12 @@ task 2).
 
 from __future__ import annotations
 
+import json
 import os
+import sqlite3
 import sys
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _SCRIPTS_DIR = os.path.dirname(_HERE)
@@ -35,7 +37,9 @@ if _SCRIPTS_DIR not in sys.path:
 # "importable as-is" inventory with line numbers in phase0-mirofish.md).
 import run_parallel_simulation as rps  # noqa: E402
 
-from experiment.ipc_protocol import RUN_ROUNDS, INJECT_POST, GET_STATE  # noqa: E402
+from experiment.ipc_protocol import (  # noqa: E402
+    RUN_ROUNDS, INJECT_POST, GET_STATE, GAME_INTERVIEW, FEED_PLACEHOLDER,
+)
 from experiment.round_state import PlatformRoundState, RunRoundsLock  # noqa: E402
 
 
@@ -151,6 +155,8 @@ class ExperimentIPCHandler(rps.ParallelIPCHandler):
             return await self.handle_inject_post(command_id, args)
         if command_type == GET_STATE:
             return await self.handle_get_state(command_id, args)
+        if command_type == GAME_INTERVIEW:
+            return await self.handle_game_interview(command_id, args)
 
         # Fall back to the 3 pre-existing command types, reusing the
         # parent class's own handlers verbatim (inherited, not copied).
@@ -159,11 +165,13 @@ class ExperimentIPCHandler(rps.ParallelIPCHandler):
                 command_id, args.get("agent_id", 0), args.get("prompt", ""),
                 args.get("platform"),
             )
+            self._consume_trace()
             return True
         if command_type == rps.CommandType.BATCH_INTERVIEW:
             await self.handle_batch_interview(
                 command_id, args.get("interviews", []), args.get("platform"),
             )
+            self._consume_trace()
             return True
         if command_type == rps.CommandType.CLOSE_ENV:
             self.send_response(command_id, "completed", result={"message": "Environment will close"})
@@ -185,6 +193,8 @@ class ExperimentIPCHandler(rps.ParallelIPCHandler):
 
         platform = args.get("platform", "both")
         k = int(args.get("rounds", 0))
+        agent_ids = args.get("agent_ids")
+        allowed = {int(a) for a in agent_ids} if agent_ids else None
         if k <= 0:
             self.send_response(command_id, "failed", error="rounds must be >= 1")
             return True
@@ -198,11 +208,11 @@ class ExperimentIPCHandler(rps.ParallelIPCHandler):
             result: Dict[str, Any] = {}
             if platform in ("twitter", "both") and self.twitter_env:
                 result["twitter"] = await self._run_rounds_one_platform(
-                    "twitter", self.twitter_env, self.twitter_state, k,
+                    "twitter", self.twitter_env, self.twitter_state, k, allowed,
                 )
             if platform in ("reddit", "both") and self.reddit_env:
                 result["reddit"] = await self._run_rounds_one_platform(
-                    "reddit", self.reddit_env, self.reddit_state, k,
+                    "reddit", self.reddit_env, self.reddit_state, k, allowed,
                 )
             if not result:
                 self.send_response(command_id, "failed", error=f"platform unavailable: {platform}")
@@ -214,6 +224,7 @@ class ExperimentIPCHandler(rps.ParallelIPCHandler):
 
     async def _run_rounds_one_platform(
         self, platform: str, env, state: PlatformRoundState, k: int,
+        allowed_agent_ids: Optional[set] = None,
     ) -> Dict[str, Any]:
         """Run up to k rounds via rps.step_round(), resumable via `state`."""
         sim = self._sims[platform]
@@ -221,6 +232,8 @@ class ExperimentIPCHandler(rps.ParallelIPCHandler):
         round_from = state.round_num
         actions_this_call = 0
         state.status = "running_rounds"
+        # Rows written since the last command (e.g. interviews) are not debate actions
+        self._consume_trace((platform,))
 
         try:
             for _ in range(k):
@@ -228,7 +241,7 @@ class ExperimentIPCHandler(rps.ParallelIPCHandler):
                     break
                 actual_actions, state.last_rowid = await rps.step_round(
                     sim, self._config, state.round_num, state.minutes_per_round,
-                    state.last_rowid, action_logger,
+                    state.last_rowid, action_logger, allowed_agent_ids,
                 )
                 actions_this_call += len(actual_actions)
                 state.total_actions += len(actual_actions)
@@ -246,14 +259,116 @@ class ExperimentIPCHandler(rps.ParallelIPCHandler):
         })
         return result
 
+    # -- trace watermark -------------------------------------------------------
+
+    def _state_for(self, platform: str) -> PlatformRoundState:
+        return self.twitter_state if platform == "twitter" else self.reddit_state
+
+    def _consume_trace(self, platforms=("twitter", "reddit")) -> None:
+        """Advance last_rowid past rows written outside RUN_ROUNDS (interviews,
+        refreshes) so the next round does not log them. See NOTES.md #18."""
+        for platform in platforms:
+            sim = self._sims.get(platform)
+            if sim is None:
+                continue
+            state = self._state_for(platform)
+            _, state.last_rowid = rps.fetch_new_actions_from_db(
+                sim.db_path, state.last_rowid, sim.agent_names,
+            )
+
+    # -- GAME_INTERVIEW -------------------------------------------------------
+
+    async def handle_game_interview(self, command_id: str, args: Dict[str, Any]) -> bool:
+        platform = args.get("platform", "twitter")
+        sim = self._sims.get(platform)
+        if sim is None:
+            self.send_response(command_id, "failed", error=f"platform unavailable: {platform}")
+            return True
+        # Rows before this call belong to earlier commands; consume them first
+        # so the watermark marks exactly where this batch's interviews start.
+        self._consume_trace((platform,))
+        start_rowid = self._state_for(platform).last_rowid
+
+        # refresh() reads the rec table, which OASIS only rebuilds at the start
+        # of env.step(); without this the feed misses every post made since
+        # the last step, including the latest debate round (NOTES.md #20).
+        if any(FEED_PLACEHOLDER in item.get("prompt", "") for item in args.get("interviews", [])):
+            await sim.env.platform.update_rec_table()
+
+        answers: Dict[int, Dict[str, Any]] = {}
+        actions = {}
+        for item in args.get("interviews", []):
+            agent_id = int(item.get("agent_id"))
+            prompt = item.get("prompt", "")
+            answer: Dict[str, Any] = {"agent_id": agent_id, "response": None, "feed_posts": 0, "error": None}
+            answers[agent_id] = answer
+            try:
+                agent = sim.agent_graph.get_agent(agent_id)
+                if FEED_PLACEHOLDER in prompt:
+                    posts = await agent.env.action.refresh()
+                    if posts.get("success") and posts.get("posts"):
+                        feed = json.dumps(posts["posts"], indent=2, ensure_ascii=False)
+                        answer["feed_posts"] = len(posts["posts"])
+                    else:
+                        feed = "(no posts)"
+                    prompt = prompt.replace(FEED_PLACEHOLDER, feed)
+                actions[agent] = rps.ManualAction(
+                    action_type=rps.ActionType.INTERVIEW,
+                    action_args={"prompt": prompt},
+                )
+            except Exception as e:  # noqa: BLE001 -- reported per agent
+                answer["error"] = f"{type(e).__name__}: {e}"
+
+        if actions:
+            await sim.env.step(actions)
+
+        # Read only interview rows written by this step. The stock
+        # _get_interview_result() takes the agent's latest interview by
+        # created_at, which silently returns a previous answer when this
+        # interview failed to write a row (NOTES.md #19).
+        conn = sqlite3.connect(sim.db_path)
+        try:
+            rows = conn.execute(
+                "SELECT user_id, info FROM trace WHERE rowid > ? AND action = ? ORDER BY rowid",
+                (start_rowid, rps.ActionType.INTERVIEW.value),
+            ).fetchall()
+        finally:
+            conn.close()
+        for user_id, info_json in rows:
+            answer = answers.get(user_id)
+            if answer is None:
+                continue
+            try:
+                info = json.loads(info_json) if info_json else {}
+                answer["response"] = info.get("response")
+            except json.JSONDecodeError:
+                answer["response"] = info_json
+        for answer in answers.values():
+            if answer["response"] is None and answer["error"] is None:
+                answer["error"] = "no interview record written"
+
+        self._consume_trace((platform,))
+        self.send_response(command_id, "completed", result={
+            "platform": platform, "answers": list(answers.values()),
+        })
+        return True
+
     # -- INJECT_POST ----------------------------------------------------------
 
     async def handle_inject_post(self, command_id: str, args: Dict[str, Any]) -> bool:
-        agent_id = args.get("agent_id")
-        content = args.get("content", "")
+        """Publish posts as agents in ONE env.step per platform.
+
+        args: {"posts": [{"agent_id", "content"}], "platform"} or the
+        single-post form {"agent_id", "content", "platform"}. One step keeps
+        the OASIS clock from advancing once per post (NOTES.md #8).
+        """
+        posts = args.get("posts")
+        if posts is None:
+            posts = [{"agent_id": args.get("agent_id"), "content": args.get("content", "")}]
+        posts = [p for p in posts if p.get("agent_id") is not None and p.get("content")]
         platform = args.get("platform", "both")
 
-        if agent_id is None or not content:
+        if not posts:
             self.send_response(command_id, "failed", error="agent_id and content are required")
             return True
 
@@ -265,14 +380,23 @@ class ExperimentIPCHandler(rps.ParallelIPCHandler):
             if platform not in (plat, "both") or not env:
                 continue
             try:
-                agent = agent_graph.get_agent(agent_id)
-                action = rps.ManualAction(
-                    action_type=rps.ActionType.CREATE_POST,
-                    action_args={"content": content},
-                )
-                await env.step({agent: action})
-                # Consume the injected post's trace rows now, so the next
-                # RUN_ROUNDS does not log it as a spontaneous agent post.
+                actions: Dict[Any, List[Any]] = {}
+                unknown = []
+                for post in posts:
+                    try:
+                        agent = agent_graph.get_agent(int(post["agent_id"]))
+                    except Exception:  # noqa: BLE001 -- reported below
+                        unknown.append(post["agent_id"])
+                        continue
+                    actions.setdefault(agent, []).append(rps.ManualAction(
+                        action_type=rps.ActionType.CREATE_POST,
+                        action_args={"content": post["content"]},
+                    ))
+                self._consume_trace((plat,))
+                if actions:
+                    await env.step({a: (acts[0] if len(acts) == 1 else acts) for a, acts in actions.items()})
+                # Consume the injected posts' trace rows now, so the next
+                # RUN_ROUNDS does not log them as spontaneous agent posts.
                 # See NOTES.md #9.
                 sim = self._sims[plat]
                 injected, state.last_rowid = rps.fetch_new_actions_from_db(
@@ -288,7 +412,10 @@ class ExperimentIPCHandler(rps.ParallelIPCHandler):
                             action_type=action_data["action_type"],
                             action_args={**action_data["action_args"], "injected": True},
                         )
-                platforms_result[plat] = {"round_num": state.round_num, "error": None}
+                platforms_result[plat] = {
+                    "round_num": state.round_num, "posted": len(injected),
+                    "unknown_agents": unknown, "error": None,
+                }
             except Exception as e:  # mirrors ParallelIPCHandler's own defensive style
                 platforms_result[plat] = {"round_num": state.round_num, "error": str(e)}
 
@@ -296,9 +423,10 @@ class ExperimentIPCHandler(rps.ParallelIPCHandler):
             self.send_response(command_id, "failed", error=f"platform unavailable: {platform}")
             return True
 
-        self.send_response(command_id, "completed", result={
-            "agent_id": agent_id, "platforms": platforms_result,
-        })
+        result = {"requested": len(posts), "platforms": platforms_result}
+        if len(posts) == 1:
+            result["agent_id"] = posts[0]["agent_id"]
+        self.send_response(command_id, "completed", result=result)
         return True
 
     # -- GET_STATE ----------------------------------------------------------

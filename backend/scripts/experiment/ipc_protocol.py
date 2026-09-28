@@ -32,8 +32,9 @@ from typing import Any, Dict, List, Literal, Optional, TypedDict
 RUN_ROUNDS = "run_rounds"
 INJECT_POST = "inject_post"
 GET_STATE = "get_state"
+GAME_INTERVIEW = "game_interview"
 
-NEW_COMMAND_TYPES = (RUN_ROUNDS, INJECT_POST, GET_STATE)
+NEW_COMMAND_TYPES = (RUN_ROUNDS, INJECT_POST, GET_STATE, GAME_INTERVIEW)
 
 Platform = Literal["twitter", "reddit", "both"]
 
@@ -125,6 +126,41 @@ class GetStateResult(TypedDict, total=False):
 # already in flight (see phase0-mirofish.md "Serialization" section).
 # This is carried in IPCResponse.error / IPCResponse.result, status="rejected".
 # ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# GAME_INTERVIEW
+#
+# Batch interview for game decisions. Unlike batch_interview, each prompt may
+# contain FEED_PLACEHOLDER, replaced per agent with the posts that agent sees
+# on refresh: OASIS interviews only see the agent's own ChatAgent memory,
+# which is empty for agents never activated in a debate round (NOTES.md #10).
+# Interview trace rows are consumed so they never reach actions.jsonl.
+# ---------------------------------------------------------------------------
+
+FEED_PLACEHOLDER = "{{FEED}}"
+
+
+class GameInterviewItem(TypedDict):
+    agent_id: int
+    prompt: str
+
+
+class GameInterviewArgs(TypedDict, total=False):
+    platform: Literal["twitter", "reddit"]   # default "twitter"
+    interviews: List[GameInterviewItem]
+
+
+class GameInterviewAnswer(TypedDict, total=False):
+    agent_id: int
+    response: Optional[str]
+    feed_posts: int                 # number of posts embedded in the prompt
+    error: Optional[str]
+
+
+class GameInterviewResult(TypedDict):
+    platform: str
+    answers: List[GameInterviewAnswer]
+
 
 REJECTED = "rejected"
 

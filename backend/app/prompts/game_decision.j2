@@ -1,0 +1,27 @@
+Based on your persona, all your past memories and the posts below, reply directly to me with text without calling any tools.
+
+You are taking part in a decision task with one other person. It is always the same person, every round. In each round you both choose Option A or Option B at the same time, without seeing the other's choice.
+
+Points per round:
+- Both choose A: you get {{ m.R }}, the other gets {{ m.R }}
+- You choose A, the other chooses B: you get {{ m.S }}, the other gets {{ m.T }}
+- You choose B, the other chooses A: you get {{ m.T }}, the other gets {{ m.S }}
+- Both choose B: you get {{ m.P }}, the other gets {{ m.P }}
+
+This is round {{ round_number }} of {{ num_rounds }}.
+{% if history %}
+What happened so far:
+{% for h in history %}- Round {{ h.round_number }}: you chose {{ h.own }}, the other chose {{ h.partner }}, you got {{ h.payoff | int }} points
+{% endfor %}{% else %}
+This is the first round.
+{% endif %}
+{% if include_feed %}
+These are the social media posts you currently see:
+{{ feed_placeholder }}
+{% endif %}
+{% if strict %}
+Your previous answer could not be read. Answer with the JSON object only, no other text.
+{% endif %}
+Reply with only a JSON object: {"choice": "A" or "B", "reason": "one sentence explaining your choice"}
+{% if no_think %}/no_think
+{% endif %}

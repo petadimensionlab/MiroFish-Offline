@@ -1,12 +1,28 @@
 """
 Experiment bridge: serves oTree game decisions for MiroFish agents.
 
-Phase 2 uses LLM-free dummy policies so the oTree <-> MiroFish path can be
-exercised end-to-end. Phase 3 swaps DecisionPolicy for one that interviews
-agents through the step-server.
+Policies:
+  random / allc / alld / tft   LLM-free dummies (Phase 2)
+  llm                          interview agents through the experiment
+                               step-server (scripts/run_experiment_env.py)
 
-State is per oTree session (session_code) and kept in memory, with an
-append-only JSONL log under uploads/experiments/<session_code>/.
+For the llm policy, decisions for a whole round are prefetched in one
+batched GAME_INTERVIEW as soon as the previous round's barrier fires
+(round_complete), because the oTree bot runner calls /decide strictly
+serially. /decide then waits on the in-flight batch instead of issuing its
+own LLM call.
+
+Debate phase (llm policy, Phase 4): before each round's prefetch the
+bridge runs, through the step-server,
+  round 1:   opening_post (topic seeding), then debate_rounds debate rounds
+  round r+1: round r results posted as each agent's own post (or one
+             summary post), then debate_rounds debate rounds
+so decisions see a timeline shaped by the previous round. debate_rounds=0
+is the no-debate treatment.
+
+State is per oTree session (session_code) and kept in memory, with
+append-only JSONL logs under <simulation_dir>/game/<session_code>/ for the
+llm policy, else uploads/experiments/<session_code>/.
 """
 
 import json
@@ -15,10 +31,12 @@ import random
 import threading
 import time
 from dataclasses import dataclass, field, asdict
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, Iterable, List, Optional
 
 from ..config import Config
 from ..utils.logger import get_logger
+from .game_decision import render_decision_prompt, parse_decision, wants_no_think
+from .simulation_ipc import SimulationIPCClient, CommandStatus
 
 logger = get_logger('mirofish.experiment_bridge')
 
@@ -27,9 +45,16 @@ EXPERIMENT_DATA_DIR = os.path.join(Config.UPLOAD_FOLDER, 'experiments')
 COOPERATE = 'A'
 DEFECT = 'B'
 CHOICES = (COOPERATE, DEFECT)
-POLICIES = ('random', 'allc', 'alld', 'tft')
-# How long a retry waits for an in-flight request for the same decision
-IN_FLIGHT_WAIT_SEC = 300.0
+DUMMY_POLICIES = ('random', 'allc', 'alld', 'tft')
+POLICIES = DUMMY_POLICIES + ('llm',)
+DEFAULT_PAYOFFS = dict(R=30, T=50, S=0, P=10)
+# How long a /decide waits for an in-flight computation of the same decision
+IN_FLIGHT_WAIT_SEC = 1800.0
+# One batched GAME_INTERVIEW for a whole round
+GAME_INTERVIEW_TIMEOUT_SEC = 900.0
+# One RUN_ROUNDS burst of debate_rounds rounds
+RUN_ROUNDS_TIMEOUT_SEC = 1800.0
+INJECT_MODES = ('none', 'each', 'summary')
 
 
 @dataclass
@@ -39,6 +64,22 @@ class BridgeSettings:
     seed: int = 0
     inject_delay_sec: float = 0.0
     inject_error_rate: float = 0.0
+    # llm policy
+    simulation_id: str = ''
+    simulation_dir: str = ''          # overrides simulation_id (tests)
+    platform: str = 'twitter'
+    include_feed: bool = True
+    num_rounds: int = 10
+    default_choice: str = COOPERATE   # used when the answer cannot be parsed
+    no_think: str = 'auto'            # auto (qwen3 only) | on | off
+    payoffs: Dict[str, int] = field(default_factory=lambda: dict(DEFAULT_PAYOFFS))
+    # debate phase (llm policy)
+    debate_rounds: int = 0            # 0 = no-debate treatment
+    debate_players_only: bool = True  # only game agents can be active in debate rounds
+    inject_results: str = 'each'      # none | each | summary
+    announcer_agent_id: int = -1      # poster for 'summary'; -1 = lowest agent id
+    opening_post: str = ''            # topic seeding before round 1
+    opening_agent_id: int = -1        # -1 = announcer
 
 
 @dataclass
@@ -60,10 +101,32 @@ class SessionState:
     attempts: Dict[tuple, int] = field(default_factory=dict)
     in_flight: Dict[tuple, threading.Event] = field(default_factory=dict)
     injected_errors: int = 0
+    # agent_id -> partner agent_id, from /configure
+    agents: Dict[int, int] = field(default_factory=dict)
+    # round_number -> agent_id -> outcome oTree recorded
+    outcomes: Dict[int, Dict[int, Dict[str, Any]]] = field(default_factory=dict)
 
 
 class InjectedFailure(RuntimeError):
     """Raised on purpose by fault injection."""
+
+
+class UnknownSession(LookupError):
+    """The session was never configured, e.g. the bridge restarted mid-run.
+
+    Serving it with default settings would silently turn an llm run into a
+    random-policy run (NOTES.md #23), so callers must see an error.
+    """
+
+
+def _coerce(current, value):
+    if isinstance(current, bool):
+        if isinstance(value, str):
+            return value.strip().lower() in ('1', 'true', 'yes', 'on')
+        return bool(value)
+    if isinstance(current, dict):
+        return dict(value)
+    return type(current)(value)
 
 
 class ExperimentBridge:
@@ -74,25 +137,53 @@ class ExperimentBridge:
 
     # -- sessions ------------------------------------------------------------
 
-    def _session(self, session_code: str) -> SessionState:
+    def _session(self, session_code: str, create: bool = False) -> SessionState:
         state = self._sessions.get(session_code)
         if state is None:
+            if not create:
+                raise UnknownSession(f"session {session_code} is not configured (bridge restarted?)")
             state = SessionState(session_code=session_code)
             self._sessions[session_code] = state
         return state
 
-    def configure(self, session_code: str, **kwargs) -> Dict[str, Any]:
+    def configure(self, session_code: str, agents: Optional[List[Dict[str, int]]] = None,
+                  **kwargs) -> Dict[str, Any]:
+        """
+        Args:
+            agents: [{"agent_id", "partner_agent_id"}]; with policy "llm" this
+                starts prefetching round 1
+        """
         policy = kwargs.get('policy')
         if policy is not None and policy not in POLICIES:
             raise ValueError(f"unknown policy: {policy} (expected one of {POLICIES})")
+        inject = kwargs.get('inject_results')
+        if inject is not None and inject not in INJECT_MODES:
+            raise ValueError(f"unknown inject_results: {inject} (expected one of {INJECT_MODES})")
         with self._lock:
-            state = self._session(session_code)
+            state = self._session(session_code, create=True)
             for key, value in kwargs.items():
                 if value is not None and hasattr(state.settings, key):
-                    setattr(state.settings, key, type(getattr(state.settings, key))(value))
+                    setattr(state.settings, key, _coerce(getattr(state.settings, key), value))
+            if agents:
+                state.agents = {int(a['agent_id']): int(a['partner_agent_id']) for a in agents}
             settings = asdict(state.settings)
-        self._log(session_code, {'event': 'configure', 'settings': settings})
-        return settings
+            if settings['policy'] == 'llm':
+                self._simulation_dir(state.settings)  # validate early
+        self._log(session_code, {'event': 'configure', 'settings': settings,
+                                 'n_agents': len(state.agents)})
+        if settings['policy'] == 'llm' and state.agents:
+            self.prefetch(session_code, 1,
+                          before=lambda: self._debate_phase(session_code, state.settings, 0, []))
+        return {**settings, 'n_agents': len(state.agents)}
+
+    @staticmethod
+    def _simulation_dir(settings: BridgeSettings) -> str:
+        sim_dir = settings.simulation_dir or (
+            os.path.join(Config.OASIS_SIMULATION_DATA_DIR, settings.simulation_id)
+            if settings.simulation_id else '')
+        if not sim_dir or not os.path.isdir(sim_dir):
+            raise ValueError(f"llm policy needs an existing simulation_id/simulation_dir, got {sim_dir!r}")
+        return sim_dir
 
     # -- decide --------------------------------------------------------------
 
@@ -124,13 +215,17 @@ class ExperimentBridge:
                     attempt = state.attempts.get(key, 0) + 1
                     state.attempts[key] = attempt
                     break
-            # A retry arrived while the first request is still computing (the
-            # client timed out). Wait for it instead of computing twice, which
-            # would be a second LLM call in Phase 3.
+            # A retry (or the round prefetch) is already computing this
+            # decision. Wait for it instead of computing twice, which would
+            # be a second LLM call.
             in_flight.wait(timeout=IN_FLIGHT_WAIT_SEC)
 
         try:
-            decision = self._compute(session_code, round_number, agent_id, history, settings, attempt)
+            if settings.policy == 'llm':
+                decision = self._llm_batch(state, settings, round_number, [agent_id],
+                                           {agent_id: history or []})[agent_id]
+            else:
+                decision = self._compute(session_code, round_number, agent_id, history, settings, attempt)
             with self._lock:
                 state.decisions[key] = decision
         finally:
@@ -180,19 +275,232 @@ class ExperimentBridge:
             return last, 'tit-for-tat: copy partner'
         return rng.choice(CHOICES), 'random'
 
+    # -- llm policy ------------------------------------------------------------
+
+    def _history_from_outcomes(self, state: SessionState, agent_id: int, before_round: int):
+        history = []
+        partner = state.agents.get(agent_id)
+        for r in range(1, before_round):
+            own = state.outcomes.get(r, {}).get(agent_id)
+            other = state.outcomes.get(r, {}).get(partner)
+            if own is None or other is None:
+                continue
+            history.append(dict(round_number=r, own=own['choice'], partner=other['choice'],
+                                payoff=float(own.get('payoff') or 0)))
+        return history
+
+    def prefetch(self, session_code: str, round_number: int,
+                 agent_ids: Optional[Iterable[int]] = None,
+                 before: Optional[Callable[[], None]] = None) -> int:
+        """Start computing every agent's decision for a round in the background.
+
+        The in-flight slots are claimed before this returns, so a /decide that
+        arrives while `before` (the debate phase) is still running waits for
+        the post-debate decision instead of computing one without it.
+
+        Returns the number of decisions this call took ownership of.
+        """
+        with self._lock:
+            state = self._session(session_code)
+            settings = BridgeSettings(**asdict(state.settings))
+            if settings.policy != 'llm':
+                return 0
+            owned = {}
+            for agent_id in (agent_ids or list(state.agents)):
+                key = (round_number, agent_id)
+                if key in state.decisions or key in state.in_flight:
+                    continue
+                owned[agent_id] = threading.Event()
+                state.in_flight[key] = owned[agent_id]
+                state.attempts[key] = state.attempts.get(key, 0) + 1
+            histories = {a: self._history_from_outcomes(state, a, round_number) for a in owned}
+        if not owned:
+            return 0
+
+        def run():
+            if before is not None:
+                try:
+                    before()
+                except Exception as e:  # noqa: BLE001 -- still decide, but record it
+                    logger.error(f"Debate phase failed session={session_code} round={round_number}: {e}")
+                    self._log(session_code, {'event': 'debate_failed', 'round_number': round_number,
+                                             'error': str(e)})
+            try:
+                decisions = self._llm_batch(state, settings, round_number, list(owned), histories)
+                with self._lock:
+                    for agent_id, decision in decisions.items():
+                        state.decisions[(round_number, agent_id)] = decision
+                for agent_id, decision in decisions.items():
+                    self._log(session_code, {'event': 'decide', 'round_number': round_number,
+                                             'agent_id': agent_id, 'prefetch': True, **asdict(decision)})
+            except Exception as e:  # noqa: BLE001 -- waiters fall back to computing themselves
+                logger.error(f"Prefetch failed session={session_code} round={round_number}: {e}")
+                self._log(session_code, {'event': 'prefetch_failed', 'round_number': round_number,
+                                         'error': str(e)})
+            finally:
+                with self._lock:
+                    for agent_id, event in owned.items():
+                        state.in_flight.pop((round_number, agent_id), None)
+                        event.set()
+
+        threading.Thread(target=run, name=f"prefetch-{session_code}-r{round_number}", daemon=True).start()
+        self._log(session_code, {'event': 'prefetch_started', 'round_number': round_number,
+                                 'n_agents': len(owned)})
+        return len(owned)
+
+    def _llm_batch(self, state: SessionState, settings: BridgeSettings, round_number: int,
+                   agent_ids: List[int], histories: Dict[int, List[Dict[str, Any]]]) -> Dict[int, Decision]:
+        """Interview agents for one round; re-ask unparseable answers once, strictly.
+
+        Raises on IPC failure (step-server down / timeout).
+        """
+        client = SimulationIPCClient(self._simulation_dir(settings))
+        model = os.environ.get('LLM_MODEL_NAME', 'llm')
+        no_think = wants_no_think(settings.no_think, model)
+        t0 = time.time()
+        decisions: Dict[int, Decision] = {}
+        pending = list(agent_ids)
+        errors: Dict[int, str] = {}
+
+        for strict in (False, True):
+            if not pending:
+                break
+            interviews = [
+                dict(agent_id=a, prompt=render_decision_prompt(
+                    round_number, settings.num_rounds, settings.payoffs, histories.get(a, []),
+                    include_feed=settings.include_feed, strict=strict, no_think=no_think))
+                for a in pending
+            ]
+            response = client.send_game_interview(interviews, platform=settings.platform,
+                                                   timeout=GAME_INTERVIEW_TIMEOUT_SEC)
+            if response.status != CommandStatus.COMPLETED:
+                raise RuntimeError(f"game_interview failed: {response.error}")
+            answers = {int(a['agent_id']): a for a in response.result.get('answers', [])}
+            prompts = {i['agent_id']: i['prompt'] for i in interviews}
+            retry = []
+            for agent_id in pending:
+                answer = answers.get(agent_id, {})
+                choice, reason, error = parse_decision(answer.get('response'))
+                if answer.get('error'):
+                    error = answer['error']
+                self._log_prompt(state.session_code, {
+                    'round_number': round_number, 'agent_id': agent_id, 'strict': strict,
+                    'prompt': prompts[agent_id],  # feed is substituted by the step-server
+                    'feed_posts': answer.get('feed_posts'), 'response': answer.get('response'),
+                    'parse_error': error,
+                })
+                if error is None:
+                    decisions[agent_id] = Decision(
+                        choice=choice, reason=reason,
+                        source=f"llm:{model}" + (":strict" if strict else ""),
+                        latency_sec=round(time.time() - t0, 3),
+                    )
+                else:
+                    errors[agent_id] = error
+                    retry.append(agent_id)
+            pending = retry
+
+        for agent_id in pending:
+            decisions[agent_id] = Decision(
+                choice=settings.default_choice,
+                reason=f"llm answer unusable: {errors.get(agent_id)}",
+                source='llm_default',
+                latency_sec=round(time.time() - t0, 3),
+                missing=True,
+            )
+        return decisions
+
+    # -- debate phase (Phase 4) -------------------------------------------------
+
+    @staticmethod
+    def result_posts(settings: BridgeSettings, agents: Dict[int, int], round_number: int,
+                     outcomes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Posts that write round results back into the social space."""
+        if settings.inject_results == 'none' or not outcomes:
+            return []
+        by_agent = {int(o['agent_id']): o for o in outcomes}
+        if settings.inject_results == 'each':
+            posts = []
+            for agent_id, o in sorted(by_agent.items()):
+                partner = by_agent.get(agents.get(agent_id, -1))
+                other = partner['choice'] if partner else '?'
+                posts.append(dict(agent_id=agent_id, content=(
+                    f"Decision task, round {round_number}: I chose Option {o['choice']}, "
+                    f"the other person chose Option {other}. "
+                    f"I got {int(float(o.get('payoff') or 0))} points.")))
+            return posts
+        # summary
+        seen, both_a, both_b, mixed = set(), 0, 0, 0
+        for agent_id, partner_id in agents.items():
+            pair = frozenset((agent_id, partner_id))
+            if pair in seen or agent_id not in by_agent or partner_id not in by_agent:
+                continue
+            seen.add(pair)
+            choices = {by_agent[agent_id]['choice'], by_agent[partner_id]['choice']}
+            if choices == {'A'}:
+                both_a += 1
+            elif choices == {'B'}:
+                both_b += 1
+            else:
+                mixed += 1
+        rate = sum(o['choice'] == 'A' for o in by_agent.values()) / len(by_agent)
+        announcer = settings.announcer_agent_id if settings.announcer_agent_id >= 0 else min(agents)
+        return [dict(agent_id=announcer, content=(
+            f"Decision task, round {round_number} results: {both_a} pairs both chose Option A, "
+            f"{both_b} pairs both chose Option B, {mixed} pairs split. "
+            f"{rate:.0%} of participants chose Option A."))]
+
+    def _debate_phase(self, session_code: str, settings: BridgeSettings, round_number: int,
+                      outcomes: List[Dict[str, Any]]) -> None:
+        """Between rounds: write results back, then let agents debate.
+
+        round_number=0 is the opening phase before round 1.
+        """
+        state = self._session(session_code)
+        client = SimulationIPCClient(self._simulation_dir(settings))
+        if round_number == 0:
+            posts = []
+            if settings.opening_post:
+                poster = settings.opening_agent_id
+                if poster < 0:
+                    poster = settings.announcer_agent_id if settings.announcer_agent_id >= 0 else min(state.agents)
+                posts = [dict(agent_id=poster, content=settings.opening_post)]
+        else:
+            posts = self.result_posts(settings, state.agents, round_number, outcomes)
+
+        record: Dict[str, Any] = {'event': 'debate_phase', 'after_round': round_number,
+                                  'posts': len(posts), 'debate_rounds': settings.debate_rounds}
+        t0 = time.time()
+        if posts:
+            resp = client.send_inject_posts(posts, platform=settings.platform)
+            if resp.status != CommandStatus.COMPLETED:
+                raise RuntimeError(f"inject_post failed: {resp.error}")
+            record['inject'] = resp.result
+        if settings.debate_rounds > 0:
+            resp = client.send_run_rounds(
+                settings.debate_rounds, platform=settings.platform, timeout=RUN_ROUNDS_TIMEOUT_SEC,
+                agent_ids=sorted(state.agents) if settings.debate_players_only else None)
+            if resp.status != CommandStatus.COMPLETED:
+                raise RuntimeError(f"run_rounds failed: {resp.error}")
+            record['run_rounds'] = resp.result
+        record['elapsed_sec'] = round(time.time() - t0, 1)
+        self._log(session_code, record)
+
     # -- barrier ---------------------------------------------------------------
 
     def round_complete(self, session_code: str, round_number: int, summary: Dict[str, Any]) -> Dict[str, Any]:
         """All players in the session finished the round. Idempotent per round.
 
-        summary["outcomes"] ([{agent_id, choice, source, missing}]) is what oTree
-        actually recorded and is authoritative: when a client timed out and used
-        its default, the bridge's own cached decision was never applied.
-        Phase 4 starts the debate phase from here.
+        summary["outcomes"] ([{agent_id, choice, payoff, source, missing}]) is
+        what oTree actually recorded and is authoritative: when a client timed
+        out and used its default, the bridge's own cached decision was never
+        applied. With the llm policy this starts prefetching the next round.
+        Phase 4 runs the debate phase here, before the prefetch.
         """
         outcomes = summary.get('outcomes') or []
         with self._lock:
             state = self._session(session_code)
+            settings = BridgeSettings(**asdict(state.settings))
             if round_number in state.completed_rounds:
                 return {'accepted': False, 'duplicate': True, 'round_number': round_number}
             decided = sum(1 for (r, _a) in state.decisions if r == round_number)
@@ -206,13 +514,22 @@ class ExperimentBridge:
                         'recorded_choice': o.get('choice'),
                         'recorded_source': o.get('source'),
                     })
+            state.outcomes[round_number] = {int(o['agent_id']): o for o in outcomes if 'agent_id' in o}
             record = {**summary, 'decided_by_bridge': decided, 'mismatches': mismatches,
                       'received_at': time.time()}
             state.completed_rounds[round_number] = record
+            next_round = round_number + 1
+            prefetch_next = (state.settings.policy == 'llm' and state.agents
+                             and next_round <= state.settings.num_rounds)
         self._log(session_code, {'event': 'round_complete', 'round_number': round_number, **record})
+        prefetched = 0
+        if prefetch_next:
+            prefetched = self.prefetch(
+                session_code, next_round,
+                before=lambda: self._debate_phase(session_code, settings, round_number, outcomes))
         return {'accepted': True, 'duplicate': False, 'round_number': round_number,
                 'decided_by_bridge': decided, 'n_outcomes': len(outcomes),
-                'n_mismatches': len(mismatches)}
+                'n_mismatches': len(mismatches), 'prefetched_next': prefetched}
 
     # -- state -----------------------------------------------------------------
 
@@ -222,12 +539,18 @@ class ExperimentBridge:
             if state is None:
                 return None
             per_round: Dict[int, int] = {}
-            for (r, _a) in state.decisions:
+            missing_per_round: Dict[int, int] = {}
+            for (r, _a), d in state.decisions.items():
                 per_round[r] = per_round.get(r, 0) + 1
+                if d.missing:
+                    missing_per_round[r] = missing_per_round.get(r, 0) + 1
             return {
                 'session_code': session_code,
                 'settings': asdict(state.settings),
+                'n_agents': len(state.agents),
                 'decisions_per_round': dict(sorted(per_round.items())),
+                'missing_per_round': dict(sorted(missing_per_round.items())),
+                'in_flight': len(state.in_flight),
                 'completed_rounds': sorted(state.completed_rounds),
                 'injected_errors': state.injected_errors,
                 'retried_requests': sum(1 for n in state.attempts.values() if n > 1),
@@ -235,15 +558,31 @@ class ExperimentBridge:
 
     # -- log -------------------------------------------------------------------
 
-    def _log(self, session_code: str, record: Dict[str, Any]) -> None:
+    def _log_dir(self, session_code: str) -> str:
+        state = self._sessions.get(session_code)
+        if state is not None and state.settings.policy == 'llm':
+            try:
+                return os.path.join(self._simulation_dir(state.settings), 'game', session_code)
+            except ValueError:
+                pass
+        return os.path.join(self._data_dir, session_code)
+
+    def _append(self, session_code: str, filename: str, record: Dict[str, Any]) -> None:
         try:
-            session_dir = os.path.join(self._data_dir, session_code)
+            session_dir = self._log_dir(session_code)
             os.makedirs(session_dir, exist_ok=True)
             record = {'ts': time.time(), **record}
-            with open(os.path.join(session_dir, 'bridge_log.jsonl'), 'a', encoding='utf-8') as f:
+            with open(os.path.join(session_dir, filename), 'a', encoding='utf-8') as f:
                 f.write(json.dumps(record, ensure_ascii=False) + '\n')
         except OSError as e:
-            logger.warning(f"Failed to write bridge log for {session_code}: {e}")
+            logger.warning(f"Failed to write {filename} for {session_code}: {e}")
+
+    def _log(self, session_code: str, record: Dict[str, Any]) -> None:
+        self._append(session_code, 'bridge_log.jsonl', record)
+
+    def _log_prompt(self, session_code: str, record: Dict[str, Any]) -> None:
+        """Every LLM answer, for reproducibility (plan.md §5)."""
+        self._append(session_code, 'llm_answers.jsonl', record)
 
 
 _bridge: Optional[ExperimentBridge] = None

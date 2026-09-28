@@ -1041,9 +1041,14 @@ def get_active_agents_for_round(
     env,
     config: Dict[str, Any],
     current_hour: int,
-    round_num: int
+    round_num: int,
+    allowed_agent_ids: Optional[set] = None
 ) -> List:
-    """Decide which Agents to activate this round based on time and configuration"""
+    """Decide which Agents to activate this round based on time and configuration
+
+    Args:
+        allowed_agent_ids: if given, only these agents are candidates
+    """
     time_config = config.get("time_config", {})
     agent_configs = config.get("agent_configs", [])
     
@@ -1065,6 +1070,8 @@ def get_active_agents_for_round(
     candidates = []
     for cfg in agent_configs:
         agent_id = cfg.get("agent_id", 0)
+        if allowed_agent_ids is not None and agent_id not in allowed_agent_ids:
+            continue
         active_hours = cfg.get("active_hours", list(range(8, 23)))
         activity_level = cfg.get("activity_level", 0.5)
         
@@ -1265,6 +1272,7 @@ async def step_round(
     minutes_per_round: int,
     last_rowid: int,
     action_logger: Optional[PlatformActionLogger] = None,
+    allowed_agent_ids: Optional[set] = None,
 ) -> Tuple[List[Dict[str, Any]], int]:
     """Execute one simulation round
 
@@ -1274,6 +1282,7 @@ async def step_round(
         round_num: 0-indexed round number (logged as round_num + 1)
         minutes_per_round: Simulated minutes per round
         last_rowid: Last processed trace rowid in Database
+        allowed_agent_ids: if given, only these agents can be activated
 
     Returns:
         (actual executed actions of this round, new last_rowid)
@@ -1282,7 +1291,7 @@ async def step_round(
     simulated_hour = (simulated_minutes // 60) % 24
 
     active_agents = get_active_agents_for_round(
-        result.env, config, simulated_hour, round_num
+        result.env, config, simulated_hour, round_num, allowed_agent_ids
     )
 
     # Log round start regardless of active agents

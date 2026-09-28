@@ -39,6 +39,41 @@ from action_logger import SimulationLogManager  # noqa: E402
 from experiment.step_server_handler import ExperimentIPCHandler  # noqa: E402
 
 
+PID_FILE = "step_server.pid"
+
+
+def _pid_alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def acquire_pid_lock(simulation_dir: str) -> str:
+    """Refuse to start while another step-server serves this simulation_dir.
+
+    Two servers polling the same ipc_commands/ race for each command. A
+    server told to stop keeps running its current command (SIGTERM only
+    sets the shutdown event) and can take the next run's commands against a
+    database that was already deleted (NOTES.md #26).
+    """
+    path = os.path.join(simulation_dir, PID_FILE)
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            other = int(f.read().strip() or 0)
+    except (OSError, ValueError):
+        other = 0
+    if other and other != os.getpid() and _pid_alive(other):
+        print(f"Error: another step-server (pid {other}) is serving {simulation_dir}")
+        sys.exit(1)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(str(os.getpid()))
+    return path
+
+
 async def main() -> None:
     parser = argparse.ArgumentParser(description="Experiment step-server (oTree integration)")
     parser.add_argument("--config", required=True, help="Configuration file path (simulation_config.json)")
@@ -61,6 +96,7 @@ async def main() -> None:
 
     config = rps.load_config(args.config)
     simulation_dir = os.path.dirname(args.config) or "."
+    pid_path = acquire_pid_lock(simulation_dir)
 
     rps.init_logging_for_simulation(simulation_dir)
     log_manager = SimulationLogManager(simulation_dir)
@@ -132,6 +168,10 @@ async def main() -> None:
         for platform, sim in sims.items():
             await sim.env.close()
             log_manager.info(f"[{platform.capitalize()}] Environment closed")
+        try:
+            os.remove(pid_path)
+        except OSError:
+            pass
 
 
 if __name__ == "__main__":

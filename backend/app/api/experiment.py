@@ -7,7 +7,7 @@ import traceback
 from flask import request, jsonify
 
 from . import experiment_bp
-from ..services.experiment_bridge import get_bridge, InjectedFailure
+from ..services.experiment_bridge import get_bridge, InjectedFailure, UnknownSession
 from ..utils.logger import get_logger
 
 logger = get_logger('mirofish.api.experiment')
@@ -25,18 +25,21 @@ def configure():
     Set the decision policy and fault injection for an oTree session
 
     Request body:
-        session_code (required), policy ('random'|'allc'|'alld'|'tft'), seed,
+        session_code (required), policy ('random'|'allc'|'alld'|'tft'|'llm'), seed,
         inject_delay_sec, inject_error_rate
+        llm policy: simulation_id (or simulation_dir), platform, include_feed,
+        num_rounds, default_choice, payoffs {R,T,S,P},
+        agents [{agent_id, partner_agent_id}] (starts prefetching round 1)
+        debate phase: debate_rounds, inject_results ('none'|'each'|'summary'),
+        announcer_agent_id, opening_post, opening_agent_id
     """
     try:
         data = request.get_json(silent=True) or {}
         _require(data, 'session_code')
         settings = get_bridge().configure(
             data['session_code'],
-            policy=data.get('policy'),
-            seed=data.get('seed'),
-            inject_delay_sec=data.get('inject_delay_sec'),
-            inject_error_rate=data.get('inject_error_rate'),
+            agents=data.get('agents'),
+            **{k: v for k, v in data.items() if k not in ('session_code', 'agents')},
         )
         return jsonify({"success": True, "data": settings})
     except ValueError as e:
@@ -70,6 +73,8 @@ def decide():
         return jsonify({"success": True, "data": result})
     except ValueError as e:
         return jsonify({"success": False, "error": str(e)}), 400
+    except UnknownSession as e:
+        return jsonify({"success": False, "error": str(e)}), 409
     except InjectedFailure as e:
         return jsonify({"success": False, "error": str(e)}), 503
     except Exception as e:
@@ -91,6 +96,8 @@ def round_complete():
         summary = {k: v for k, v in data.items() if k not in ('session_code', 'round_number')}
         result = get_bridge().round_complete(data['session_code'], int(data['round_number']), summary)
         return jsonify({"success": True, "data": result})
+    except UnknownSession as e:
+        return jsonify({"success": False, "error": str(e)}), 409
     except ValueError as e:
         return jsonify({"success": False, "error": str(e)}), 400
     except Exception as e:
