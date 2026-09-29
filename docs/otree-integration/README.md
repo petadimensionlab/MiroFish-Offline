@@ -65,7 +65,9 @@ Guarantees: `/decide` is idempotent per (session, round, agent) and deduplicates
 | `feed_exclude_own` | `false` | Drop the agent's own posts from that feed |
 | `label_scheme` | `symbols` | `letters` (A/B) or `symbols` (△□○◇) |
 | `label_randomize` | `true` | Draw the label mapping and listing order at random |
-| `label_unit` | `session` | `session` or `agent`: who shares one random mapping |
+| `label_unit` | `session` | `session`, `pair` or `agent`: who shares one random mapping |
+| `chat_turns` | `0` | **Keep 0 for the actual experiments** (NOTES #51): the study asks whether discourse on the platform changes behavior, and a direct pair chat lets partners settle their choices between themselves, which leaves nothing for discourse to affect. Chat is a check/reference condition only. Private pair-chat messages before every decision (0 = no chat); needs `label_unit` `session` or `pair`. Transcript goes into both partners' decision prompts, log in `game/<session>/chat.jsonl`, oTree field `chat_transcript` |
+| `chat_memory_rounds` / `chat_max_chars` | `3` / `400` | Earlier rounds of chat shown in prompts (-1 = all) / message length cap |
 | `swap_labels` | `false` | Letters only, fixed swap (A shown as defect) |
 | `debate_rounds` | `0` | Debate rounds between game rounds (0 = no debate) |
 | `debate_players_only` | `true` | Only game agents can act in debate rounds |
@@ -106,7 +108,7 @@ The step-server takes `<sim_dir>/step_server.pid` and refuses to start while ano
 
 | File | Content |
 |---|---|
-| `pd_debate_custom.csv` (oTree `--export`) | One row per agent × round: `session_code, participant_code, participant_label, agent_id, round_number, pair_id, id_in_pair, partner_agent_id, choice, cooperated, partner_choice, payoff, decision_source, decision_missing, decision_latency_sec, decision_reason` |
+| `pd_debate_custom.csv` (oTree `--export`) | One row per agent × round: `session_code, participant_code, participant_label, agent_id, round_number, pair_id, id_in_pair, partner_agent_id, choice, cooperated, partner_choice, payoff, decision_source, decision_missing, decision_latency_sec, decision_reason, chat_transcript` |
 | `<sim_dir>/game/<session>/bridge_log.jsonl` | configure (incl. labels), decide, round_complete (with mismatches), debate_phase, surveys, failures |
 | `<sim_dir>/game/<session>/llm_answers.jsonl` | Every LLM answer: prompt, feed seen, raw response, parse error |
 | `<sim_dir>/game/<session>/beliefs.jsonl`, `comprehension.jsonl` | Survey and comprehension answers |

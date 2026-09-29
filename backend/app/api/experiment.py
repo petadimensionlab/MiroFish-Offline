@@ -32,6 +32,8 @@ def configure():
         agents [{agent_id, partner_agent_id}] (starts prefetching round 1)
         debate phase: debate_rounds, inject_results ('none'|'each'|'summary'),
         announcer_agent_id, opening_post, opening_agent_id
+        pair chat: chat_turns (messages per pair per round, 0 = off),
+        chat_memory_rounds, chat_max_chars; needs label_unit 'session' or 'pair'
     """
     try:
         data = request.get_json(silent=True) or {}
@@ -60,6 +62,7 @@ def decide():
 
     Returns:
         {"choice": "A"|"B", "reason", "source", "latency_sec", "missing", "cached"}
+        plus "chat" ([{"agent_id", "text"}], this round's pair chat) when chat_turns > 0
     """
     try:
         data = request.get_json(silent=True) or {}
