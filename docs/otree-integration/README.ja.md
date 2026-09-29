@@ -39,6 +39,12 @@ oTree bot ──HTTP──▶ Flask bridge ──ファイル IPC──▶ step-
 
 先取りが必要なのは、oTree の bot 実行が完全に直列だから。`/decide` のたびに LLM を呼ぶと、所要時間が人数倍になる。
 
+### 公共財ゲーム（`game='pgg'`）
+
+oTree アプリ `pgg`（4人固定グループ×10期、持ち点20、倍率 `pgg_multiplier`＝1.6）。bridge は `game='pgg'`、`pgg={endowment, multiplier, group_size}`、`agents=[{agent_id, group_agent_ids}]` で設定する。
+決定は拠出額（0〜持ち点の整数、`game_pgg.j2`、解釈は `public_goods.py`）、履歴は各期の自分・他の3人の拠出・グループ合計・得点。理解テストは (20, 他は0) と (10, 他も10)。
+チャットと `inject_results='summary'` は非対応（`/configure` が拒否）。集計は `backend/scripts/experiment/analyze_pgg.py`（期ごとの平均・0/全額の人数・減衰・最終期の低下・個人内の条件付き協力の傾き）。セッション設定 `pgg`（固定戦略 bot）、`pgg_llm`。
+
 ### ペア内チャット（`chat_turns`）
 
 > ⚠️ **本実験は必ず「チャットなし」（`chat_turns=0`、例 `pd_debate_llm_nochat` / `pd_debate_llm_debate*`）で行う。** この研究の意図は「SNS 上の言説 → ゲームの行動」の効果を見ることで、ペア内チャットで相手と直接打ち合わせられると、行動がチャットの合意で決まり（NOTES #50: 協力率 1.00 固定）、言説の効果を測る余地がなくなる。チャットは、エージェントがコミュニケーションを行動に反映できるかの**検証・参照条件としてのみ**使う（NOTES #51）
