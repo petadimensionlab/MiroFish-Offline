@@ -84,6 +84,12 @@ Guarantees: `/decide` is idempotent per (session, round, agent) and deduplicates
 
 The oTree app passes these as `bridge_<setting>` session-config keys (e.g. `bridge_debate_rounds=2`). Registered session configs: `pd_debate`, `pd_debate_faults`, `pd_debate_llm`, `pd_debate_llm_debate`, `pd_debate_llm_debate_topic`, `pd_debate_llm_opening`, `pd_debate_llm_debate_noinject`, `pd_debate_llm_debate_noinject_swap`.
 
+## Games other than the PD
+
+`game` = `pgg` (public goods, groups of 4), `beauty` (p-beauty contest, groups of 4), `trust` (investment game, pairs, sequential), `ultimatum` (pairs, sequential); definitions and defaults in `backend/app/services/games.py`, oTree apps of the same names, `*_llm` session configs (no chat, no debate, no feed). Agents are `[{agent_id, group_agent_ids, role}]`. In sequential games only first movers are prefetched per round; oTree calls `/stage_complete` once they have decided and the bridge prefetches the second movers with the first move in their prompt. Decisions with nothing to decide (returning from 0 sent) are `source='auto'`. Analysis: `analyze_pgg.py`, `analyze_games.py`.
+
+Workplace personas: `make_workplace_sim.py` builds 48 employees of one fictional company group (4 companies × 12 departments, one per cell) who know each other only loosely and owe each other nothing in particular; `personas_meta.json` `agent_order`, passed to oTree as `MF_AGENT_IDS`, seats pairs / groups of 4 in the same company but different departments.
+
 ## 6. Step-server IPC commands
 
 Command files in `<sim_dir>/ipc_commands/`, responses in `<sim_dir>/ipc_responses/` (see `experiment/ipc_protocol.py`).

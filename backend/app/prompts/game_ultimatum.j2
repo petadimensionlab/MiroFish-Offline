@@ -1,0 +1,16 @@
+{% include '_game_header.j2' %}{% include 'game_ultimatum_rules.j2' %}
+
+This is round {{ round_number }} of {{ num_rounds }}.
+{% if history %}
+What happened so far:
+{% for h in history %}- Round {{ h.round_number }}: the first person proposed {{ h.offer }} for the second person and {{ pie - h.offer }} for themselves; the second person {{ 'accepted' if h.accepted else 'rejected' }}; you got {{ h.payoff }} points
+{% endfor %}{% else %}
+This is the first round.
+{% endif %}
+{% if role == 2 %}
+In this round the first person proposes {{ stage.offer }} points for you and {{ stage.keep }} points for themselves.
+{% endif %}
+{% include '_game_footer.j2' %}
+{% if role == 1 %}Reply with only a JSON object: {"offer": a whole number from 0 to {{ pie }} (points for the second person), "reason": "one sentence explaining your decision"}{% else %}Reply with only a JSON object: {"decision": "accept" or "reject", "reason": "one sentence explaining your decision"}{% endif %}
+{% if no_think %}/no_think
+{% endif %}
