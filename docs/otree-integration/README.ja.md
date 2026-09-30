@@ -39,11 +39,34 @@ oTree bot ──HTTP──▶ Flask bridge ──ファイル IPC──▶ step-
 
 先取りが必要なのは、oTree の bot 実行が完全に直列だから。`/decide` のたびに LLM を呼ぶと、所要時間が人数倍になる。
 
-### 公共財ゲーム（`game='pgg'`）
+### PD 以外のゲーム（`game`、`backend/app/services/games.py`）
 
-oTree アプリ `pgg`（4人固定グループ×10期、持ち点20、倍率 `pgg_multiplier`＝1.6）。bridge は `game='pgg'`、`pgg={endowment, multiplier, group_size}`、`agents=[{agent_id, group_agent_ids}]` で設定する。
-決定は拠出額（0〜持ち点の整数、`game_pgg.j2`、解釈は `public_goods.py`）、履歴は各期の自分・他の3人の拠出・グループ合計・得点。理解テストは (20, 他は0) と (10, 他も10)。
-チャットと `inject_results='summary'` は非対応（`/configure` が拒否）。集計は `backend/scripts/experiment/analyze_pgg.py`（期ごとの平均・0/全額の人数・減衰・最終期の低下・個人内の条件付き協力の傾き）。セッション設定 `pgg`（固定戦略 bot）、`pgg_llm`。
+| `game` | oTree アプリ | 構成 | ゲーム理論の予測（有限回の繰り返し） | 人間の典型 |
+|---|---|---|---|---|
+| `pgg` | `pgg` | 4人固定×10期、持ち点20、倍率1.6（MPCR 0.4） | 全期 拠出0 | 40〜60%から減衰、最終期に低下 |
+| `beauty` | `beauty` | 4人固定×10期、0〜100、平均の2/3に最も近い人が20点 | 全員0 | 第1期 平均≈35、期ごとに0へ |
+| `trust` | `trust` | 2人固定・役割固定×10期、両者10点、送った額は3倍 | 送らない・返さない | 約半分を送り、ほぼ送った分が返る |
+| `ultimatum` | `ultimatum` | 2人固定・役割固定×10期、20点を分ける | 最小の提案・必ず受諾 | 提案40〜50%、2割未満は拒否されやすい |
+
+- bridge の設定は `game`、`game_params`（`games.py` の既定値を上書き）、`agents=[{agent_id, group_agent_ids, role}]`（`role=2` は後手）
+- **後手のあるゲーム（trust, ultimatum）**: 期の先取りは先手だけ。oTree は先手が全員決めたところ（`StageBarrier`）で `/stage_complete` を送り、bridge は先手の決定をプロンプトに入れて後手を先取りする。送金0のときの返金など、決める余地がない決定は LLM を呼ばず `source='auto'`
+- 理解テストは役割ごとに期待値が違う（`comprehension.jsonl` の `expected`）
+- チャットと `inject_results='summary'` は非対応（`/configure` が拒否）
+- 集計: `analyze_pgg.py`（公共財）、`analyze_games.py --game beauty|trust|ultimatum`
+- セッション設定: 固定戦略 bot 用 `pgg` / `beauty` / `trust` / `ultimatum`、LLM 用 `*_llm`（チャット・議論・フィード・結果注入なし）
+
+### 職場ペルソナ（`make_workplace_sim.py`）
+
+架空の企業グループ（Kestrel Harbour Group）の従業員 48 人。4社×12部署で1セル1人なので、**全員が同じグループだが会社か部署が違う**。
+LLM が書くのは仕事・気質・職場で大事にしていること・社内 SNS での書き方で、関係性は全員に同じ固定文を付ける:
+「他部署・他社の人は名前やグループ行事・社内 SNS で知っている程度で、目標・予算・指揮系統は共有しておらず、わざわざ手を貸す義理もない」。
+ゲームの主題の語（trust, cooperation など）は一般人ペルソナと同じく除外。`personas_meta.json` の `agent_order` を oTree の `MF_AGENT_IDS`（JSON 配列）に渡すと、
+ペア（1–2, 3–4…）と4人グループが**同じ会社の別部署**になる。
+
+```sh
+backend/.venv/bin/python backend/scripts/experiment/make_workplace_sim.py --n 48 --seed 1
+MF_AGENT_IDS='[3,4,6,14,...]' ... otree test pd_debate_llm_nochat 16
+```
 
 ### ペア内チャット（`chat_turns`）
 

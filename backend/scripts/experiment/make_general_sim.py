@@ -148,6 +148,16 @@ def main():
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as pool:
         results = list(pool.map(lambda person: write_persona(client, model, person), people))
 
+    write_simulation(out_dir, people, results, model, seed=args.seed,
+                     requirement='General-public population for oTree game experiments',
+                     entity_type='GeneralPublic', initial_posts=INITIAL_POSTS,
+                     reasoning=f'make_general_sim.py seed={args.seed} n={args.n}')
+
+
+def write_simulation(out_dir, people, results, model, seed, requirement, entity_type,
+                     initial_posts, reasoning, extra_meta=None):
+    """Write twitter_profiles.csv, reddit_profiles.json, simulation_config.json
+    and personas_meta.json for people + their LLM-written texts."""
     usernames = set()
     for person, (text, error) in zip(people, results):
         handle = re.sub(r'[^a-z0-9_]', '', text['username'].lower()) or f"user{person['agent_id']}"
@@ -173,14 +183,15 @@ def main():
     json.dump(reddit, open(os.path.join(out_dir, 'reddit_profiles.json'), 'w', encoding='utf-8'),
               ensure_ascii=False, indent=2)
 
-    rng = random.Random(f"posts:{args.seed}")
-    posters = rng.sample(range(args.n), min(len(INITIAL_POSTS), args.n))
+    n = len(people)
+    rng = random.Random(f"posts:{seed}")
+    posters = rng.sample(range(n), min(len(initial_posts), n))
     sim_id = os.path.basename(out_dir.rstrip('/'))
     config = dict(
         simulation_id=sim_id,
         project_id=None,
         graph_id=None,
-        simulation_requirement='General-public population for oTree game experiments',
+        simulation_requirement=requirement,
         time_config=dict(
             total_simulation_hours=168, minutes_per_round=60,
             agents_per_hour_min=8, agents_per_hour_max=12,
@@ -189,14 +200,14 @@ def main():
         ),
         agent_configs=[dict(
             agent_id=person['agent_id'], entity_uuid=None, entity_name=person['name'],
-            entity_type='GeneralPublic', activity_level=person['activity_level'],
+            entity_type=entity_type, activity_level=person['activity_level'],
             posts_per_hour=0.5, comments_per_hour=0.5, active_hours=list(range(8, 23)),
             response_delay_min=5, response_delay_max=60, sentiment_bias=0.0,
             stance='neutral', influence_weight=1.0,
         ) for person in people],
         event_config=dict(initial_posts=[
-            dict(content=content, poster_type='GeneralPublic', poster_agent_id=agent_id)
-            for content, agent_id in zip(INITIAL_POSTS, posters)
+            dict(content=content, poster_type=entity_type, poster_agent_id=agent_id)
+            for content, agent_id in zip(initial_posts, posters)
         ]),
         twitter_config=dict(platform='twitter', recency_weight=0.4, popularity_weight=0.3,
                             relevance_weight=0.3, viral_threshold=10, echo_chamber_strength=0.5),
@@ -205,16 +216,16 @@ def main():
         llm_model=model,
         llm_base_url=os.environ.get('LLM_BASE_URL'),
         generated_at=datetime.now().isoformat(),
-        generation_reasoning=f'make_general_sim.py seed={args.seed} n={args.n}',
+        generation_reasoning=reasoning,
     )
     json.dump(config, open(os.path.join(out_dir, 'simulation_config.json'), 'w', encoding='utf-8'),
               ensure_ascii=False, indent=2)
-    json.dump(dict(seed=args.seed, n=args.n, model=model, people=people),
+    json.dump(dict(seed=seed, n=n, model=model, people=people, **(extra_meta or {})),
               open(os.path.join(out_dir, 'personas_meta.json'), 'w', encoding='utf-8'),
               ensure_ascii=False, indent=2)
 
     fallbacks = sum(1 for person in people if person['persona_fallback'])
-    print(f"wrote {out_dir}: {args.n} personas ({fallbacks} fallback)")
+    print(f"wrote {out_dir}: {n} personas ({fallbacks} fallback)")
 
 
 if __name__ == '__main__':

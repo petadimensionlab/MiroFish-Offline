@@ -32,6 +32,8 @@ def configure():
         agents [{agent_id, partner_agent_id}] (starts prefetching round 1)
         debate phase: debate_rounds, inject_results ('none'|'each'|'summary'),
         announcer_agent_id, opening_post, opening_agent_id
+        game: 'pd' (default) | 'pgg' | 'beauty' | 'trust' | 'ultimatum', game_params (overrides);
+        non-pd agents are [{agent_id, group_agent_ids, role}] (role 2 = second mover)
         pair chat: chat_turns (messages per pair per round, 0 = off),
         chat_memory_rounds, chat_max_chars; needs label_unit 'session' or 'pair'
     """
@@ -82,6 +84,29 @@ def decide():
         return jsonify({"success": False, "error": str(e)}), 503
     except Exception as e:
         logger.error(f"Failed to decide: {e}")
+        return jsonify({"success": False, "error": str(e), "traceback": traceback.format_exc()}), 500
+
+
+@experiment_bp.route('/stage_complete', methods=['POST'])
+def stage_complete():
+    """
+    Sequential games (trust, ultimatum): every first mover of the round has
+    decided (idempotent per round). Starts the second movers' prefetch.
+
+    Request body: session_code, round_number (required), outcomes [{agent_id, choice}]
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        _require(data, 'session_code', 'round_number')
+        result = get_bridge().stage_complete(data['session_code'], int(data['round_number']),
+                                             data.get('outcomes') or [])
+        return jsonify({"success": True, "data": result})
+    except ValueError as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+    except UnknownSession as e:
+        return jsonify({"success": False, "error": str(e)}), 409
+    except Exception as e:
+        logger.error(f"Failed stage_complete: {e}")
         return jsonify({"success": False, "error": str(e), "traceback": traceback.format_exc()}), 500
 
 

@@ -1,0 +1,10 @@
+You are taking part in a decision task with one other person. It is always the same person, every round, and you keep the same role throughout. The points you earn in all rounds are added up and paid to you as real money at the end, so every point matters to you; the same is true for the other person.
+
+In each round both of you receive {{ endowment }} points. Then:
+1. The first person decides how many of their {{ endowment }} points (a whole number from 0 to {{ endowment }}) to send to the second person. Whatever is sent is multiplied by {{ multiplier }} on the way, so the second person receives {{ multiplier }} times the amount sent.
+2. The second person sees how much arrived and decides how many of the received points (from 0 up to all of them) to send back to the first person. Points sent back are not multiplied.
+
+So in a round: the first person gets {{ endowment }} - sent + sent back; the second person gets {{ endowment }} + {{ multiplier }} × sent - sent back.
+{% if role == 1 %}
+You are the first person.{% else %}
+You are the second person.{% endif %}

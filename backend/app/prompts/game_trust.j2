@@ -1,0 +1,16 @@
+{% include '_game_header.j2' %}{% include 'game_trust_rules.j2' %}
+
+This is round {{ round_number }} of {{ num_rounds }}.
+{% if history %}
+What happened so far:
+{% for h in history %}- Round {{ h.round_number }}: the first person sent {{ h.sent }}, the second person received {{ h.received }} and sent back {{ h.returned }}; you got {{ h.payoff }} points
+{% endfor %}{% else %}
+This is the first round.
+{% endif %}
+{% if role == 2 %}
+In this round the first person sent you {{ stage.sent }} points, so you received {{ stage.received }} points.
+{% endif %}
+{% include '_game_footer.j2' %}
+{% if role == 1 %}Reply with only a JSON object: {"send": a whole number from 0 to {{ endowment }}, "reason": "one sentence explaining your decision"}{% else %}Reply with only a JSON object: {"return": a whole number from 0 to {{ stage.received }}, "reason": "one sentence explaining your decision"}{% endif %}
+{% if no_think %}/no_think
+{% endif %}

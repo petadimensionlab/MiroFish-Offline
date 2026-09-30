@@ -1,0 +1,13 @@
+{% include '_game_header.j2' %}{% include 'game_beauty_rules.j2' %}
+
+This is round {{ round_number }} of {{ num_rounds }}.
+{% if history %}
+What happened so far:
+{% for h in history %}- Round {{ h.round_number }}: you picked {{ h.own }}, the other members picked {{ h.others | join(', ') }}; the average was {{ h.mean }}, the target was {{ h.target }}, you got {{ h.payoff }} points
+{% endfor %}{% else %}
+This is the first round.
+{% endif %}
+{% include '_game_footer.j2' %}
+Reply with only a JSON object: {"guess": a whole number from 0 to {{ max_guess }}, "reason": "one sentence explaining your choice"}
+{% if no_think %}/no_think
+{% endif %}

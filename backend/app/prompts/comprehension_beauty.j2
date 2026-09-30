@@ -1,0 +1,11 @@
+Reply directly to me with text without calling any tools.
+
+{% include 'game_beauty_rules.j2' %}
+
+Before starting, answer two questions about these rules.
+Question 1: If you pick {{ q1.own }} and the other members pick {{ q1.others }}, how many points do you get in that round?
+Question 2: If you pick {{ q2.own }} and every other member also picks {{ q2.others }}, how many points do you get in that round?
+
+Reply with only a JSON object: {"q1": number, "q2": number}
+{% if no_think %}/no_think
+{% endif %}
