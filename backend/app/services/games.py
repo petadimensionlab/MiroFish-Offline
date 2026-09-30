@@ -87,7 +87,7 @@ class Game:
         return _env.get_template(template).render(**self.rules(p), feed_placeholder=FEED_PLACEHOLDER, **kw)
 
     def prompt(self, p, round_number, num_rounds, role, history, stage_info,
-               include_feed=False, strict=False, no_think=False) -> str:
+               include_feed=False, strict=False, no_think=False, network_chat=None) -> str:
         return self.render(self.template, p, round_number=round_number, num_rounds=num_rounds, role=role,
                            history=history, stage=stage_info, include_feed=include_feed,
                            strict=strict, no_think=no_think)
@@ -114,9 +114,9 @@ class PublicGoods(Game):
     defaults = dict(pg.DEFAULT_PGG)
 
     def prompt(self, p, round_number, num_rounds, role, history, stage_info,
-               include_feed=False, strict=False, no_think=False):
+               include_feed=False, strict=False, no_think=False, network_chat=None):
         return pg.render_pgg_prompt(round_number, num_rounds, p, history, include_feed=include_feed,
-                                    strict=strict, no_think=no_think)
+                                    strict=strict, no_think=no_think, network_chat=network_chat)
 
     def parse(self, text, p, role, stage_info):
         return parse_int_field(text, 'contribution', 0, p['endowment'])

@@ -1,0 +1,38 @@
+Based on your persona and all your past memories, reply directly to me with text without calling any tools.
+
+This is not a social media post. Answer as the real person described in your persona would, privately and honestly.
+
+{% if pd %}You are taking part in a decision task with one other person, your partner. It is always the same partner, every round. In each round you both choose {{ options[0] }} or {{ options[1] }} at the same time, without seeing the other's choice. The points you earn in all rounds are added up and paid to you as real money at the end, so every point matters to you; the same is true for your partner. The option names {{ options[0] }} and {{ options[1] }} are arbitrary symbols with no meaning of their own.
+
+Points per round, for each option you can choose:
+{% for b in blocks %}
+If you choose {{ b.label }}:
+{% for c in b.cases %}- and your partner chooses {{ c.other }}: you get {{ c.own_points }} points, your partner gets {{ c.other_points }} points
+{% endfor %}{% endfor %}{% else %}{% include 'game_pgg_rules.j2' %}{% endif %}
+Round {{ round_number }} of {{ num_rounds }} is about to start.
+{% if history %}
+{{ 'What happened with your partner so far:' if pd else 'What happened in your group so far:' }}
+{% if pd %}{% for h in history %}- Round {{ h.round_number }}: you chose {{ h.own }}, your partner chose {{ h.partner }}, you got {{ h.payoff | int }} points
+{% endfor %}{% else %}{% for h in history %}- Round {{ h.round_number }}: you put in {{ h.own }}, the other members put in {{ h.others | join(', ') }} (group total {{ h.total }}), you got {{ '%g' % h.payoff }} points
+{% endfor %}{% endif %}{% else %}
+No round has been played yet.
+{% endif %}
+Everyone in this task has the same options and the same points, and each person plays with their own {{ 'partner' if pd else 'group' }}. Before each round some participants talk one to one. You are now talking with {{ other.display }}. {{ other.short }} is not {{ 'your partner' if pd else 'in your group' }}: nothing either of you chooses changes the other's points. You do not talk with {{ 'your partner' if pd else 'your group members' }}.
+{% if earlier %}
+Your earlier conversations with other participants:
+{% for c in earlier %}Before round {{ c.round_number }}{% if c.round_number == round_number %} (this round){% endif %}, with {{ c.other }}:
+{% for m in c.messages %}- {{ m.who }}: {{ m.text }}
+{% endfor %}{% endfor %}{% endif %}
+{% if current %}
+Your conversation with {{ other.short }} so far:
+{% for m in current %}- {{ m.who }}: {{ m.text }}
+{% endfor %}
+Now write your reply to {{ other.short }}.
+{% else %}
+You start the conversation. Write your message to {{ other.short }}.
+{% endif %}
+Talk about this decision task only. You can say what has happened with your {{ 'partner' if pd else 'group' }}, what you intend to do in round {{ round_number }} and why, what you think is a sensible way to play, or respond to what {{ other.short }} said.{% if pd %} Use the option names.{% endif %} Keep your own way of speaking, in one to three sentences.
+
+Reply with only a JSON object: {"message": "your message to {{ other.short }}"}
+{% if no_think %}/no_think
+{% endif %}

@@ -117,6 +117,7 @@ def render_decision_prompt(
     strict: bool = False,
     no_think: bool = False,
     chat: Optional[List[Dict[str, Any]]] = None,
+    network_chat: Optional[List[Dict[str, Any]]] = None,
 ) -> str:
     """
     Args:
@@ -125,6 +126,9 @@ def render_decision_prompt(
             mode qwen3:4b spends 1000+ tokens per answer (NOTES.md #27).
         chat: the pair's private chat, [{"round_number", "messages": [{"who", "text"}]}]
             with "who" already written from this agent's view (see chat_view)
+        network_chat: conversations with other (non-partner) participants,
+            [{"round_number", "other_display", "messages": [{"who", "text"}]}]
+            (see network_chat.conversation_view; NOTES.md #54)
     """
     return _env.get_template('game_decision.j2').render(
         options=labels.order,
@@ -137,6 +141,7 @@ def render_decision_prompt(
         strict=strict,
         no_think=no_think,
         chat=chat or [],
+        network_chat=network_chat or [],
     )
 
 
@@ -185,6 +190,41 @@ def render_chat_prompt(
         num_rounds=num_rounds,
         history=_shown_history(history, labels),
         past_chat=past_chat,
+        current=current,
+        no_think=no_think,
+    )
+
+
+def render_network_chat_prompt(
+    game: str,
+    round_number: int,
+    num_rounds: int,
+    rules_ctx: Dict[str, Any],
+    history: List[Dict[str, Any]],
+    other: Dict[str, str],
+    earlier: List[Dict[str, Any]],
+    current: List[Dict[str, Any]],
+    no_think: bool = False,
+) -> str:
+    """One message of a one-to-one conversation with a non-partner (NOTES.md #54).
+
+    Args:
+        game: "pd" or "pgg"
+        rules_ctx: pd: {"options", "blocks"} (from _option_blocks); pgg:
+            public_goods._rules(params)
+        history: pd in shown labels (see _shown_history); pgg as recorded
+        other: {"display", "short"} of the person spoken to
+        earlier: the speaker's other conversations, in conversation_view form
+        current: this conversation so far, [{"who", "text"}]; empty = speak first
+    """
+    return _env.get_template('game_network_chat.j2').render(
+        **rules_ctx,
+        pd=(game == 'pd'),
+        round_number=round_number,
+        num_rounds=num_rounds,
+        history=history,
+        other=other,
+        earlier=earlier,
         current=current,
         no_think=no_think,
     )
