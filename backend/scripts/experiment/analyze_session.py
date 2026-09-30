@@ -4,6 +4,7 @@ Summarize one oTree x MiroFish experiment session.
 Reads
   - the oTree custom export (pd_debate_custom.csv) -- authoritative behavior
   - <sim_dir>/game/<session_code>/llm_answers.jsonl, bridge_log.jsonl
+  - <sim_dir>/game/<session_code>/chat.jsonl -- private pair chat, if any
   - <sim_dir>/twitter/actions.jsonl -- discourse during debate rounds
 
 Usage:
@@ -125,13 +126,67 @@ def summarize(otree_csv, sim_dir, session=None):
         scores = [b["score"] for b in beliefs if b.get("phase") == phase and b.get("score") is not None]
         belief_means[phase] = round(sum(scores) / len(scores), 3) if scores else None
 
+    chat = summarize_chat(load_jsonl(os.path.join(game_dir, "chat.jsonl")), configure.get("labels"), history)
+
     return dict(session=session, labels=configure.get("labels"),
                 model=configure.get("settings", {}).get("policy"),
                 comprehension_correct=(f"{sum(1 for c in comprehension if c.get('correct'))}/{len(comprehension)}"
                                        if comprehension else None),
                 beliefs=belief_means, rounds=rounds, conditional_cooperation=conditional,
                 decision_sources=dict(sources), llm=llm, mismatches=mismatches,
-                failures=failures, discourse=discourse)
+                failures=failures, discourse=discourse, chat=chat)
+
+
+def summarize_chat(records, labels, history):
+    """Pair chat: how much was said, whether it was about the game, and
+    whether what an agent said it would choose matched what it chose.
+
+    The stated intention is crude: an agent's last message of the round that
+    names exactly one of its two option labels. Check samples by hand.
+    """
+    if not records:
+        return None
+    final = {}
+    for rec in records:  # the retry of a failed message replaces it
+        final[(rec["round_number"], rec["turn"], rec["agent_id"])] = rec
+    msgs = [r for r in final.values() if r.get("message")]
+
+    def labels_for(agent_id):
+        if not labels:
+            return None
+        return labels.get(str(agent_id), labels) if "cooperate" not in labels else labels
+
+    def named(text, lab):
+        return [k for k in ("cooperate", "defect") if lab[k] in text]
+
+    on_topic = 0
+    last_statement = {}
+    for m in sorted(msgs, key=lambda r: (r["round_number"], r["turn"])):
+        lab = labels_for(m["agent_id"])
+        names = named(m["message"], lab) if lab else []
+        if names or GAME_TERMS.search(m["message"]):
+            on_topic += 1
+        if len(names) == 1:
+            last_statement[(str(m["agent_id"]), m["round_number"])] = names[0]
+    kept = broken = 0
+    for (agent, rnd), stated in last_statement.items():
+        row = history.get((agent, rnd))
+        if row is None:
+            continue
+        chose = "cooperate" if row["cooperated"] == "1" else "defect"
+        kept += chose == stated
+        broken += chose != stated
+    stated_coop = [v for v in last_statement.values()]
+    return dict(
+        messages=len(msgs),
+        failed=len(final) - len(msgs),
+        mean_chars=round(sum(len(m["message"]) for m in msgs) / len(msgs), 1) if msgs else None,
+        on_topic_share=round(on_topic / len(msgs), 3) if msgs else None,
+        stated_intentions=len(last_statement),
+        stated_cooperate_share=(round(stated_coop.count("cooperate") / len(stated_coop), 3)
+                                if stated_coop else None),
+        intention_kept=kept, intention_broken=broken,
+    )
 
 
 def main():
@@ -154,6 +209,8 @@ def main():
     print("decision sources:", s["decision_sources"])
     print("llm:", s["llm"], "mismatches:", s["mismatches"])
     print("discourse:", s["discourse"])
+    if s["chat"]:
+        print("pair chat:", s["chat"])
     if s["failures"]:
         print("FAILURES:", s["failures"])
 

@@ -116,28 +116,109 @@ def render_decision_prompt(
     include_feed: bool = True,
     strict: bool = False,
     no_think: bool = False,
+    chat: Optional[List[Dict[str, Any]]] = None,
 ) -> str:
     """
     Args:
         history: internal choices; shown through `labels`
         no_think: append qwen3's soft switch to skip thinking mode. In thinking
             mode qwen3:4b spends 1000+ tokens per answer (NOTES.md #27).
+        chat: the pair's private chat, [{"round_number", "messages": [{"who", "text"}]}]
+            with "who" already written from this agent's view (see chat_view)
     """
-    shown_history = [
-        {**h, 'own': labels.show(h['own']), 'partner': labels.show(h['partner'])}
-        for h in history
-    ]
     return _env.get_template('game_decision.j2').render(
         options=labels.order,
         blocks=_option_blocks(payoffs, labels),
         round_number=round_number,
         num_rounds=num_rounds,
-        history=shown_history,
+        history=_shown_history(history, labels),
         include_feed=include_feed,
         feed_placeholder=FEED_PLACEHOLDER,
         strict=strict,
         no_think=no_think,
+        chat=chat or [],
     )
+
+
+def _shown_history(history: List[Dict[str, Any]], labels: Labels) -> List[Dict[str, Any]]:
+    return [{**h, 'own': labels.show(h['own']), 'partner': labels.show(h['partner'])}
+            for h in history]
+
+
+# -- pair chat (cheap talk before each round) ----------------------------------
+#
+# Debate rounds on the simulated platform never turned to the game: agents
+# post about their persona's interests (NOTES.md #34, #44, #46). The pair chat
+# is a direct channel between the two partners, prompted with the game itself,
+# so what is said is about the game and reaches exactly the person it concerns.
+
+def chat_view(chat: List[Dict[str, Any]], agent_id: int) -> List[Dict[str, Any]]:
+    """Stored transcript [{"round_number", "messages": [{"agent_id", "text"}]}]
+    -> the same with "who" = "You" / "The other person" for this agent."""
+    return [
+        dict(round_number=c['round_number'], messages=[
+            dict(who='You' if m['agent_id'] == agent_id else 'The other person', text=m['text'])
+            for m in c['messages']])
+        for c in chat
+    ]
+
+
+def render_chat_prompt(
+    round_number: int,
+    num_rounds: int,
+    payoffs: Dict[str, int],
+    history: List[Dict[str, Any]],
+    labels: Labels,
+    past_chat: List[Dict[str, Any]],
+    current: List[Dict[str, Any]],
+    no_think: bool = False,
+) -> str:
+    """
+    Args:
+        past_chat: earlier rounds' chat, in chat_view form
+        current: this round's messages so far, [{"who", "text"}]; empty = speak first
+    """
+    return _env.get_template('game_chat.j2').render(
+        options=labels.order,
+        blocks=_option_blocks(payoffs, labels),
+        round_number=round_number,
+        num_rounds=num_rounds,
+        history=_shown_history(history, labels),
+        past_chat=past_chat,
+        current=current,
+        no_think=no_think,
+    )
+
+
+def parse_chat_message(text: Optional[str], max_chars: int = 400) -> Tuple[Optional[str], Optional[str]]:
+    """Returns (message or None, error)."""
+    if not text:
+        return None, 'empty response'
+    cleaned = _clean(text)
+    message = None
+    for match in re.finditer(r'\{.*?\}', cleaned, re.DOTALL):
+        try:
+            obj = json.loads(match.group(0))
+        except json.JSONDecodeError:
+            continue
+        if isinstance(obj, dict) and isinstance(obj.get('message'), str):
+            message = obj['message']
+            break
+    if message is None:
+        match = re.search(r'"message"\s*:\s*"((?:[^"\\]|\\.)*)', cleaned, re.DOTALL)
+        if match:
+            message = match.group(1).replace('\\"', '"')
+    if message is None:
+        # Plain prose is still a usable message, unless it is an attempt at JSON
+        if '{' in cleaned:
+            return None, f'unparseable response: {cleaned[:200]!r}'
+        message = cleaned
+    message = ' '.join(message.split())
+    if not message:
+        return None, 'empty message'
+    if len(message) > max_chars:
+        message = message[:max_chars].rstrip() + '...'
+    return message, None
 
 
 _THINK_RE = re.compile(r'<think>.*?</think>', re.DOTALL | re.IGNORECASE)

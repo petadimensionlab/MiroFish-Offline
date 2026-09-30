@@ -1,4 +1,4 @@
-Based on your persona{% if include_feed %}, all your past memories and the posts below{% else %} and all your past memories{% endif %}, reply directly to me with text without calling any tools.
+Based on your persona and all your past memories, reply directly to me with text without calling any tools.
 
 This is not a social media post. Answer as the real person described in your persona would, privately and honestly.
 
@@ -9,26 +9,29 @@ Points per round, for each option you can choose:
 If you choose {{ b.label }}:
 {% for c in b.cases %}- and the other chooses {{ c.other }}: you get {{ c.own_points }} points, the other gets {{ c.other_points }} points
 {% endfor %}{% endfor %}
-This is round {{ round_number }} of {{ num_rounds }}.
+Round {{ round_number }} of {{ num_rounds }} is about to start.
 {% if history %}
 What happened so far:
 {% for h in history %}- Round {{ h.round_number }}: you chose {{ h.own }}, the other chose {{ h.partner }}, you got {{ h.payoff | int }} points
 {% endfor %}{% else %}
-This is the first round.
+No round has been played yet.
 {% endif %}
-{% if chat %}
-Your private chat with the other person (only the two of you can see it; nothing said is binding):
-{% for c in chat %}Before round {{ c.round_number }}{% if c.round_number == round_number %} (this round){% endif %}:
+{% if past_chat %}
+Your earlier private chat with the other person:
+{% for c in past_chat %}Before round {{ c.round_number }}:
 {% for m in c.messages %}- {{ m.who }}: {{ m.text }}
 {% endfor %}{% endfor %}{% endif %}
-{% if include_feed %}
-These are the social media posts you currently see:
-{{ feed_placeholder }}
+Before you both choose in round {{ round_number }}, you can talk to the other person in a private chat. Only the two of you can see it. Nothing said is binding: afterwards each of you can still choose either option.
+{% if current %}
+The chat before round {{ round_number }} so far:
+{% for m in current %}- {{ m.who }}: {{ m.text }}
+{% endfor %}
+Now write your reply to the other person.
+{% else %}
+You speak first. Write your message to the other person.
 {% endif %}
-Before you answer, think about the points each option can give you in this round and in the rounds still to come{% if chat %}, and about what the two of you said in the chat{% endif %}.
-{% if strict %}
-Your previous answer could not be read. Answer with the JSON object only, no other text.
-{% endif %}
-Reply with only a JSON object: {"choice": "{{ options[0] }}" or "{{ options[1] }}", "reason": "one sentence explaining your choice"}
+Your message must be about this decision task only. Say which option you intend to choose in round {{ round_number }} or what you propose the two of you do, using the option names, and why. You can also respond to what the other person said or did in earlier rounds. Keep your own way of speaking, in one to three sentences.
+
+Reply with only a JSON object: {"message": "your message to the other person"}
 {% if no_think %}/no_think
 {% endif %}

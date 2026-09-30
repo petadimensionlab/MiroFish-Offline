@@ -1,0 +1,23 @@
+Based on your persona{% if include_feed %}, all your past memories and the posts below{% else %} and all your past memories{% endif %}, reply directly to me with text without calling any tools.
+
+This is not a social media post. Answer as the real person described in your persona would, privately and honestly.
+
+{% include 'game_pgg_rules.j2' %}
+This is round {{ round_number }} of {{ num_rounds }}.
+{% if history %}
+What happened so far:
+{% for h in history %}- Round {{ h.round_number }}: you put in {{ h.own }}, the other members put in {{ h.others | join(', ') }} (group total {{ h.total }}), you got {{ '%g' % h.payoff }} points
+{% endfor %}{% else %}
+This is the first round.
+{% endif %}
+{% if include_feed %}
+These are the social media posts you currently see:
+{{ feed_placeholder }}
+{% endif %}
+Before you answer, think about the points you can get in this round and in the rounds still to come.
+{% if strict %}
+Your previous answer could not be read. Answer with the JSON object only, no other text.
+{% endif %}
+Reply with only a JSON object: {"contribution": a whole number from 0 to {{ endowment }}, "reason": "one sentence explaining your decision"}
+{% if no_think %}/no_think
+{% endif %}

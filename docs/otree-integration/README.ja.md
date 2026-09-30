@@ -34,10 +34,29 @@ oTree bot ──HTTP──▶ Flask bridge ──ファイル IPC──▶ step-
 
 1. `creating_session` → `/configure`（ペア表と設定）。bridge は第1期の全員の決定を計算し始める（必要なら先に理解テスト、信念調査、冒頭投稿、冒頭の議論）
 2. 各 bot が `/decide` → bridge は先取り済みの決定を返す。計算中なら待つ
-3. 全ペアの提出後、`/round_complete` で oTree の記録を送る。bridge は裏で「結果の注入 → 議論 `debate_rounds` ラウンド → 次期の先取り」を行う。次期の計算中の印は `/round_complete` の応答前に確保する
+3. 全ペアの提出後、`/round_complete` で oTree の記録を送る。bridge は裏で「結果の注入 → 議論 `debate_rounds` ラウンド →（`chat_turns > 0` なら）ペア内チャット → 次期の先取り」を行う。次期の計算中の印は `/round_complete` の応答前に確保する
 4. 最終期の後: 必要なら事後の信念調査
 
 先取りが必要なのは、oTree の bot 実行が完全に直列だから。`/decide` のたびに LLM を呼ぶと、所要時間が人数倍になる。
+
+### 公共財ゲーム（`game='pgg'`）
+
+oTree アプリ `pgg`（4人固定グループ×10期、持ち点20、倍率 `pgg_multiplier`＝1.6）。bridge は `game='pgg'`、`pgg={endowment, multiplier, group_size}`、`agents=[{agent_id, group_agent_ids}]` で設定する。
+決定は拠出額（0〜持ち点の整数、`game_pgg.j2`、解釈は `public_goods.py`）、履歴は各期の自分・他の3人の拠出・グループ合計・得点。理解テストは (20, 他は0) と (10, 他も10)。
+チャットと `inject_results='summary'` は非対応（`/configure` が拒否）。集計は `backend/scripts/experiment/analyze_pgg.py`（期ごとの平均・0/全額の人数・減衰・最終期の低下・個人内の条件付き協力の傾き）。セッション設定 `pgg`（固定戦略 bot）、`pgg_llm`。
+
+### ペア内チャット（`chat_turns`）
+
+> ⚠️ **本実験は必ず「チャットなし」（`chat_turns=0`、例 `pd_debate_llm_nochat` / `pd_debate_llm_debate*`）で行う。** この研究の意図は「SNS 上の言説 → ゲームの行動」の効果を見ることで、ペア内チャットで相手と直接打ち合わせられると、行動がチャットの合意で決まり（NOTES #50: 協力率 1.00 固定）、言説の効果を測る余地がなくなる。チャットは、エージェントがコミュニケーションを行動に反映できるかの**検証・参照条件としてのみ**使う（NOTES #51）
+
+SNS 上の議論ラウンドでは、エージェントはペルソナの関心ごとを投稿するだけで、ゲームの相手と話すことがなかった（NOTES #34, #44, #46, #47）。
+そこで各期の決定の直前に、**ペアの2人だけが見える非公開チャット**を行う（実験経済学でいう cheap talk: 発言に拘束力はない）。
+
+- 1期あたり `chat_turns` 通。1通ごとに全ペアの話し手をまとめて `game_interview` で1回の面接にする。話し手は交互で、先に話す側は期ごとに入れ替わる
+- チャットのプロンプトには利得表・これまでの結果・過去 `chat_memory_rounds` 期ぶんのチャット・今期のここまでの発言が入り、「このゲームについて、自分の口調で1〜3文」で話すよう指示する（`game_chat.j2`）。ペルソナは面接のシステムプロンプトから入る
+- その期のチャットは両者の意思決定プロンプトに入る（過去のチャットも同じ期数だけ）。約束と実際の選択の食い違いを相手が次の期に指摘できる
+- 両者が同じ記号で選択肢を呼べるよう、`label_unit` は `session` か `pair`（ペアごとに共通・ペア間でランダム）。`agent` との組み合わせは `/configure` が拒否する
+- 読めない応答は1回だけ再質問し、それでも駄目ならその1通は飛ばす（チャットの失敗で決定は止めない）
 
 ## 4. bridge の HTTP API（`/api/experiment`）
 
@@ -65,7 +84,7 @@ oTree bot ──HTTP──▶ Flask bridge ──ファイル IPC──▶ step-
 | `feed_exclude_own` | `false` | そのフィードから自分の投稿を除く |
 | `label_scheme` | `symbols` | `letters`（A/B）か `symbols`（△□○◇） |
 | `label_randomize` | `true` | ラベルの対応と並び順をランダムに決める |
-| `label_unit` | `session` | `session` か `agent`: 同じ割り当てを共有する単位 |
+| `label_unit` | `session` | `session`、`pair`、`agent`: 同じ割り当てを共有する単位 |
 | `swap_labels` | `false` | 文字のみ。固定で入れ替える（A を裏切りとして見せる） |
 | `debate_rounds` | `0` | 期間の議論ラウンド数（0＝議論なし） |
 | `debate_players_only` | `true` | 議論で動けるのはゲーム参加者だけ |
@@ -73,6 +92,9 @@ oTree bot ──HTTP──▶ Flask bridge ──ファイル IPC──▶ step-
 | `debate_min_active` | `2` | 議論1ラウンドあたりの最低活性人数 |
 | `inject_results` | `each` | `each`（各自が結果を投稿）、`summary`（要約1件）、`none` |
 | `opening_post` ／ `repeat_opening` | `""` ／ `false` | 第1期前の話題投稿 ／ それを毎回の議論前に再掲 |
+| `chat_turns` | `0` | 各期の決定前のペア内チャットの通数（0＝チャットなし） |
+| `chat_memory_rounds` | `3` | プロンプトに入れる過去のチャットの期数（-1＝全部） |
+| `chat_max_chars` | `400` | 1通の上限文字数（超えたら切る） |
 | `comprehension_check` | `false` | 第1期前に利得の質問2問 |
 | `belief_survey` | `false` | 7件法の質問をゲームの前後に |
 | `default_choice` | `A` | 応答が使えない時の内部値（欠測フラグ付き） |
@@ -80,7 +102,7 @@ oTree bot ──HTTP──▶ Flask bridge ──ファイル IPC──▶ step-
 | `payoffs`、`num_rounds` | oTree から | `creating_session` が送る |
 | `seed`、`inject_delay_sec`、`inject_error_rate` | `0` | 再現性、テスト用の障害注入 |
 
-oTree アプリはこれらを `bridge_<設定名>` のセッション設定として渡す（例 `bridge_debate_rounds=2`）。登録済みのセッション設定: `pd_debate`、`pd_debate_faults`、`pd_debate_llm`、`pd_debate_llm_debate`、`pd_debate_llm_debate_topic`、`pd_debate_llm_opening`、`pd_debate_llm_debate_noinject`、`pd_debate_llm_debate_noinject_swap`。
+oTree アプリはこれらを `bridge_<設定名>` のセッション設定として渡す（例 `bridge_debate_rounds=2`）。登録済みのセッション設定: `pd_debate`、`pd_debate_faults`、`pd_debate_llm`、`pd_debate_llm_debate`、`pd_debate_llm_debate_topic`、`pd_debate_llm_opening`、`pd_debate_llm_debate_noinject`、`pd_debate_llm_debate_noinject_swap`、`pd_debate_llm_chat`（ペア内チャット4通、フィード・議論・結果注入なし、ペア単位ラベル）、`pd_debate_llm_chat_debate`（チャット＋議論＋話題の再掲＋結果注入）、`pd_debate_llm_nochat`（`pd_debate_llm_chat` の対照: チャットだけ無し）。
 
 ## 6. step-server の IPC コマンド
 
@@ -106,10 +128,11 @@ step-server は `<sim_dir>/step_server.pid` を取り、生きている別のサ
 
 | ファイル | 内容 |
 |---|---|
-| `pd_debate_custom.csv`（oTree の `--export`） | 1行＝1体×1期: `session_code, participant_code, participant_label, agent_id, round_number, pair_id, id_in_pair, partner_agent_id, choice, cooperated, partner_choice, payoff, decision_source, decision_missing, decision_latency_sec, decision_reason` |
+| `pd_debate_custom.csv`（oTree の `--export`） | 1行＝1体×1期: `session_code, participant_code, participant_label, agent_id, round_number, pair_id, id_in_pair, partner_agent_id, choice, cooperated, partner_choice, payoff, decision_source, decision_missing, decision_latency_sec, decision_reason, chat_transcript`（chat_transcript＝その期のペア内チャット、JSON） |
 | `<sim_dir>/game/<session>/bridge_log.jsonl` | configure（ラベル含む）、decide、round_complete（食い違い）、debate_phase、調査、失敗 |
 | `<sim_dir>/game/<session>/llm_answers.jsonl` | LLM の全回答: プロンプト、見たフィード、生の応答、解釈エラー |
 | `<sim_dir>/game/<session>/beliefs.jsonl`、`comprehension.jsonl` | 信念調査と理解テストの回答 |
+| `<sim_dir>/game/<session>/chat.jsonl` | ペア内チャットの全発言: 期、通番、話し手、相手、本文、プロンプト、生の応答、解釈エラー |
 | `<sim_dir>/twitter/actions.jsonl` | 議論中の行動。注入投稿は `action_args.injected=true` |
 
 1セッションの集計:

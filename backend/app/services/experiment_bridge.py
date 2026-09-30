@@ -20,6 +20,18 @@ bridge runs, through the step-server,
 so decisions see a timeline shaped by the previous round. debate_rounds=0
 is the no-debate treatment.
 
+Pair chat (chat_turns > 0): after the debate phase and before the decision,
+the two partners of each pair exchange chat_turns private messages about
+the game (cheap talk; the opener alternates by round). Messages are
+generated with the game rules, the pair's history and their earlier chat
+in the prompt, and the transcript goes into both partners' decision
+prompts. The debate rounds alone never turned to the game (NOTES.md #34,
+#44, #46), so without this the agents never actually talk to each other.
+
+Public goods game (game='pgg'): fixed groups (agents carry
+group_agent_ids), each decision is a contribution 0..endowment
+(prompts in public_goods.py). The pair chat is PD only.
+
 State is per oTree session (session_code) and kept in memory, with
 append-only JSONL logs under <simulation_dir>/game/<session_code>/ for the
 llm policy, else uploads/experiments/<session_code>/.
@@ -39,6 +51,11 @@ from .game_decision import (
     render_decision_prompt, parse_decision, wants_no_think, make_labels, Labels, LABEL_SCHEMES,
     render_belief_prompt, parse_likert, DEFAULT_BELIEF_STATEMENT,
     render_comprehension_prompt, parse_comprehension,
+    render_chat_prompt, parse_chat_message, chat_view,
+)
+from .public_goods import (
+    DEFAULT_PGG, render_pgg_prompt, parse_contribution,
+    render_pgg_comprehension_prompt, parse_pgg_comprehension,
 )
 from .simulation_ipc import SimulationIPCClient, CommandStatus
 
@@ -59,6 +76,8 @@ GAME_INTERVIEW_TIMEOUT_SEC = 900.0
 # One RUN_ROUNDS burst of debate_rounds rounds
 RUN_ROUNDS_TIMEOUT_SEC = 1800.0
 INJECT_MODES = ('none', 'each', 'summary')
+LABEL_UNITS = ('session', 'pair', 'agent')
+GAMES = ('pd', 'pgg')
 
 
 @dataclass
@@ -66,6 +85,8 @@ class BridgeSettings:
     """Per-session knobs. Fault injection is for Phase 2 robustness tests only."""
     policy: str = 'random'
     seed: int = 0
+    game: str = 'pd'                  # pd | pgg (public goods)
+    pgg: Dict[str, Any] = field(default_factory=lambda: dict(DEFAULT_PGG))
     inject_delay_sec: float = 0.0
     inject_error_rate: float = 0.0
     # llm policy
@@ -80,7 +101,9 @@ class BridgeSettings:
     # What agents see for the internal A (cooperate) / B (defect) (NOTES.md #39, #40)
     label_scheme: str = 'symbols'     # letters | symbols
     label_randomize: bool = True      # mapping and listing order drawn at random
-    label_unit: str = 'session'       # session | agent: who shares one random mapping (NOTES.md #43)
+    # session | pair | agent: who shares one random mapping (NOTES.md #43).
+    # The pair chat needs partners to share labels, so session or pair.
+    label_unit: str = 'session'
     swap_labels: bool = False         # letters, fixed: agents see A/B swapped
     payoffs: Dict[str, int] = field(default_factory=lambda: dict(DEFAULT_PAYOFFS))
     # debate phase (llm policy)
@@ -99,6 +122,10 @@ class BridgeSettings:
     belief_survey: bool = False
     comprehension_check: bool = False  # payoff-table quiz before round 1 (NOTES.md #39)
     belief_statement: str = DEFAULT_BELIEF_STATEMENT
+    # pair chat (llm policy): private messages between partners before each decision
+    chat_turns: int = 0               # messages per pair per round; 0 = no chat
+    chat_memory_rounds: int = 3       # earlier rounds of chat shown in prompts; -1 = all
+    chat_max_chars: int = 400
 
 
 @dataclass
@@ -124,6 +151,10 @@ class SessionState:
     agents: Dict[int, int] = field(default_factory=dict)
     # round_number -> agent_id -> outcome oTree recorded
     outcomes: Dict[int, Dict[int, Dict[str, Any]]] = field(default_factory=dict)
+    # round_number -> pair (lower id, higher id) -> [{"agent_id", "text"}]
+    chats: Dict[int, Dict[tuple, List[Dict[str, Any]]]] = field(default_factory=dict)
+    # pgg: agent_id -> all members of its group (including itself)
+    groups: Dict[int, List[int]] = field(default_factory=dict)
 
 
 class InjectedFailure(RuntimeError):
@@ -179,8 +210,11 @@ class ExperimentBridge:
         if scheme is not None and scheme not in LABEL_SCHEMES:
             raise ValueError(f"unknown label_scheme: {scheme} (expected one of {LABEL_SCHEMES})")
         unit = kwargs.get('label_unit')
-        if unit is not None and unit not in ('session', 'agent'):
-            raise ValueError(f"unknown label_unit: {unit} (expected session or agent)")
+        if unit is not None and unit not in LABEL_UNITS:
+            raise ValueError(f"unknown label_unit: {unit} (expected one of {LABEL_UNITS})")
+        game = kwargs.get('game')
+        if game is not None and game not in GAMES:
+            raise ValueError(f"unknown game: {game} (expected one of {GAMES})")
         inject = kwargs.get('inject_results')
         if inject is not None and inject not in INJECT_MODES:
             raise ValueError(f"unknown inject_results: {inject} (expected one of {INJECT_MODES})")
@@ -190,7 +224,22 @@ class ExperimentBridge:
                 if value is not None and hasattr(state.settings, key):
                     setattr(state.settings, key, _coerce(getattr(state.settings, key), value))
             if agents:
-                state.agents = {int(a['agent_id']): int(a['partner_agent_id']) for a in agents}
+                if state.settings.game == 'pgg':
+                    state.groups = {int(a['agent_id']): [int(m) for m in a['group_agent_ids']] for a in agents}
+                    state.agents = {a: -1 for a in state.groups}  # no partner
+                else:
+                    state.agents = {int(a['agent_id']): int(a['partner_agent_id']) for a in agents}
+            pgg_conflict = state.settings.game == 'pgg' and (
+                state.settings.chat_turns > 0 or state.settings.inject_results == 'summary')
+            if pgg_conflict:
+                del self._sessions[session_code]
+                raise ValueError("game 'pgg' supports neither chat_turns > 0 nor inject_results 'summary'")
+            if state.settings.chat_turns > 0 and state.settings.label_unit == 'agent':
+                # partners would name the options with different symbols. Drop
+                # the session so later calls fail visibly (409) instead of
+                # running a half-configured one.
+                del self._sessions[session_code]
+                raise ValueError("chat_turns > 0 needs label_unit 'session' or 'pair', not 'agent'")
             settings = asdict(state.settings)
             if settings['policy'] == 'llm':
                 self._simulation_dir(state.settings)  # validate early
@@ -207,18 +256,21 @@ class ExperimentBridge:
             self.prefetch(session_code, 1, before=opening)
         return {**settings, 'n_agents': len(state.agents)}
 
-    @staticmethod
-    def _labels(session_code: str, settings: BridgeSettings,
+    def _labels(self, session_code: str, settings: BridgeSettings,
                 agent_id: Optional[int] = None) -> Labels:
         key = session_code
         if settings.label_unit == 'agent' and agent_id is not None:
             key = f"{session_code}:agent{agent_id}"
+        elif settings.label_unit == 'pair' and agent_id is not None:
+            state = self._sessions.get(session_code)
+            partner = state.agents.get(agent_id, agent_id) if state else agent_id
+            key = f"{session_code}:pair{min(agent_id, partner)}-{max(agent_id, partner)}"
         return make_labels(key, scheme=settings.label_scheme,
                            randomize=settings.label_randomize, swap=settings.swap_labels,
                            seed=settings.seed)
 
     def _labels_summary(self, session_code: str, state: SessionState) -> Dict[str, Any]:
-        if state.settings.label_unit == 'agent':
+        if state.settings.label_unit in ('agent', 'pair'):
             return {str(a): self._labels(session_code, state.settings, a).to_dict()
                     for a in sorted(state.agents)}
         return self._labels(session_code, state.settings).to_dict()
@@ -252,7 +304,8 @@ class ExperimentBridge:
                 state = self._session(session_code)
                 cached = state.decisions.get(key)
                 if cached is not None:
-                    return {**asdict(cached), 'cached': True}
+                    return {**asdict(cached), 'cached': True,
+                            **self._chat_field(state, round_number, agent_id)}
                 in_flight = state.in_flight.get(key)
                 if in_flight is None:
                     # This request computes the decision
@@ -284,7 +337,14 @@ class ExperimentBridge:
             'event': 'decide', 'round_number': round_number, 'agent_id': agent_id,
             'attempt': attempt, **asdict(decision),
         })
-        return {**asdict(decision), 'cached': False}
+        return {**asdict(decision), 'cached': False, **self._chat_field(state, round_number, agent_id)}
+
+    def _chat_field(self, state: SessionState, round_number: int, agent_id: int) -> Dict[str, Any]:
+        if state.settings.chat_turns <= 0:
+            return {}
+        pair = self._pair(agent_id, state.agents.get(agent_id, agent_id))
+        messages = state.chats.get(round_number, {}).get(pair, [])  # caller may hold the lock
+        return {'chat': [dict(agent_id=m['agent_id'], text=m['text']) for m in messages]}
 
     def _compute(self, session_code, round_number, agent_id, history, settings, attempt) -> Decision:
         t0 = time.time()
@@ -299,7 +359,10 @@ class ExperimentBridge:
                 self._sessions[session_code].injected_errors += 1
             raise InjectedFailure(f"injected failure round={round_number} agent={agent_id}")
 
-        choice, reason = self._apply_policy(settings.policy, rng, history or [])
+        if settings.game == 'pgg':
+            choice, reason = self._apply_pgg_policy(settings.policy, rng, history or [], settings.pgg['endowment'])
+        else:
+            choice, reason = self._apply_policy(settings.policy, rng, history or [])
         return Decision(
             choice=choice,
             reason=reason,
@@ -322,9 +385,24 @@ class ExperimentBridge:
             return last, 'tit-for-tat: copy partner'
         return rng.choice(CHOICES), 'random'
 
+    @staticmethod
+    def _apply_pgg_policy(policy: str, rng: random.Random, history: List[Dict[str, Any]], endowment: int):
+        if policy == 'allc':
+            return str(endowment), 'always contribute everything'
+        if policy == 'alld':
+            return '0', 'never contribute'
+        if policy == 'tft':
+            if not history or not history[-1].get('others'):
+                return str(endowment), 'conditional: open with full contribution'
+            others = history[-1]['others']
+            return str(round(sum(others) / len(others))), 'conditional: match the others\' mean'
+        return str(rng.randint(0, endowment)), 'random'
+
     # -- llm policy ------------------------------------------------------------
 
     def _history_from_outcomes(self, state: SessionState, agent_id: int, before_round: int):
+        if state.settings.game == 'pgg':
+            return self._pgg_history(state, agent_id, before_round)
         history = []
         partner = state.agents.get(agent_id)
         for r in range(1, before_round):
@@ -334,6 +412,21 @@ class ExperimentBridge:
                 continue
             history.append(dict(round_number=r, own=own['choice'], partner=other['choice'],
                                 payoff=float(own.get('payoff') or 0)))
+        return history
+
+    @staticmethod
+    def _pgg_history(state: SessionState, agent_id: int, before_round: int):
+        history = []
+        members = state.groups.get(agent_id, [agent_id])
+        for r in range(1, before_round):
+            got = state.outcomes.get(r, {})
+            if any(m not in got for m in members):
+                continue
+            contrib = {m: int(float(got[m]['choice'])) for m in members}
+            history.append(dict(round_number=r, own=contrib[agent_id],
+                                others=[contrib[m] for m in members if m != agent_id],
+                                total=sum(contrib.values()),
+                                payoff=float(got[agent_id].get('payoff') or 0)))
         return history
 
     def prefetch(self, session_code: str, round_number: int,
@@ -371,6 +464,13 @@ class ExperimentBridge:
                 except Exception as e:  # noqa: BLE001 -- still decide, but record it
                     logger.error(f"Debate phase failed session={session_code} round={round_number}: {e}")
                     self._log(session_code, {'event': 'debate_failed', 'round_number': round_number,
+                                             'error': str(e)})
+            if settings.chat_turns > 0:
+                try:
+                    self._chat_phase(state, settings, round_number, histories)
+                except Exception as e:  # noqa: BLE001 -- decide on whatever was said
+                    logger.error(f"Pair chat failed session={session_code} round={round_number}: {e}")
+                    self._log(session_code, {'event': 'chat_failed', 'round_number': round_number,
                                              'error': str(e)})
             try:
                 decisions = self._llm_batch(state, settings, round_number, list(owned), histories)
@@ -413,12 +513,21 @@ class ExperimentBridge:
         for strict in (False, True):
             if not pending:
                 break
-            interviews = [
-                dict(agent_id=a, prompt=render_decision_prompt(
-                    round_number, settings.num_rounds, settings.payoffs, histories.get(a, []),
-                    labels[a], include_feed=settings.include_feed, strict=strict, no_think=no_think))
-                for a in pending
-            ]
+            if settings.game == 'pgg':
+                interviews = [
+                    dict(agent_id=a, prompt=render_pgg_prompt(
+                        round_number, settings.num_rounds, settings.pgg, histories.get(a, []),
+                        include_feed=settings.include_feed, strict=strict, no_think=no_think))
+                    for a in pending
+                ]
+            else:
+                interviews = [
+                    dict(agent_id=a, prompt=render_decision_prompt(
+                        round_number, settings.num_rounds, settings.payoffs, histories.get(a, []),
+                        labels[a], include_feed=settings.include_feed, strict=strict, no_think=no_think,
+                        chat=self._chat_for(state, settings, a, round_number, include_current=True)))
+                    for a in pending
+                ]
             response = client.send_game_interview(interviews, platform=settings.platform,
                                                    timeout=GAME_INTERVIEW_TIMEOUT_SEC,
                                                    exclude_own_posts=settings.feed_exclude_own)
@@ -429,7 +538,12 @@ class ExperimentBridge:
             retry = []
             for agent_id in pending:
                 answer = answers.get(agent_id, {})
-                choice, reason, error = parse_decision(answer.get('response'), labels[agent_id])
+                if settings.game == 'pgg':
+                    contribution, reason, error = parse_contribution(
+                        answer.get('response'), settings.pgg['endowment'])
+                    choice = None if contribution is None else str(contribution)
+                else:
+                    choice, reason, error = parse_decision(answer.get('response'), labels[agent_id])
                 if answer.get('error'):
                     error = answer['error']
                 self._log_prompt(state.session_code, {
@@ -452,13 +566,107 @@ class ExperimentBridge:
 
         for agent_id in pending:
             decisions[agent_id] = Decision(
-                choice=settings.default_choice,
+                choice=(str(settings.pgg['endowment'] // 2) if settings.game == 'pgg'
+                        else settings.default_choice),
                 reason=f"llm answer unusable: {errors.get(agent_id)}",
                 source='llm_default',
                 latency_sec=round(time.time() - t0, 3),
                 missing=True,
             )
         return decisions
+
+    # -- pair chat ---------------------------------------------------------------
+
+    @staticmethod
+    def _pair(agent_id: int, partner_id: int) -> tuple:
+        return (min(agent_id, partner_id), max(agent_id, partner_id))
+
+    def _chat_for(self, state: SessionState, settings: BridgeSettings, agent_id: int,
+                  round_number: int, include_current: bool) -> List[Dict[str, Any]]:
+        """This agent's pair chat, from its point of view: earlier rounds (at
+        most chat_memory_rounds) and, if include_current, this round's."""
+        if settings.chat_turns <= 0:
+            return []
+        pair = self._pair(agent_id, state.agents.get(agent_id, agent_id))
+        with self._lock:
+            rounds = [(r, list(state.chats[r][pair])) for r in sorted(state.chats)
+                      if r < round_number and state.chats[r].get(pair)]
+            current = list(state.chats.get(round_number, {}).get(pair, []))
+        if settings.chat_memory_rounds >= 0:
+            rounds = rounds[-settings.chat_memory_rounds:] if settings.chat_memory_rounds else []
+        chat = [dict(round_number=r, messages=m) for r, m in rounds]
+        if include_current and current:
+            chat.append(dict(round_number=round_number, messages=current))
+        return chat_view(chat, agent_id)
+
+    def _chat_phase(self, state: SessionState, settings: BridgeSettings, round_number: int,
+                    histories: Dict[int, List[Dict[str, Any]]]) -> None:
+        """Partners exchange chat_turns messages before this round's decision.
+
+        One batched GAME_INTERVIEW per turn: in every pair one partner speaks,
+        seeing everything said before. The opener alternates between rounds.
+        A message that cannot be read is re-asked once, then skipped.
+        """
+        session_code = state.session_code
+        client = SimulationIPCClient(self._simulation_dir(settings))
+        model = os.environ.get('LLM_MODEL_NAME', 'llm')
+        no_think = wants_no_think(settings.no_think, model)
+        pairs = sorted({self._pair(a, p) for a, p in state.agents.items() if p in state.agents})
+        with self._lock:
+            transcripts = state.chats.setdefault(round_number, {})
+            for pair in pairs:
+                transcripts.setdefault(pair, [])
+        t0 = time.time()
+        n_ok = n_failed = 0
+        for turn in range(settings.chat_turns):
+            speakers = {}
+            for low, high in pairs:
+                opener, other = (low, high) if round_number % 2 == 1 else (high, low)
+                speakers[opener if turn % 2 == 0 else other] = (low, high)
+            pending = list(speakers)
+            for attempt in (1, 2):
+                if not pending:
+                    break
+                prompts = {}
+                for a in pending:
+                    with self._lock:
+                        so_far = list(transcripts[speakers[a]])
+                    prompts[a] = render_chat_prompt(
+                        round_number, settings.num_rounds, settings.payoffs, histories.get(a, []),
+                        self._labels(session_code, settings, a),
+                        past_chat=self._chat_for(state, settings, a, round_number, include_current=False),
+                        current=chat_view([dict(round_number=round_number, messages=so_far)], a)[0]['messages'],
+                        no_think=no_think)
+                response = client.send_game_interview(
+                    [dict(agent_id=a, prompt=prompts[a]) for a in pending],
+                    platform=settings.platform, timeout=GAME_INTERVIEW_TIMEOUT_SEC)
+                if response.status != CommandStatus.COMPLETED:
+                    raise RuntimeError(f"game_interview (chat) failed: {response.error}")
+                answers = {int(x['agent_id']): x for x in response.result.get('answers', [])}
+                retry = []
+                for a in pending:
+                    answer = answers.get(a, {})
+                    text, error = parse_chat_message(answer.get('response'), settings.chat_max_chars)
+                    error = answer.get('error') or error
+                    if error is None:
+                        with self._lock:
+                            transcripts[speakers[a]].append(dict(agent_id=a, text=text))
+                        n_ok += 1
+                    elif attempt == 1:
+                        retry.append(a)
+                    else:
+                        n_failed += 1
+                    self._append(session_code, 'chat.jsonl', {
+                        'round_number': round_number, 'turn': turn, 'attempt': attempt,
+                        'agent_id': a, 'partner_agent_id': state.agents.get(a),
+                        'message': text, 'parse_error': error,
+                        'prompt': prompts[a], 'response': answer.get('response'),
+                    })
+                pending = retry
+        self._log(session_code, {'event': 'chat_phase', 'round_number': round_number,
+                                 'pairs': len(pairs), 'turns': settings.chat_turns,
+                                 'messages': n_ok, 'failed': n_failed,
+                                 'elapsed_sec': round(time.time() - t0, 1)})
 
     # -- debate phase (Phase 4) -------------------------------------------------
 
@@ -473,6 +681,12 @@ class ExperimentBridge:
         if settings.inject_results == 'none' or not outcomes:
             return []
         by_agent = {int(o['agent_id']): o for o in outcomes}
+        if settings.game == 'pgg':  # 'each' only (configure rejects 'summary')
+            return [dict(agent_id=a, content=(
+                f"Decision task, round {round_number}: I put {int(float(o['choice']))} of my "
+                f"{settings.pgg['endowment']} points into the group project, my group put in "
+                f"{o.get('group_total', '?')} in total, and I got {float(o.get('payoff') or 0):g} points."))
+                for a, o in sorted(by_agent.items())]
         if settings.inject_results == 'each':
             posts = []
             for agent_id, o in sorted(by_agent.items()):
@@ -535,7 +749,7 @@ class ExperimentBridge:
             opening = [dict(agent_id=poster, content=settings.opening_post)]
         posts = opening
         if round_number > 0:
-            shared = None if settings.label_unit == 'agent' else self._labels(session_code, settings)
+            shared = None if settings.label_unit != 'session' else self._labels(session_code, settings)
             posts = posts + self.result_posts(settings, state.agents, round_number, outcomes, shared)
 
         record: Dict[str, Any] = {'event': 'debate_phase', 'after_round': round_number,
@@ -601,8 +815,12 @@ class ExperimentBridge:
         model = os.environ.get('LLM_MODEL_NAME', 'llm')
         labels = {a: self._labels(session_code, settings, a) for a in state.agents}
         no_think = wants_no_think(settings.no_think, model)
-        prompts = {a: render_comprehension_prompt(settings.payoffs, labels[a], no_think=no_think)
-                   for a in state.agents}
+        if settings.game == 'pgg':
+            prompts = {a: render_pgg_comprehension_prompt(settings.pgg, no_think=no_think)
+                       for a in state.agents}
+        else:
+            prompts = {a: render_comprehension_prompt(settings.payoffs, labels[a], no_think=no_think)
+                       for a in state.agents}
         expected = next(iter(prompts.values()))[1]  # same cells for every mapping
         client = SimulationIPCClient(self._simulation_dir(settings))
         t0 = time.time()
@@ -614,13 +832,15 @@ class ExperimentBridge:
         n_correct = 0
         answers = response.result.get('answers', [])
         for answer in answers:
-            got, error = parse_comprehension(answer.get('response'))
+            parse = parse_pgg_comprehension if settings.game == 'pgg' else parse_comprehension
+            got, error = parse(answer.get('response'))
             correct = got == expected
             n_correct += correct
             self._append(session_code, 'comprehension.jsonl', {
                 'agent_id': answer.get('agent_id'), 'answer': got, 'expected': expected,
                 'correct': correct, 'parse_error': error or answer.get('error'),
-                'labels': labels[answer.get('agent_id')].to_dict() if answer.get('agent_id') in labels else None,
+                'labels': (labels[answer.get('agent_id')].to_dict()
+                           if settings.game == 'pd' and answer.get('agent_id') in labels else None),
                 'response': answer.get('response'),
             })
         summary = {'event': 'comprehension_check', 'n': len(answers), 'correct': n_correct,
