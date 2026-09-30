@@ -11,7 +11,12 @@ cooperation); Spearman of degree / lambda / conversations against cooperation;
 negative-binomial check of the drawn contact counts; behavioural exposure
 (conversation partners who defected in t-1); talk exposure (what received
 messages named, PD); edge concordance of the last round against a
-permutation baseline; talk quality (on topic, partner confusion).
+permutation baseline; talk quality (on topic, partner confusion). With
+channel dyads (#55, network.json has edge_attrs): a dyads section (compatibility
+A against how often pairs talked and answered, reply rate by compatibility
+tercile, unanswered conversations). With memory_shown.jsonl (net_memory_mode
+'decay'): a memory section (block size, tier shares, remembered exposure).
+Conversations nobody answered are no exposure: the responder never saw them.
 
 Usage:
     python analyze_network.py --otree-csv export/pd_debate_custom.csv --sim-dir <sim_dir> \
@@ -28,6 +33,7 @@ import sys
 from collections import defaultdict
 
 import networkx as nx
+import numpy as np
 from scipy import stats as sps
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -127,9 +133,14 @@ def summarize(otree_csv, sim_dir, session=None):
     last = rounds[-1]
 
     messages = [m for m in chat if m.get("message")]
+    # conversations nobody answered (#55): no exposure for either side
+    unanswered = {(rec["round_number"], c["conv_id"]) for rec in contacts
+                  for c in rec["conversations"] if c.get("replied") is False}
     # conversations with at least one message, per round: (initiator, responder)
     convs = defaultdict(set)
     for m in messages:
+        if (m["round_number"], m["conv_id"]) in unanswered:
+            continue
         convs[(m["round_number"], m["conv_id"])] = (m["initiator"], m["agent_id"] if m["agent_id"] != m["initiator"]
                                                     else m["other_agent_id"])
     partners = defaultdict(set)  # (agent, round) -> conversation partners
@@ -215,6 +226,8 @@ def summarize(otree_csv, sim_dir, session=None):
         for m in messages:
             to = m["other_agent_id"]
             t = m["round_number"]
+            if (t, m["conv_id"]) in unanswered:
+                continue
             if c_sym in m["message"]:
                 names_by[(to, t)].add("c")
             if d_sym in m["message"]:
@@ -259,10 +272,101 @@ def summarize(otree_csv, sim_dir, session=None):
     by_round = [dict(round_number=t, coop=mean(coop[(a, t)] for a in agents if (a, t) in coop),
                      conversations=sum(1 for (r, _) in convs if r == t),
                      messages=sum(1 for m in messages if m["round_number"] == t)) for t in rounds]
-    return dict(session_code=session, game=game, topology=net.get("topology"), network=net.get("stats"),
-                contact=contact, rounds=by_round, agents=table, correlations=correlations,
-                contact_count_check=nb, behavioural_exposure=behavioural, talk_exposure=talk,
-                edge_concordance=concordance, talk_quality=quality)
+    out = dict(session_code=session, game=game, topology=net.get("topology"), network=net.get("stats"),
+               contact=contact, rounds=by_round, agents=table, correlations=correlations,
+               contact_count_check=nb, behavioural_exposure=behavioural, talk_exposure=talk,
+               edge_concordance=concordance, talk_quality=quality)
+    if net.get("edge_attrs"):
+        out["dyads"] = dyad_summary(net, contacts, load_json(os.path.join(sdir, "dyads.json")))
+    memory_rows = load_jsonl(os.path.join(sdir, "memory_shown.jsonl"))
+    if memory_rows:
+        out["memory"] = memory_summary(memory_rows, game, symbols, binary, agents, rounds, split)
+    return out
+
+
+def load_json(path):
+    if not os.path.exists(path):
+        return None
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def quantiles(xs):
+    if not len(xs):
+        return None
+    q = np.percentile(list(xs), [0, 25, 50, 75, 100])
+    return dict(n=len(xs), min=round(float(q[0]), 3), q25=round(float(q[1]), 3), median=round(float(q[2]), 3),
+                q75=round(float(q[3]), 3), max=round(float(q[4]), 3))
+
+
+def dyad_summary(net, contacts, dyads_doc):
+    """Compatibility A against talk on the graph's edges (NOTES.md #55)."""
+    attrs = {(e["a"], e["b"]): e for e in net["edge_attrs"]}
+    attempts, answered = defaultdict(int), defaultdict(int)
+    reach, replied = [], []
+    for rec in contacts:
+        for c in rec["conversations"]:
+            key = (min(c["initiator"], c["responder"]), max(c["initiator"], c["responder"]))
+            if key not in attrs:
+                continue
+            attempts[key] += 1
+            ok = c.get("replied") is not False
+            answered[key] += int(ok)
+            e = attrs[key]
+            reach.append(e["reach_ab"] if c["initiator"] == key[0] else e["reach_ba"])
+            replied.append(int(ok))
+    edges = sorted(attrs)
+    compat = [attrs[k]["compat"] for k in edges]
+    n_unanswered = sum(attempts.values()) - sum(answered.values())
+    tercile = []
+    order = sorted(edges, key=lambda k: attrs[k]["compat"])
+    for name, part in zip(("low", "middle", "high"), np.array_split(np.array(order, dtype=object), 3)):
+        keys = [tuple(k) for k in part]
+        n = sum(attempts[k] for k in keys)
+        tercile.append(dict(tercile=name, edges=len(keys),
+                            compat=[round(attrs[keys[0]]["compat"], 3), round(attrs[keys[-1]]["compat"], 3)] if keys else None,
+                            conversations=n, reply_rate=round(sum(answered[k] for k in keys) / n, 4) if n else None))
+    all_a = [d["compat"] for d in dyads_doc["dyads"] if d.get("compat") is not None] if dyads_doc else []
+    return dict(
+        compat_all_dyads=quantiles(all_a), compat_edges=quantiles(compat),
+        spearman_compat_attempts=spearman(compat, [attempts[k] for k in edges]),
+        spearman_compat_answered=spearman(compat, [answered[k] for k in edges]),
+        reply_rate_by_compat_tercile=tercile, unanswered=n_unanswered,
+        conversations=sum(attempts.values()),
+        realised_reply_rate=mean(replied), mean_reach=mean(reach),
+        beta=(net.get("channels") or {}).get("beta"), reply_model=(net.get("channels") or {}).get("reply_model"))
+
+
+def memory_summary(rows, game, symbols, binary, agents, rounds, split):
+    """Size and tier mix of the memory blocks, and remembered exposure (PD)."""
+    out = {}
+    for purpose in ("decision", "network_chat"):
+        rs = [r for r in rows if r["purpose"] == purpose]
+        if not rs:
+            continue
+        tiers = defaultdict(int)
+        for r in rs:
+            for i in r["items"]:
+                tiers[i["tier"]] += 1
+        total = sum(tiers.values())
+        out[purpose] = dict(
+            prompts=len(rs), mean_chars=mean(r["chars"] for r in rs),
+            at_budget=sum(1 for r in rs if r["over_budget_demotions"] > 0),
+            tier_share={k: round(v / total, 3) for k, v in sorted(tiers.items())} if total else {})
+    if game == "pd" and symbols:
+        d_sym = symbols[1]
+        seen = {}
+        for r in rows:
+            if r["purpose"] != "decision":
+                continue
+            dropped = {a["other"] for a in r["aggregates"] if a["dropped"]}
+            hit = any(d_sym in i.get("mentions_other", []) and (
+                i["tier"] in ("excerpt", "gist") or (i["tier"] == "aggregate" and i["other"] not in dropped))
+                for i in r["items"])
+            seen[(r["agent_id"], r["round_number"])] = "remembered_defect" if hit else "no_remembered_defect"
+        out["remembered_exposure"] = dict(
+            symbol=d_sym, table=split(lambda a, t: seen.get((a, t)), ("remembered_defect", "no_remembered_defect")))
+    return out
 
 
 def show(s):
@@ -287,6 +391,22 @@ def show(s):
             print(f"  {lvl}: {cells}")
     print("\nedge concordance (last round):", s["edge_concordance"])
     print("talk quality:", s["talk_quality"])
+    if s.get("dyads"):
+        d = s["dyads"]
+        print(f"\ndyads (beta {d['beta']}, reply model {d['reply_model']}):")
+        print("  compatibility, all dyads:", d["compat_all_dyads"])
+        print("  compatibility, edges:    ", d["compat_edges"])
+        print("  Spearman(compat, conversations per edge):", d["spearman_compat_attempts"])
+        print("  Spearman(compat, answered per edge):     ", d["spearman_compat_answered"])
+        print("  reply rate by compatibility tercile:")
+        for t in d["reply_rate_by_compat_tercile"]:
+            print(f"    {t}")
+        print(f"  unanswered {d['unanswered']} of {d['conversations']}; realised reply rate "
+              f"{d['realised_reply_rate']} vs mean reach {d['mean_reach']}")
+    if s.get("memory"):
+        print("\nmemory:")
+        for k, v in s["memory"].items():
+            print(f"  {k}: {v}")
 
 
 def main():

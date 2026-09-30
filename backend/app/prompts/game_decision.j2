@@ -24,7 +24,10 @@ Your private chat with the other person (only the two of you can see it; nothing
 Conversations you had with other participants (each of them plays with their own partner, not with you or the other person you play with; nothing said is binding, and their choices do not change your points):
 {% for c in network_chat %}Before round {{ c.round_number }}{% if c.round_number == round_number %} (this round){% endif %}, with {{ c.other_display }}:
 {% for m in c.messages %}- {{ m.who }}: {{ m.text }}
-{% endfor %}{% endfor %}{% endif %}
+{% endfor %}{% if c.get('unanswered') %}- ({{ c.other }} did not reply)
+{% endif %}{% endfor %}{% endif %}{% if memory %}
+Conversations you had with other participants (each of them plays with their own partner, not with you or the other person you play with; nothing said is binding, and their choices do not change your points):
+{% include '_memory.j2' %}{% endif %}
 {% if include_feed %}
 These are the social media posts you currently see:
 {{ feed_placeholder }}

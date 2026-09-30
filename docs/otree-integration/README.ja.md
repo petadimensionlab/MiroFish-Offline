@@ -127,6 +127,33 @@ SNS 上の議論ラウンドでは、エージェントはペルソナの関心�
 
 oTree アプリはこれらを `bridge_<設定名>` のセッション設定として渡す（例 `bridge_debate_rounds=2`）。登録済みのセッション設定: `pd_debate`、`pd_debate_faults`、`pd_debate_llm`、`pd_debate_llm_debate`、`pd_debate_llm_debate_topic`、`pd_debate_llm_opening`、`pd_debate_llm_debate_noinject`、`pd_debate_llm_debate_noinject_swap`、`pd_debate_llm_chat`（ペア内チャット4通、フィード・議論・結果注入なし、ペア単位ラベル）、`pd_debate_llm_chat_debate`（チャット＋議論＋話題の再掲＋結果注入）、`pd_debate_llm_nochat`（`pd_debate_llm_chat` の対照: チャットだけ無し）。
 
+### チャネル適合ダイアドと忘却つき記憶（NOTES #55）
+
+ネットワーク会話（`net_topology`、#54）に、ペルソナのチャネル（#53）から決まる「ペアごとの相性」と、過去の会話を年齢に応じて忘れる記憶を足す。**既定はすべて #54 と同じ挙動**（オフ経路のプロンプト・接触・ログはバイト一致）。oTree からは `bridge_net_<名前>` で渡す。
+
+| 設定 | 既定 | 意味 |
+|---|---|---|
+| `net_channels` | `false` | 全ペアの適合度 A を計算しダイアド台帳（`dyads.json` / `dyads.jsonl`）を持つ。チャネルの無いシミュレーションは ValueError（セッション削除） |
+| `net_channel_topic_weight` | `0.5` | A = w·話題 + (1-w)·媒体、0〜1 |
+| `net_channel_beta` | `0.0` | 近隣の選択確率に exp(β·z)。0＝一様。β>0 は `net_topology`≠none と `net_channels` が必要 |
+| `net_reply_model` | `always` | `reach`: 会話ごとに媒体と返信を引き、返信なしなら開始者だけが1通書く（相手には見えない） |
+| `net_channel_prompt` | `none` | `medium`: 「You are now talking with X by email」のように媒体だけを入れる |
+| `net_pair_chat_model` | `always` | `compat`: ペアチャットを確率 A で実行（**参照用、本実験では使わない**、#51） |
+| `net_dyad_hooks` | `""` | `dyads.DYAD_HOOKS` の名前（カンマ区切り）。いまは空（将来 betrayal / reputation） |
+| `net_memory_mode` | `window` | `decay`: 会話の記憶が w=2^(-Δ/(h·s)) で 原文 → 最初の一文 → 1行要旨 → 相手ごとの集約 と薄れる。`net_topology`≠none が必要 |
+| `net_memory_half_life` | `2.0` | h（期）。h=2 で原文の範囲は従来の窓（Δ0〜2）と同じ |
+| `net_memory_budget_chars` | `3200` | 記憶ブロックの上限（400以上）。超えたら最低重みの項目から降格、集約行は古い順に削除、今期は降格しない |
+| `net_memory_summary` | `extract` | `llm` は未実装（configure が拒否） |
+
+推奨条件は β=1.0 と `reach`（会話の約2割が未返信）。ログ: `dyads.json`（configure 時に1回）、`dyads.jsonl`（ラウンドごと）、`memory_shown.jsonl`（decay のみ、プロンプトごと）、`network.json` の `channels` / `edge_attrs`。事前確認（LLM なし）:
+
+```bash
+cd backend && python scripts/experiment/preview_channel_contacts.py \
+    --sim-dir uploads/simulations/sim_workplace_ch_s1_n48 --topology ba --beta 1.0 --reply reach --seeds 20
+```
+
+oTree のセッション設定案は `otree_settings_dyads_memory.txt`（`pd_net_off_ch`、`pd_net_ba_ch0`、`pd_net_ba_ch`、`pd_net_ba_ch_mem`、pgg 版など）。解析は `analyze_network.py`（dyads 節・memory 節）、`dashboard.py`（辺の着色、適合度ヒストグラム、記憶チャート）。
+
 ## 6. step-server の IPC コマンド
 
 コマンドは `<sim_dir>/ipc_commands/`、応答は `<sim_dir>/ipc_responses/`（定義は `experiment/ipc_protocol.py`）。

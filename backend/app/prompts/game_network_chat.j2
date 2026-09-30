@@ -17,12 +17,15 @@ Round {{ round_number }} of {{ num_rounds }} is about to start.
 {% endfor %}{% endif %}{% else %}
 No round has been played yet.
 {% endif %}
-Everyone in this task has the same options and the same points, and each person plays with their own {{ 'partner' if pd else 'group' }}. Before each round some participants talk one to one. You are now talking with {{ other.display }}. {{ other.short }} is not {{ 'your partner' if pd else 'in your group' }}: nothing either of you chooses changes the other's points. You do not talk with {{ 'your partner' if pd else 'your group members' }}.
+Everyone in this task has the same options and the same points, and each person plays with their own {{ 'partner' if pd else 'group' }}. Before each round some participants talk one to one. You are now talking with {{ other.display }}{{ medium_phrase }}. {{ other.short }} is not {{ 'your partner' if pd else 'in your group' }}: nothing either of you chooses changes the other's points. You do not talk with {{ 'your partner' if pd else 'your group members' }}.
 {% if earlier %}
 Your earlier conversations with other participants:
 {% for c in earlier %}Before round {{ c.round_number }}{% if c.round_number == round_number %} (this round){% endif %}, with {{ c.other }}:
 {% for m in c.messages %}- {{ m.who }}: {{ m.text }}
-{% endfor %}{% endfor %}{% endif %}
+{% endfor %}{% if c.get('unanswered') %}- ({{ c.other }} did not reply)
+{% endif %}{% endfor %}{% endif %}{% if memory %}
+Your earlier conversations with other participants:
+{% include '_memory.j2' %}{% endif %}
 {% if current %}
 Your conversation with {{ other.short }} so far:
 {% for m in current %}- {{ m.who }}: {{ m.text }}

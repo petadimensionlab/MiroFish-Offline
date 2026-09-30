@@ -13,13 +13,24 @@ graph neighbours. The game partner / group members are never neighbours
 Everything here is pure and seeded: graph and lambdas depend on (seed,
 topology, agents) only, never on the session code, so sessions in different
 conditions with the same seed share the same network (paired comparison).
-The only I/O is participant_names (reads the simulation's persona files).
+The only I/O is participant_names and channel_profiles (read the simulation's
+persona files).
+
+Dyads (NOTES.md #55): with persona channels (#53) every pair gets a
+compatibility A_ij from (a) how alike the two people's channel profiles are
+(topic) and (b) how reliably they answer each other on peer media (medium).
+A changes who talks to whom (exp(beta * z_ij) weights on the neighbour choice)
+and whether a conversation is answered. All of it is off by default: with no
+DyadSampling, sample_contacts is the #54 code line for line and never touches
+the extra random stream.
 """
 
 import hashlib
 import json
+import math
 import os
 import random
+from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
 import networkx as nx
@@ -227,7 +238,8 @@ def draw_lambdas(agent_ids: Iterable[int], mu: float, r: float, seed: int,
 
 
 def sample_contacts(neighbors: Dict[int, List[int]], lambdas: Dict[int, float], round_number: int,
-                    seed: int, max_initiate: int, max_load: int
+                    seed: int, max_initiate: int, max_load: int,
+                    dyad: Optional['DyadSampling'] = None
                     ) -> Tuple[List[Dict[str, Any]], Dict[int, Dict[str, Any]]]:
     """Who starts a conversation with whom this round.
 
@@ -237,9 +249,22 @@ def sample_contacts(neighbors: Dict[int, List[int]], lambdas: Dict[int, float], 
     this round and whose load (initiated + received) is below max_load. No
     candidate, or the agent itself at max_load: the contact is dropped.
 
+    dyad (NOTES.md #55), None = everything above unchanged: with weights the
+    neighbour is drawn with probability proportional to weights[i][j] instead
+    of uniformly (one rng.random() instead of one rng.integers(); beta 0 gives
+    weights None and so the uniform line). Independently, each created
+    conversation draws its medium and its reply from a second stream
+    default_rng([seed, 3, round]), two draws per conversation in creation
+    order, so the contacts of the main stream never depend on them. Under
+    reply_model 'reach' a conversation whose reply draw fails is unanswered:
+    it uses up the pair for the round and the initiator's load, but not the
+    responder's, and does not count as received.
+
     Returns:
-        (conversations [{conv_id, index, initiator, responder}],
-         per-agent record {lambda, k_drawn, k_realized, initiated, received, dropped})
+        (conversations [{conv_id, index, initiator, responder}] (dyad: plus
+         medium, reply_draw, replied),
+         per-agent record {lambda, k_drawn, k_realized, initiated, received, dropped}
+         (dyad: plus unanswered, ignored))
     """
     ids = sorted(neighbors)
     rng = np.random.default_rng([seed, 2, round_number])
@@ -251,6 +276,12 @@ def sample_contacts(neighbors: Dict[int, List[int]], lambdas: Dict[int, float], 
     rec = {a: dict(**{'lambda': round(lambdas[a], 4)}, k_drawn=k_drawn[a], k_realized=0,
                    initiated=[], received=[], dropped=0) for a in ids}
     convs: List[Dict[str, Any]] = []
+    rng_ch = None
+    if dyad is not None:
+        rng_ch = np.random.default_rng([seed, 3, round_number])
+        for a in ids:
+            rec[a]['unanswered'] = 0
+            rec[a]['ignored'] = []
     for s in range(1, max_initiate + 1):
         for i in order:
             if k_target[i] < s:
@@ -263,20 +294,203 @@ def sample_contacts(neighbors: Dict[int, List[int]], lambdas: Dict[int, float], 
             if not cands:
                 rec[i]['dropped'] += 1
                 continue
-            j = cands[int(rng.integers(len(cands)))]
+            if dyad is None or dyad.weights is None:
+                j = cands[int(rng.integers(len(cands)))]
+            else:
+                cum = np.cumsum([dyad.weights[i][c] for c in cands])
+                j = cands[min(len(cands) - 1, int(np.searchsorted(cum, rng.random() * cum[-1], side='right')))]
             used.add((min(i, j), max(i, j)))
             load[i] += 1
-            load[j] += 1
             index = len(convs)
-            convs.append(dict(conv_id=f"r{round_number}c{index}", index=index, initiator=i, responder=j))
+            conv = dict(conv_id=f"r{round_number}c{index}", index=index, initiator=i, responder=j)
+            replied = True
+            if dyad is not None:
+                u_m, u_r = float(rng_ch.random()), float(rng_ch.random())
+                medium = _pick_medium(dyad.pi[i], u_m)
+                reply_draw = u_r < dyad.reply_prob[j][medium]
+                replied = reply_draw or dyad.reply_model != 'reach'
+                conv.update(medium=medium, reply_draw=bool(reply_draw), replied=bool(replied))
+            if replied:
+                load[j] += 1
+            convs.append(conv)
             rec[i]['initiated'].append(j)
-            rec[j]['received'].append(i)
             rec[i]['k_realized'] += 1
+            if replied:
+                rec[j]['received'].append(i)
+            else:
+                rec[i]['unanswered'] += 1
+                rec[j]['ignored'].append(i)
     return convs, rec
+
+
+# -- dyad compatibility (NOTES.md #55) ---------------------------------------------
+
+LEVEL_VALUE = {'ignore': 0.0, 'skim': 1 / 3, 'read': 2 / 3, 'act': 1.0}
+# Media two colleagues use one to one; the only ones that say how reliably A
+# reaches B (broadcast media say nothing about a personal conversation)
+PEER_MEDIA = ('direct_email', 'direct_message', 'enterprise_chat', 'one_on_one', 'team_meeting')
+SEND_WEIGHT = {'rarely': 1.0, 'sometimes': 2.0, 'habitually': 3.0}
+REPLY_PROB = {'rarely': 0.2, 'sometimes': 0.6, 'habitually': 0.95}
+REPLY_MODELS = ('always', 'reach')
+# How the medium of a conversation is named in the chat prompt (net_channel_prompt 'medium')
+MEDIUM_PHRASE = {'direct_email': ' by email', 'direct_message': ' in a direct message',
+                 'enterprise_chat': ' on the team chat', 'one_on_one': ' in a one-on-one meeting',
+                 'team_meeting': ' after a team meeting'}
+SHARED_TOP = 3
+
+
+def channel_profiles(sim_dir: Optional[str]) -> Optional[Dict[str, Any]]:
+    """Channel levels and media habits of everybody in the simulation (#53).
+
+    Returns None when the simulation has no channels.json / no person with
+    channels. Otherwise {channels: [id], media: [PEER_MEDIA], people:
+    {agent_id: {levels: [0..1 per channel], habits: {medium: habit},
+    engagement}}, sha256 of channels.json}. The population is everybody in
+    personas_meta.json, not only the agents of one session.
+    """
+    if not sim_dir:
+        return None
+    try:
+        with open(os.path.join(sim_dir, 'channels.json'), 'rb') as f:
+            raw = f.read()
+        tax = json.loads(raw.decode('utf-8'))
+        with open(os.path.join(sim_dir, 'personas_meta.json'), encoding='utf-8') as f:
+            meta = json.load(f)
+    except (OSError, ValueError):
+        return None
+    channels = [c['id'] for c in tax.get('channels', []) if isinstance(c, dict) and 'id' in c]
+    media_ids = {m['id'] for m in tax.get('media', []) if isinstance(m, dict) and 'id' in m}
+    if not channels:
+        return None
+    missing = [m for m in PEER_MEDIA if m not in media_ids]
+    if missing:
+        raise ValueError(f"channels.json lacks the peer media {missing}")
+    people: Dict[int, Dict[str, Any]] = {}
+    for p in meta.get('people', []):
+        ch = p.get('channels')
+        if not isinstance(ch, dict) or not ch:
+            continue
+        levels = [LEVEL_VALUE.get((ch.get(c) or {}).get('level'), 0.0) for c in channels]
+        habits = {m: (p.get('media_habits') or {}).get(m, 'sometimes') for m in PEER_MEDIA}
+        people[int(p['agent_id'])] = dict(levels=levels, habits=habits,
+                                          engagement=p.get('channel_engagement'))
+    if not people:
+        return None
+    return dict(channels=channels, media=list(PEER_MEDIA), people=people,
+                sha256=hashlib.sha256(raw).hexdigest())
+
+
+@dataclass
+class Compat:
+    """Dyad compatibility over a whole population (pairs keyed (a, b) with a < b;
+    reach keyed (i, j) for i writing to j)."""
+    ids: List[int]
+    topic: Dict[Tuple[int, int], float]
+    media: Dict[Tuple[int, int], float]
+    compat: Dict[Tuple[int, int], float]
+    z: Dict[Tuple[int, int], float]
+    reach: Dict[Tuple[int, int], float]
+    pi: Dict[int, List[Tuple[str, float]]]
+    reply_prob: Dict[int, Dict[str, float]]
+    shared: Dict[Tuple[int, int], List[str]]
+    pop_mean: float
+    pop_sd: float
+    topic_weight: float = 0.5
+
+
+def compatibility(profiles: Dict[str, Any], topic_weight: float = 0.5) -> Compat:
+    """A_ij = w * T_ij + (1 - w) * M_ij (NOTES.md #55).
+
+    T_ij = (1 + cos) / 2 of the channel-level vectors, each channel centred by
+    its mean over ALL people (raw cosines are 0.48-0.97, dominated by overall
+    engagement). M_ij = mean of R_ij and R_ji, R_i->j = sum_m pi_i(m) *
+    REPLY_PROB[habit_j(m)] with pi_i(m) proportional to SEND_WEIGHT of i's
+    habit: how likely a message i writes by its usual medium reaches j.
+    z_ij standardises A over all population pairs.
+    """
+    if not 0.0 <= topic_weight <= 1.0:
+        raise ValueError(f"topic_weight must be in [0, 1], got {topic_weight}")
+    ids = sorted(profiles['people'])
+    n = len(ids)
+    media = profiles['media']
+    X = np.array([profiles['people'][a]['levels'] for a in ids], dtype=float)
+    Xc = X - X.mean(axis=0)
+    norm = np.linalg.norm(Xc, axis=1)
+    with np.errstate(all='ignore'):
+        cos = (Xc @ Xc.T) / np.outer(norm, norm)
+    zero = norm == 0
+    cos[zero, :] = 0.0
+    cos[:, zero] = 0.0
+    T = (1.0 + cos) / 2.0
+    send = np.array([[SEND_WEIGHT[profiles['people'][a]['habits'][m]] for m in media] for a in ids])
+    Pi = send / send.sum(axis=1, keepdims=True)
+    Rp = np.array([[REPLY_PROB[profiles['people'][a]['habits'][m]] for m in media] for a in ids])
+    R = Pi @ Rp.T
+    M = (R + R.T) / 2.0
+    A = topic_weight * T + (1.0 - topic_weight) * M
+    iu = np.triu_indices(n, 1)
+    vals = A[iu]
+    mean = float(vals.mean()) if len(vals) else 0.0
+    sd = float(vals.std()) if len(vals) else 0.0
+    levels = X
+    topic, med, comp, zz, shared = {}, {}, {}, {}, {}
+    for x, y in zip(*iu):
+        key = (ids[x], ids[y])
+        topic[key] = float(T[x, y])
+        med[key] = float(M[x, y])
+        comp[key] = float(A[x, y])
+        zz[key] = float((A[x, y] - mean) / sd) if sd > 0 else 0.0
+        both = [(min(levels[x, c], levels[y, c]), levels[x, c] + levels[y, c], -c)
+                for c in range(levels.shape[1]) if min(levels[x, c], levels[y, c]) >= LEVEL_VALUE['read'] - 1e-9]
+        shared[key] = [profiles['channels'][-c] for _, _, c in sorted(both, reverse=True)[:SHARED_TOP]]
+    reach = {(ids[x], ids[y]): float(R[x, y]) for x in range(n) for y in range(n) if x != y}
+    pi = {ids[x]: [(m, float(Pi[x, k])) for k, m in enumerate(media)] for x in range(n)}
+    reply = {ids[x]: {m: float(Rp[x, k]) for k, m in enumerate(media)} for x in range(n)}
+    return Compat(ids=ids, topic=topic, media=med, compat=comp, z=zz, reach=reach, pi=pi,
+                  reply_prob=reply, shared=shared, pop_mean=mean, pop_sd=sd, topic_weight=topic_weight)
+
+
+@dataclass
+class DyadSampling:
+    """What sample_contacts needs of the compatibility: neighbour weights
+    (None = uniform, beta 0), each agent's medium distribution, each
+    responder's reply probability per medium, and the reply model."""
+    weights: Optional[Dict[int, Dict[int, float]]]
+    pi: Dict[int, List[Tuple[str, float]]]
+    reply_prob: Dict[int, Dict[str, float]]
+    reply_model: str = 'always'
+
+
+def dyad_sampling(compat: Compat, neighbors: Dict[int, List[int]], beta: float,
+                  reply_model: str = 'always') -> DyadSampling:
+    """Weights exp(beta * z_ij) on the graph's edges (None when beta == 0)."""
+    if beta < 0:
+        raise ValueError(f"net_channel_beta must be >= 0, got {beta}")
+    if reply_model not in REPLY_MODELS:
+        raise ValueError(f"unknown net_reply_model: {reply_model} (expected one of {REPLY_MODELS})")
+    weights = None
+    if beta > 0:
+        weights = {i: {j: math.exp(beta * compat.z[(min(i, j), max(i, j))]) for j in nb}
+                   for i, nb in neighbors.items()}
+    return DyadSampling(weights=weights, pi=compat.pi, reply_prob=compat.reply_prob,
+                        reply_model=reply_model)
+
+
+def _pick_medium(pi: List[Tuple[str, float]], u: float) -> str:
+    acc = 0.0
+    for medium, p in pi:
+        acc += p
+        if u < acc:
+            return medium
+    return pi[-1][0]
 
 
 def _speaker(conv: Dict[str, Any], turn: int) -> int:
     return conv['initiator'] if turn % 2 == 0 else conv['responder']
+
+
+def _limit(c: Dict[str, Any], turns: int) -> int:
+    return c.get('max_turns', turns)
 
 
 def next_wave(active_convs: List[Dict[str, Any]], turns: int) -> List[Tuple[Dict[str, Any], int]]:
@@ -287,16 +501,17 @@ def next_wave(active_convs: List[Dict[str, Any]], turns: int) -> List[Tuple[Dict
     wave; when an agent could speak in several conversations, the one where
     the speaker has most messages still to write goes first, then the lower
     conversation index. Conversations with all turns done or aborted are
-    skipped.
+    skipped. A conversation may carry its own max_turns (an unanswered one has
+    1, NOTES.md #55).
 
     Returns:
         [(conv, speaker_id)]
     """
     cands = []
     remaining: Dict[int, int] = {}
-    live = [c for c in active_convs if not c.get('aborted') and len(c['messages']) < turns]
+    live = [c for c in active_convs if not c.get('aborted') and len(c['messages']) < _limit(c, turns)]
     for c in live:
-        for t in range(len(c['messages']), turns):
+        for t in range(len(c['messages']), _limit(c, turns)):
             s = _speaker(c, t)
             remaining[s] = remaining.get(s, 0) + 1
     for c in live:
@@ -318,6 +533,11 @@ def participant_names(sim_dir: Optional[str], ids: Iterable[int], identity: str 
     profile: personas_meta.json (display "{name} ({department}, {company})"),
     else reddit_profiles.json ("{name}, {profession}"), else "Participant n".
     anon: "Participant {id+1}" for everybody.
+
+    When a name is not unique among ids (the workplace personas have two
+    "Elena V."), short becomes "{name} ({department})" ("{name} ({profession})"
+    for general personas), with " #{id}" added to short and display if that is
+    still ambiguous (NOTES.md #55). Sessions without duplicates are unchanged.
     """
     ids = sorted(int(a) for a in ids)
 
@@ -328,6 +548,7 @@ def participant_names(sim_dir: Optional[str], ids: Iterable[int], identity: str 
     if identity == 'anon' or not sim_dir:
         return {a: anon(a) for a in ids}
     meta: Dict[int, Dict[str, str]] = {}
+    tags: Dict[int, Optional[str]] = {}
     try:
         with open(os.path.join(sim_dir, 'personas_meta.json'), encoding='utf-8') as f:
             for p in json.load(f).get('people', []):
@@ -336,6 +557,7 @@ def participant_names(sim_dir: Optional[str], ids: Iterable[int], identity: str 
                     extra = ', '.join(x for x in (p.get('department'), p.get('company')) if x)
                     meta[int(p['agent_id'])] = dict(
                         name=name, short=name, display=f"{name} ({extra})" if extra else name)
+                    tags[int(p['agent_id'])] = p.get('department')
     except (OSError, ValueError, KeyError, TypeError, AttributeError):
         pass
     profiles: List[Any] = []
@@ -355,8 +577,23 @@ def participant_names(sim_dir: Optional[str], ids: Iterable[int], identity: str 
             prof = p.get('profession')
             out[a] = dict(name=p['name'], short=p['name'],
                           display=f"{p['name']}, {prof}" if prof else p['name'])
+            tags[a] = prof
         else:
             out[a] = anon(a)
+    counts: Dict[str, int] = {}
+    for a in ids:
+        counts[out[a]['short']] = counts.get(out[a]['short'], 0) + 1
+    dup = [a for a in ids if counts[out[a]['short']] > 1 and out[a]['name'] == out[a]['short']]
+    if dup:
+        for a in dup:
+            if tags.get(a):
+                out[a] = dict(out[a], short=f"{out[a]['name']} ({tags[a]})")
+        counts = {}
+        for a in ids:
+            counts[out[a]['short']] = counts.get(out[a]['short'], 0) + 1
+        for a in dup:
+            if counts[out[a]['short']] > 1:
+                out[a] = dict(out[a], short=f"{out[a]['short']} #{a}", display=f"{out[a]['display']} #{a}")
     return out
 
 
@@ -364,16 +601,20 @@ def conversation_view(convs: List[Dict[str, Any]], agent_id: int,
                       names: Dict[int, Dict[str, str]]) -> List[Dict[str, Any]]:
     """This agent's non-empty conversations from its own point of view, in
     (round, index) order: [{round_number, conv_id, other, other_display,
-    messages: [{who: 'You' | other's short name, text}]}]."""
+    messages: [{who: 'You' | other's short name, text}]}] (+ unanswered: True
+    for a conversation with replied False)."""
     out = []
     for c in sorted(convs, key=lambda c: (c['round_number'], c['index'])):
         if agent_id not in (c['initiator'], c['responder']) or not c['messages']:
             continue
         other = c['responder'] if c['initiator'] == agent_id else c['initiator']
         nm = names.get(other) or dict(short=f"Participant {other + 1}", display=f"Participant {other + 1}")
-        out.append(dict(
+        view = dict(
             round_number=c['round_number'], conv_id=c['conv_id'], other=nm['short'],
             other_display=nm['display'],
             messages=[dict(who='You' if m['agent_id'] == agent_id else nm['short'], text=m['text'])
-                      for m in c['messages']]))
+                      for m in c['messages']])
+        if c.get('replied') is False:  # #55: written, never answered
+            view['unanswered'] = True
+        out.append(view)
     return out

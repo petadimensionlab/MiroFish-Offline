@@ -7,6 +7,7 @@ Reads
   - <sim_dir>/game/<session>/bridge_log.jsonl (configure event: settings, labels)
   - .../chat.jsonl (pair chat), network_chat.jsonl, network.json,
     network_contacts.jsonl (network runs; all optional)
+  - dyads.json, memory_shown.jsonl (channel dyads / decaying memory, NOTES.md #55; optional)
 and writes ONE self-contained HTML file (vega / vega-lite / vega-embed are loaded
 from jsdelivr, so viewing needs internet). Prompts and raw LLM responses are never
 embedded; only parsed messages (truncated), short decision reasons and numbers.
@@ -347,19 +348,23 @@ def load_network(run, names, dec, msgs):
     convs = []
     for c in contacts:
         for cv in c.get("conversations", []):
-            convs.append((int(c["round_number"]), int(cv["initiator"]), int(cv["responder"])))
+            convs.append((int(c["round_number"]), int(cv["initiator"]), int(cv["responder"]),
+                          cv.get("replied") is not False))
     if not convs and len(msgs):
         nm = msgs[msgs["kind"] == "network"].drop_duplicates("conv_id")
         for _, r in nm.iterrows():
-            convs.append((int(r["round_number"]), int(r["speaker_id"]), int(r["listener_id"])))
+            convs.append((int(r["round_number"]), int(r["speaker_id"]), int(r["listener_id"]), True))
     per_agent = defaultdict(int)
     per_edge = defaultdict(int)
+    per_edge_unanswered = defaultdict(int)
     edge_round = set()
-    for rn, a, b in convs:
+    for rn, a, b, replied in convs:
         per_agent[a] += 1
         per_agent[b] += 1
         per_edge[(min(a, b), max(a, b))] += 1
+        per_edge_unanswered[(min(a, b), max(a, b))] += int(not replied)
         edge_round.add((rn, min(a, b), max(a, b)))
+    attrs = {(int(e["a"]), int(e["b"])): e for e in net.get("edge_attrs") or []}
     coop = dec.groupby("agent_id")["coop"].mean()
     nodes = []
     for n in net["nodes"]:
@@ -372,8 +377,15 @@ def load_network(run, names, dec, msgs):
     edges = []
     for e in net.get("edges", []):
         a, b = int(e[0]), int(e[1])
-        edges.append(dict(a=a, b=b, x=pos[a][0], y=pos[a][1], x2=pos[b][0], y2=pos[b][1],
-                          convs=per_edge.get((min(a, b), max(a, b)), 0)))
+        key = (min(a, b), max(a, b))
+        row = dict(a=a, b=b, x=pos[a][0], y=pos[a][1], x2=pos[b][0], y2=pos[b][1],
+                   convs=per_edge.get(key, 0))
+        if attrs:  # channel dyads (#55)
+            n_c, n_u = per_edge.get(key, 0), per_edge_unanswered.get(key, 0)
+            row.update(compat=float(attrs[key]["compat"]) if key in attrs else None,
+                       unanswered=n_u, answered=n_c - n_u,
+                       reply_share=(n_c - n_u) / n_c if n_c else None)
+        edges.append(row)
     er = [dict(round_number=rn, x=pos[a][0], y=pos[a][1], x2=pos[b][0], y2=pos[b][1])
           for rn, a, b in sorted(edge_round) if a in pos and b in pos]
     plinks = []
@@ -413,9 +425,30 @@ def load_network(run, names, dec, msgs):
         ks = np.arange(0, kmax + 1)
         pmf = st.nbinom(r, r / (r + mu)).pmf(ks) if r > 0 else st.poisson(mu).pmf(ks)
         nb = pd.DataFrame(dict(k=ks, count=[int(counts.get(int(k), 0)) for k in ks], expected=pmf * len(kd)))
+    dyads_doc = _json(os.path.join(gdir, "dyads.json")) if attrs else None
+    all_compat = [float(x["compat"]) for x in (dyads_doc or {}).get("dyads", []) if x.get("compat") is not None]
     return dict(raw=net, nodes=pd.DataFrame(nodes), edges=pd.DataFrame(edges), edge_round=pd.DataFrame(
         er, columns=["round_number", "x", "y", "x2", "y2"]), partner_links=pd.DataFrame(
-        plinks, columns=["x", "y", "x2", "y2"]), contacts=kd, nb=nb, mu=mu, r=r)
+        plinks, columns=["x", "y", "x2", "y2"]), contacts=kd, nb=nb, mu=mu, r=r,
+        compat=bool(attrs), all_compat=all_compat)
+
+
+def load_memory(run):
+    """memory_shown.jsonl (net_memory_mode 'decay') -> one row per remembered item of a
+    decision prompt, plus characters per decision; None when the run has no memory log."""
+    rows = [r for r in (_jsonl(os.path.join(run["gdir"], "memory_shown.jsonl")) if run["gdir"] else [])
+            if r.get("purpose") == "decision"]
+    if not rows:
+        return None
+    items, chars = [], {}
+    for r in rows:
+        chars[(int(r["agent_id"]), int(r["round_number"]))] = int(r["chars"])
+        for i in r["items"]:
+            items.append(dict(agent_id=int(r["agent_id"]), decision_round=int(r["round_number"]),
+                              conv_round=int(i["round"]), tier=i["tier"], weight=float(i["weight"]),
+                              other=i["other"], delta=int(i["delta"])))
+    return dict(items=pd.DataFrame(items, columns=["agent_id", "decision_round", "conv_round", "tier",
+                                                   "weight", "other", "delta"]), chars=chars)
 
 
 def build_rounds(run, dec, msgs, baseline_csv):
@@ -483,7 +516,7 @@ def _decision_color(game):
                                                      gradientLength=120, labelColor=C_INK, titleColor=C_INK)))
 
 
-def make_charts(run, dec, msgs, rounds, base, grp, net, agents, label_of, endow):
+def make_charts(run, dec, msgs, rounds, base, grp, net, agents, label_of, endow, memory=None):
     game = run["game"]
     rlist = sorted(dec["round_number"].unique().tolist())
     nr = len(rlist)
@@ -574,7 +607,8 @@ def make_charts(run, dec, msgs, rounds, base, grp, net, agents, label_of, endow)
             else alt.condition("datum.missing", alt.value(C_GREY),
                                alt.Color("coop:Q", scale=alt.Scale(scheme=SEQ_SCHEME, domain=[0, 1]), legend=None)),
             tooltip=[alt.Tooltip("label:N", title="agent"), alt.Tooltip("round_number:Q", title="round"),
-                     alt.Tooltip("value:N", title="decision")])
+                     alt.Tooltip("value:N", title="decision")]
+            + ([alt.Tooltip("memory_chars:Q", title="memory block (chars)")] if "memory_chars" in bg_dec.columns else []))
         conn = alt.Chart(ms).transform_filter(Q_FILTER).mark_rule(strokeWidth=1.2).encode(
             x=X("x:Q"), y=Y("srow:Q"), y2="lrow:Q",
             color=alt.condition('datum.kind=="pair"', alt.value("#333333"), alt.value("#8a8a8a")),
@@ -622,11 +656,18 @@ def make_charts(run, dec, msgs, rounds, base, grp, net, agents, label_of, endow)
         ys_ = alt.Scale(domain=[-lim, lim], nice=False, zero=False)
         def pos(field, sc, extra=None):
             return alt.X(field, scale=xs_, axis=None) if sc == "x" else alt.Y(field, scale=ys_, axis=None)
-        e_base = alt.Chart(edges).mark_rule(color="#b5b5b5", opacity=0.7).encode(
+        e_tip = [alt.Tooltip("a:Q", title="agent"), alt.Tooltip("b:Q", title="agent"),
+                 alt.Tooltip("convs:Q", title="conversations")]
+        e_enc = {}
+        if net.get("compat"):  # channel dyads (#55): edges coloured by compatibility A
+            e_tip += [alt.Tooltip("compat:Q", title="compatibility", format=".2f"),
+                      alt.Tooltip("unanswered:Q", title="unanswered")]
+            e_enc["color"] = alt.Color("compat:Q", scale=alt.Scale(scheme="greens", domain=[0.2, 1.0]),
+                                       legend=alt.Legend(title="compatibility A", orient="right", labelColor=C_INK, titleColor=C_INK))
+        e_base = alt.Chart(edges).mark_rule(opacity=0.8 if e_enc else 0.7, **({} if e_enc else {"color": "#b5b5b5"})).encode(
             x=pos("x:Q", "x"), y=pos("y:Q", "y"), x2="x2:Q", y2="y2:Q",
             strokeWidth=alt.StrokeWidth("convs:Q", scale=alt.Scale(range=[0.8, 4]), legend=None),
-            tooltip=[alt.Tooltip("a:Q", title="agent"), alt.Tooltip("b:Q", title="agent"),
-                     alt.Tooltip("convs:Q", title="conversations")])
+            tooltip=e_tip, **e_enc)
         e_round = alt.Chart(net["edge_round"]).transform_filter(STORE_RND).mark_rule(color="#222222", strokeWidth=2.5).encode(
             x=pos("x:Q", "x"), y=pos("y:Q", "y"), x2="x2:Q", y2="y2:Q")
         layers = [e_base, e_round]
@@ -645,12 +686,36 @@ def make_charts(run, dec, msgs, rounds, base, grp, net, agents, label_of, endow)
         layers += [nnodes, sel_ring]
         st = net["raw"].get("stats", {})
         topo = net["raw"].get("topology", "")
-        c_net = alt.layer(*layers).properties(
+        c_net = alt.layer(*layers).resolve_scale(color="independent").properties(
             width=BASE_W, height=BASE_W,
             title=_title(f"Network ({topo}, n={st.get('n', len(nodes))}, m={st.get('m', len(edges))})",
-                         "edge width = conversations; black = edges used in the selected round; dashed orange = "
+                         ("edge colour = compatibility, " if net.get("compat") else "")
+                         + "edge width = conversations; black = edges used in the selected round; dashed orange = "
                          + ("PD partner" if game == "pd" else "same group")))
         charts.append(c_net)
+        if net.get("compat") and len(edges):
+            ed = edges.dropna(subset=["compat"])
+            parts = [pd.DataFrame(dict(compat=net["all_compat"], group="all dyads", w=1.0 / max(len(net["all_compat"]), 1))),
+                     pd.DataFrame(dict(compat=ed["compat"], group="graph edges", w=1.0 / max(len(ed), 1)))]
+            hd = pd.concat([p for p in parts if len(p)], ignore_index=True)
+            h_chart = alt.Chart(hd).mark_bar(opacity=0.6).encode(
+                x=alt.X("compat:Q", bin=alt.Bin(maxbins=14), title="compatibility A", axis=alt.Axis(labelColor=C_INK, titleColor=C_INK)),
+                y=alt.Y("sum(w):Q", stack=None, title="share of group", axis=alt.Axis(format="%", labelColor=C_INK, titleColor=C_INK)),
+                color=alt.Color("group:N", scale=alt.Scale(domain=["all dyads", "graph edges"], range=["#9a9a9a", C_COOP]),
+                                legend=alt.Legend(title=None, orient="top", labelColor=C_INK))).properties(
+                width=BASE_W // 2 - 10, height=150,
+                title=_title("Compatibility of dyads", "grey all pairs, blue pairs linked in the graph"))
+            s_chart = alt.Chart(ed).mark_point(filled=True, size=60, stroke="white").encode(
+                x=alt.X("compat:Q", title="compatibility A", scale=alt.Scale(zero=False), axis=alt.Axis(labelColor=C_INK, titleColor=C_INK)),
+                y=alt.Y("convs:Q", title="conversations", axis=alt.Axis(tickMinStep=1, labelColor=C_INK, titleColor=C_INK)),
+                color=alt.Color("reply_share:Q", scale=alt.Scale(scheme=SEQ_SCHEME, domain=[0, 1]),
+                                legend=alt.Legend(title="answered share", format="%", orient="right", labelColor=C_INK, titleColor=C_INK)),
+                tooltip=[alt.Tooltip("a:Q", title="agent"), alt.Tooltip("b:Q", title="agent"),
+                         alt.Tooltip("compat:Q", format=".2f"), alt.Tooltip("convs:Q", title="conversations"),
+                         alt.Tooltip("unanswered:Q")]).properties(
+                width=BASE_W // 2 - 20, height=150,
+                title=_title("Compatibility vs conversations", "one dot per edge; colour = share answered"))
+            charts.append(alt.hconcat(h_chart, s_chart, spacing=30).resolve_scale(color="independent"))
         if len(net["contacts"]):
             nbp = net["nb"]
             hist = alt.Chart(nbp).mark_bar(color="#c9c9c9", stroke="#888888").encode(
@@ -672,6 +737,22 @@ def make_charts(run, dec, msgs, rounds, base, grp, net, agents, label_of, endow)
             c_sc = sc.properties(width=BASE_W // 2 - 20, height=150,
                                  title=_title("Degree vs cooperation", "size = \u03bb; click a dot to select the agent"))
             charts.append(alt.hconcat(c_hist, c_sc, spacing=30))
+
+    if memory is not None and len(memory["items"]):
+        tiers = ["verbatim", "excerpt", "gist", "aggregate"]
+        mchart = alt.Chart(memory["items"]).transform_filter(STORE_AGENT).mark_point(filled=True, opacity=0.85, stroke="white").encode(
+            x=alt.X("conv_round:Q", title="round of the remembered conversation", scale=_x_scale(rlist), axis=_x_axis(rlist, "remembered round")),
+            y=alt.Y("decision_round:Q", title="decision round", scale=alt.Scale(domain=[min(rlist) - 0.5, max(rlist) + 0.5], nice=False, zero=False, reverse=True),
+                    axis=alt.Axis(values=rlist, format="d", labelColor=C_INK, titleColor=C_INK)),
+            color=alt.Color("tier:N", scale=alt.Scale(domain=tiers, range=[C_COOP, "#56B4E9", "#E69F00", C_GREY]),
+                            legend=alt.Legend(title="as remembered", orient="right", labelColor=C_INK, titleColor=C_INK)),
+            size=alt.Size("weight:Q", scale=alt.Scale(domain=[0, 1], range=[20, 260]), legend=alt.Legend(title="weight", orient="right")),
+            tooltip=[alt.Tooltip("other:N", title="with"), alt.Tooltip("conv_round:Q", title="conversation round"),
+                     alt.Tooltip("decision_round:Q", title="decision round"), alt.Tooltip("tier:N"),
+                     alt.Tooltip("weight:Q", format=".2f")]).properties(
+            width=wide, height=max(150, 14 * len(rlist)),
+            title=_title("Memory in decision prompts", "click a heatmap cell to select an agent; one dot per remembered conversation"))
+        charts.append(mchart)
 
     final = alt.vconcat(*charts, spacing=28).resolve_scale(color="independent", size="independent", shape="independent").add_params(q)
     final = final.configure_view(stroke=None).configure(background="#ffffff", font="system-ui, sans-serif").configure_axis(
@@ -832,11 +913,14 @@ def build(args):
     dec["talked"] = [(a, r) in talked for a, r in zip(dec["agent_id"], dec["round_number"])]
     dec["xc"] = dec["round_number"].astype(float)
     net = load_network(run, names, dec, msgs)
+    memory = load_memory(run)
+    if memory is not None:
+        dec["memory_chars"] = [memory["chars"].get((int(a), int(r))) for a, r in zip(dec["agent_id"], dec["round_number"])]
     rounds, base, grp = build_rounds(run, dec, msgs, args.baseline_csv)
     alt.data_transformers.disable_max_rows()
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", message="Automatically deduplicated")
-        chart = make_charts(run, dec, msgs, rounds, base, grp, net, agents, label_of, endow)
+        chart = make_charts(run, dec, msgs, rounds, base, grp, net, agents, label_of, endow, memory)
     spec = chart.to_dict(validate=True)
     title = args.title or f"{run['game'].upper()} session {run['session']}"
     page = build_html(title, run, dec, msgs, rounds, net, spec, names, agents)
