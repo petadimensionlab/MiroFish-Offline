@@ -11,7 +11,7 @@ cooperation); Spearman of degree / lambda / conversations against cooperation;
 negative-binomial check of the drawn contact counts; behavioural exposure
 (conversation partners who defected in t-1); talk exposure (what received
 messages named, PD); edge concordance of the last round against a
-permutation baseline; talk quality (on topic, partner confusion). With
+permutation baseline; talk quality (on topic, partner reports, possible confusion). With
 channel dyads (#55, network.json has edge_attrs): a dyads section (compatibility
 A against how often pairs talked and answered, reply rate by compatibility
 tercile, unanswered conversations). With memory_shown.jsonl (net_memory_mode
@@ -43,8 +43,16 @@ except Exception:  # noqa: BLE001 -- keep this script usable on its own
     GAME_TERMS = re.compile(r"\btrust|look out for (your|my)self|same person|decision task|\bpoints\b"
                             r"|the other person|cooperat|betray|selfish", re.I)
 
-# Someone talking as if the listener were their partner (partner-confusion check)
-CONFUSION = re.compile(r"\bmy partner and I\b|\bwe both\b|\bboth of us\b|\byou and I\b(?= (both|each))", re.I)
+# Partner talk (NOTES.md #54). Agents correctly tell third parties what happened with their own game
+# partner ("My partner and I both chose X in round 1"); that is counted as PARTNER_REPORT only.
+# Confusion is the speaker treating the *listener* as the game partner: second-person joint-action
+# proposals ("let's both", "you and I should", "if we both", "shall we both", "we can both get 30")
+# or claims about "our" round result with the listener. Third-person "my partner and I" is not counted.
+PARTNER_REPORT = re.compile(r"\bmy (game )?partner\b", re.I)
+POSSIBLE_CONFUSION = re.compile(
+    r"\blet'?s both\b|\byou and I (should|could|can|will|both|each)\b|\bif we both\b|\bshall we both\b"
+    r"|\bwe can both\b|\bour (round|result|choices?|payoffs?|scores?)\b(?! (with|against))",
+    re.I)
 PERMUTATIONS = 1000
 
 
@@ -267,7 +275,10 @@ def summarize(otree_csv, sim_dir, session=None):
         messages=len(messages), attempts=len(chat),
         failed_attempts=sum(1 for m in chat if not m.get("message")),
         on_topic=mean(1 if GAME_TERMS.search(m["message"]) else 0 for m in messages),
-        partner_confusion=mean(1 if CONFUSION.search(m["message"]) else 0 for m in messages))
+        partner_reports=mean(1 if PARTNER_REPORT.search(m["message"]) else 0 for m in messages),
+        possible_confusion=mean(1 if POSSIBLE_CONFUSION.search(m["message"]) else 0 for m in messages),
+        possible_confusion_examples=[m["message"][:300] for m in messages
+                                     if POSSIBLE_CONFUSION.search(m["message"])][:5])
 
     by_round = [dict(round_number=t, coop=mean(coop[(a, t)] for a in agents if (a, t) in coop),
                      conversations=sum(1 for (r, _) in convs if r == t),
