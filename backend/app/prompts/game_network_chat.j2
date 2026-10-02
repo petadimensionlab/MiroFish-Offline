@@ -17,7 +17,7 @@ Round {{ round_number }} of {{ num_rounds }} is about to start.
 {% endfor %}{% endif %}{% else %}
 No round has been played yet.
 {% endif %}
-Everyone in this task has the same options and the same points, and each person plays with their own {{ 'partner' if pd else 'group' }}. Before each round some participants talk one to one. You are now talking with {{ other.display }}{{ medium_phrase }}. {{ other.short }} is not {{ 'your partner' if pd else 'in your group' }}: nothing either of you chooses changes the other's points. You do not talk with {{ 'your partner' if pd else 'your group members' }}.
+Everyone in this task has the same options and the same points, and each person plays with their own {{ 'partner' if pd else 'group' }}. Before each round some participants talk one to one. You are now talking with {{ other.display }}{{ medium_phrase }}. {{ other.short }} is not {{ 'your partner' if pd else 'in your group' }}: nothing either of you chooses changes the other's points. You do not talk with {{ 'your partner' if pd else 'your group members' }}.{% if reveal %} {% if current %}After this round, you will{% else %}If {{ other.short }} replies, after this round you will{% endif %} each be told {% if pd %}which option the other{{ " and the other's partner" if reveal == 'pair' }} chose{% else %}how much the other{{ " and the others in the other's group" if reveal == 'pair' }} put in{% endif %} in round {{ round_number }}.{% endif %}
 {% if earlier %}
 Your earlier conversations with other participants:
 {% for c in earlier %}Before round {{ c.round_number }}{% if c.round_number == round_number %} (this round){% endif %}, with {{ c.other }}:

@@ -122,6 +122,11 @@ class DyadLedger:
         if unknown:
             raise ValueError(f"unknown net_dyad_hooks: {unknown} (registered: {sorted(DYAD_HOOKS)})")
         self.hooks = list(hooks or [])
+        if 'reputation' in self.hooks and (
+                'betrayal' not in self.hooks or self.hooks.index('betrayal') > self.hooks.index('reputation')):
+            raise ValueError("net_dyad_hooks: 'reputation' needs 'betrayal' before it in the list")
+        self.events: List[Dict[str, Any]] = []        # this round's events (hooks), emptied by close_round
+        self.agent_ext: Dict[int, Dict[str, Any]] = {}  # per-agent cumulative figures (hooks, analysis only)
         edge_set = {_pair(int(a), int(b)) for a, b in edges}
         excl = {_pair(a, b) for a, xs in exclusions.items() for b in xs}
         self.compat = compat
@@ -219,6 +224,8 @@ class DyadLedger:
         """End of a round: run the hooks, return the round's record
         {round_number, dyads: [{a, b, attempts, answered, unanswered, messages,
         pair_chat, ext}]} for the dyads that changed (communication or ext).
+        With hooks the record also has 'events' (ledger.events of the round,
+        emptied here) and 'agents' ({agent_id: ledger.agent_ext}, #57).
         Once per round (a repeated call returns an empty record)."""
         if round_number in self.closed_rounds:
             return dict(round_number=round_number, dyads=[])
@@ -240,7 +247,12 @@ class DyadLedger:
                 messages=delta.get('messages', 0), pair_chat=delta.get('pair_chat', 0),
                 pair_chat_skipped=delta.get('pair_chat_skipped', 0), ext=d.ext))
         self._touched = {}
-        return dict(round_number=round_number, dyads=records)
+        record = dict(round_number=round_number, dyads=records)
+        if self.hooks:
+            record['events'] = self.events
+            record['agents'] = {str(a): dict(v) for a, v in sorted(self.agent_ext.items())}
+            self.events = []
+        return record
 
     # -- output ---------------------------------------------------------------------
 

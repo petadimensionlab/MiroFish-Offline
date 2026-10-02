@@ -42,9 +42,17 @@ channels (#53) and keeps a per-dyad ledger (dyads.py; dyads.json, dyads.jsonl).
 net_channel_beta tilts who talks to whom towards compatible pairs, and
 net_reply_model 'reach' lets a conversation go unanswered with a probability
 that depends on the two people's peer media habits; net_dyad_hooks names
-hooks of the ledger (none registered yet). net_memory_mode 'decay' replaces
+hooks of the ledger. net_memory_mode 'decay' replaces
 the fixed window of past conversations by a memory that forgets by age
 (memory.py; memory_shown.jsonl).
+
+Betrayal and reputation (NOTES.md #57, all off by default): net_dyad_hooks
+'betrayal' logs what agents said they would choose against what they chose
+and what they did to their partner (dyads.jsonl 'events'), net_reveal_choices
+tells each agent after a round what the people it talked with chose (a note in
+its memory, net_betrayal_salience makes a mismatch or exploit stay longer),
+'reputation' with net_reputation_*_weight > 0 lets what an agent was told
+weight whom it contacts next (_contact_dyad). Prompts never show a score.
 
 Other games (game = pgg | beauty | trust | ultimatum, see games.py):
 agents carry group_agent_ids (and role for sequential games). In
@@ -58,6 +66,7 @@ append-only JSONL logs under <simulation_dir>/game/<session_code>/ for the
 llm policy, else uploads/experiments/<session_code>/.
 """
 
+import dataclasses
 import hashlib
 import json
 import os
@@ -81,6 +90,8 @@ from .game_decision import (
 )
 from . import network_chat as nc
 from . import dyads as dy
+from . import dyad_hooks  # noqa: F401 (registers the hooks)
+from . import betrayal
 from . import memory as mem
 from . import public_goods as pg
 from .games import GAMES as GAME_REGISTRY, parse_comprehension as parse_game_comprehension
@@ -108,6 +119,7 @@ GAMES = ('pd',) + tuple(GAME_REGISTRY)
 NET_TOPOLOGIES = nc.NET_TOPOLOGIES
 NET_CHANNEL_PROMPTS = ('none', 'medium')
 NET_PAIR_CHAT_MODELS = ('always', 'compat')
+NET_REVEALS = ('none', 'talked', 'pair')
 # A message that fails this many times aborts its conversation
 NET_MESSAGE_ATTEMPTS = 2
 # Runaway guard: more waves than this cannot happen with max_load * turns bounded
@@ -184,6 +196,11 @@ class BridgeSettings:
     net_channel_prompt: str = 'none'  # none | medium ("... by email" in the chat prompt)
     net_pair_chat_model: str = 'always'  # always | compat: REFERENCE ONLY, never for study runs (#51)
     net_dyad_hooks: str = ''          # comma list of names in dyads.DYAD_HOOKS
+    # betrayal and reputation (#57): what agents are told, and what it does to who they contact
+    net_reveal_choices: str = 'none'  # none | talked | pair (after a round: what the people you talked with chose)
+    net_betrayal_salience: float = 1.0  # s of the notes / conversations that show a broken word or an exploit
+    net_reputation_word_weight: float = 0.0   # rho_w of contact weight exp(rho_w (2W - 1) + rho_c (2B - 1))
+    net_reputation_choice_weight: float = 0.0  # rho_c
     # communication memory (#55): window = the fixed window above, decay = forgetting by age
     net_memory_mode: str = 'window'   # window | decay
     net_memory_half_life: float = 2.0  # h of w = 2^(-delta / (h * s))
@@ -470,9 +487,13 @@ class ExperimentBridge:
             return f"net_channel_topic_weight must be in [0, 1], got {s.net_channel_topic_weight}"
         if s.net_channel_beta < 0:
             return f"net_channel_beta must be >= 0, got {s.net_channel_beta}"
-        unknown = [h for h in ExperimentBridge._hook_names(s) if h not in dy.DYAD_HOOKS]
+        hooks = ExperimentBridge._hook_names(s)
+        unknown = [h for h in hooks if h not in dy.DYAD_HOOKS]
         if unknown:
             return f"unknown net_dyad_hooks: {unknown} (registered: {sorted(dy.DYAD_HOOKS)})"
+        err = ExperimentBridge._betrayal_conflict(s, hooks)
+        if err:
+            return err
         tilted = [n for n, on in (('net_channel_beta > 0', s.net_channel_beta > 0),
                                   ("net_reply_model 'reach'", s.net_reply_model == 'reach'),
                                   ("net_channel_prompt 'medium'", s.net_channel_prompt == 'medium')) if on]
@@ -490,6 +511,40 @@ class ExperimentBridge:
             return "net_memory_summary 'llm' is not implemented yet (use 'extract')"
         if s.net_memory_mode == 'decay' and s.net_topology == 'none':
             return "net_memory_mode 'decay' needs net_topology != 'none' (it replaces the network-chat window)"
+        return None
+
+    @staticmethod
+    def _betrayal_conflict(s: BridgeSettings, hooks: List[str]) -> Optional[str]:
+        """Validation of the betrayal / reputation settings (NOTES.md #57)."""
+        if s.net_reveal_choices not in NET_REVEALS:
+            return f"unknown net_reveal_choices: {s.net_reveal_choices} (expected one of {NET_REVEALS})"
+        betrayal_hooks = [h for h in hooks if h in ('betrayal', 'reputation')]
+        if betrayal_hooks and s.game not in ('pd', 'pgg'):
+            return f"net_dyad_hooks {betrayal_hooks} support game 'pd' or 'pgg', not {s.game!r}"
+        if 'reputation' in hooks and ('betrayal' not in hooks or hooks.index('betrayal') > hooks.index('reputation')):
+            return "net_dyad_hooks: 'reputation' needs 'betrayal' before it in the list"
+        reveal = s.net_reveal_choices != 'none'
+        if reveal:
+            if 'betrayal' not in hooks:
+                return "net_reveal_choices != 'none' needs net_dyad_hooks with 'betrayal'"
+            if s.net_topology == 'none':
+                return "net_reveal_choices != 'none' needs net_topology != 'none' (it reveals what conversation partners chose)"
+            if s.net_memory_mode != 'decay':
+                return "net_reveal_choices != 'none' needs net_memory_mode 'decay' (the facts live in the memory)"
+        if s.net_betrayal_salience < 1.0:
+            return f"net_betrayal_salience must be >= 1, got {s.net_betrayal_salience}"
+        if s.net_betrayal_salience != 1.0 and not reveal:
+            return "net_betrayal_salience != 1 needs net_reveal_choices != 'none'"
+        if s.net_reputation_word_weight < 0 or s.net_reputation_choice_weight < 0:
+            return ("net_reputation_word_weight and net_reputation_choice_weight must be >= 0, got "
+                    f"{s.net_reputation_word_weight} and {s.net_reputation_choice_weight}")
+        if s.net_reputation_word_weight > 0 or s.net_reputation_choice_weight > 0:
+            if 'reputation' not in hooks:
+                return "net_reputation_*_weight > 0 needs net_dyad_hooks with 'reputation'"
+            if not reveal:
+                return "net_reputation_*_weight > 0 needs net_reveal_choices != 'none'"
+            if not s.net_channels:
+                return "net_reputation_*_weight > 0 needs net_channels (contact weights live in the dyad sampling)"
         return None
 
     def _load_compat(self, state: SessionState) -> None:
@@ -529,9 +584,31 @@ class ExperimentBridge:
         state.dyads = dy.DyadLedger(sorted(state.agents), edges, self._game_exclusions(state),
                                     compat=state.compat, keep_memory=(s.net_memory_mode == 'decay'),
                                     hooks=self._hook_names(s))
-        return {'version': 1,
-                'method': self._channel_method(state) if state.compat is not None else None,
-                'dyads': state.dyads.static_records()}
+        method = self._channel_method(state) if state.compat is not None else None
+        if 'betrayal' in state.dyads.hooks:
+            method = dict(method or {}, betrayal={
+                'intent_rule_version': betrayal.INTENT_RULE_VERSION, 'reveal': s.net_reveal_choices,
+                'salience': s.net_betrayal_salience, 'rho_w': s.net_reputation_word_weight,
+                'rho_c': s.net_reputation_choice_weight})
+        return {'version': 1, 'method': method, 'dyads': state.dyads.static_records()}
+
+    def _hook_context(self, state: SessionState, session_code: str, round_number: int) -> Dict[str, Any]:
+        """What the dyad hooks get (caller holds the lock). Hooks read, never write, it (#57)."""
+        s = state.settings
+        ctx: Dict[str, Any] = {'game': s.game, 'session_code': session_code}
+        if not state.dyads.hooks:
+            return ctx
+        game_ctx = self._game_ctx(state, s) if s.game in ('pd', 'pgg') else {}
+        ctx.update(
+            partner=dict(state.agents) if s.game == 'pd' else {},
+            groups=dict(state.groups) if s.game == 'pgg' else {},
+            outcomes_by_round=state.outcomes,
+            convs=[dict(c, messages=list(c['messages'])) for c in state.net_convs.get(round_number, [])],
+            game_ctx=game_ctx,
+            shown=dict(self._labels(session_code, s).shown) if s.game == 'pd' else None,
+            endowment=game_ctx.get('endowment'),
+            reveal=s.net_reveal_choices, salience=s.net_betrayal_salience)
+        return ctx
 
     def _build_network(self, state: SessionState) -> Dict[str, Any]:
         """Graph, lambdas and names for the session (caller holds the lock).
@@ -841,6 +918,7 @@ class ExperimentBridge:
                                             latency_sec=0.0)
                     pending.remove(a)
 
+        reveal = settings.net_reveal_choices if settings.net_reveal_choices != 'none' else None
         for strict in (False, True):
             if not pending:
                 break
@@ -852,7 +930,7 @@ class ExperimentBridge:
                         p, round_number, settings.num_rounds, state.roles.get(a, 1), histories.get(a, []),
                         stages.get(a), include_feed=settings.include_feed, strict=strict, no_think=no_think,
                         network_chat=self._network_for(state, settings, a, round_number),
-                        memory=memo[a]))
+                        memory=memo[a], reveal=reveal))
                     for a in pending
                 ]
             else:
@@ -862,7 +940,7 @@ class ExperimentBridge:
                         labels[a], include_feed=settings.include_feed, strict=strict, no_think=no_think,
                         chat=self._chat_for(state, settings, a, round_number, include_current=True),
                         network_chat=self._network_for(state, settings, a, round_number),
-                        memory=memo[a]))
+                        memory=memo[a], reveal=reveal))
                     for a in pending
                 ]
             response = client.send_game_interview(interviews, platform=settings.platform,
@@ -1084,6 +1162,35 @@ class ExperimentBridge:
                      {'purpose': purpose, 'conv_id': conv_id, **shown})
         return block or None
 
+    @staticmethod
+    def _rep(state: SessionState, i: int, j: int):
+        """(W, B) agent i holds about neighbour j, (0.5, 0.5) while it knows nothing (caller holds the lock)."""
+        rep = state.dyads.get(i, j).ext.get('rep', {}).get(str(i))
+        return (rep['W'], rep['B']) if rep else (0.5, 0.5)
+
+    def _contact_dyad(self, state: SessionState, settings: BridgeSettings, r: int):
+        """The dyad sampling of round r, with the neighbour weights multiplied by the reputation
+        factor exp(rho_w (2W - 1) + rho_c (2B - 1)) of what i was told about j (#57).
+
+        Returns (dyad, {i: {j: factor}} or None). Without reputation weights, or while every
+        factor is 1 (round 1, nothing revealed yet), the net's own dyad object comes back
+        unchanged, so the draws are those of the run without reputation.
+        """
+        base = state.network.get('dyad')
+        rw, rc = settings.net_reputation_word_weight, settings.net_reputation_choice_weight
+        if (rw <= 0 and rc <= 0) or base is None or state.dyads is None:
+            return base, None
+        with self._lock:
+            mult = {i: {j: betrayal.contact_multiplier(*self._rep(state, i, j), rw, rc) for j in nb}
+                    for i, nb in state.network['neighbors'].items()}
+        if all(abs(m - 1.0) < 1e-12 for row in mult.values() for m in row.values()):
+            return base, None
+        bw = base.weights
+        w = {i: {j: (bw[i][j] if bw else 1.0) * mult[i][j] for j in nb}
+             for i, nb in state.network['neighbors'].items()}
+        shown = {i: {j: round(m, 4) for j, m in row.items()} for i, row in mult.items()}
+        return dataclasses.replace(base, weights=w), shown
+
     def _network_phase(self, state: SessionState, settings: BridgeSettings, round_number: int) -> None:
         """One-to-one conversations with graph neighbours before this round's decisions.
 
@@ -1101,9 +1208,10 @@ class ExperimentBridge:
         names = net['names']
         with self._lock:
             histories = {a: self._history_from_outcomes(state, a, round_number) for a in sorted(state.agents)}
+        contact_dyad, rep_weights = self._contact_dyad(state, settings, round_number)
         drawn, record = nc.sample_contacts(net['neighbors'], net['lambdas'], round_number, net['seed'],
                                            settings.net_max_initiate, settings.net_max_load,
-                                           dyad=net.get('dyad'))
+                                           dyad=contact_dyad)
         convs = [dict(c, round_number=round_number, messages=[], aborted=False, fails=0,
                       **({'max_turns': 1} if c.get('replied') is False else {})) for c in drawn]
         with self._lock:
@@ -1113,7 +1221,8 @@ class ExperimentBridge:
             'agents': {str(a): r for a, r in record.items()},
             'conversations': [dict(conv_id=c['conv_id'], initiator=c['initiator'], responder=c['responder'],
                                    **{k: c[k] for k in ('medium', 'reply_draw', 'replied') if k in c})
-                              for c in convs]})
+                              for c in convs],
+            **({'reputation_weights': rep_weights} if rep_weights else {})})
         if settings.game == 'pd':
             rules = lambda a: dict(  # noqa: E731
                 options=self._labels(session_code, settings, a).order,
@@ -1157,7 +1266,8 @@ class ExperimentBridge:
                         settings.game, round_number, settings.num_rounds, rules(a), history,
                         dict(display=names[other_id]['display'], short=names[other_id]['short']),
                         earlier, current[0]['messages'] if current else [], no_think=no_think,
-                        memory=memory, medium_phrase=phrase)
+                        memory=memory, medium_phrase=phrase,
+                        reveal=settings.net_reveal_choices if settings.net_reveal_choices != 'none' else None)
                     seen[a] = [c['conv_id'] for c in earlier]
                 assert len({a for _, a in wave}) == len(wave), 'an agent speaks twice in one wave'
                 response = client.send_game_interview(
@@ -1428,7 +1538,7 @@ class ExperimentBridge:
             if state.dyads is not None:
                 dyad_record = state.dyads.close_round(
                     round_number, dict(state.outcomes[round_number]),
-                    {'game': state.settings.game, 'session_code': session_code})
+                    self._hook_context(state, session_code, round_number))
             next_round = round_number + 1
             prefetch_next = (state.settings.policy == 'llm' and state.agents
                              and next_round <= state.settings.num_rounds)

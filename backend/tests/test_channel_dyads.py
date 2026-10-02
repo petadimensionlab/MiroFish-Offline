@@ -449,9 +449,10 @@ def test_hook_runs_once_per_round(ch_sim, monkeypatch):
 def test_unknown_hook_rejected(ch_sim):
     b = eb.ExperimentBridge()
     with pytest.raises(ValueError, match='hooks'):
-        _configure(b, 'bad', ch_sim, net_dyad_hooks='betrayal')
+        _configure(b, 'bad', ch_sim, net_dyad_hooks='nope')
     assert 'bad' not in b._sessions
-    assert dy.DYAD_HOOKS == {}
+    # 'betrayal' and 'reputation' are registered since #57 (dyad_hooks.py)
+    assert sorted(dy.DYAD_HOOKS) == ['betrayal', 'reputation']
 
 
 def test_ledger_without_network_control_arm(ch_sim):

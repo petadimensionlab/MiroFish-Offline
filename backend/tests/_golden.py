@@ -90,3 +90,96 @@ def contacts_golden():
                 convs, rec = nc.sample_contacts(net['neighbors'], lam, r, seed, 3, 4)
                 out[f'{topo}_s{seed}_r{r}'] = dict(convs=convs, rec={str(a): v for a, v in rec.items()})
     return out
+
+
+# -- dyad ledger run (NOTES.md #57) -------------------------------------------------
+#
+# golden_dyads_run.json was produced BEFORE the betrayal / reputation edits by
+# this function: a 3-round fake-client run with channels, beta 1, reach replies
+# and decaying memory (pd_net_ba_ch_mem-like), PD and pgg. With the new
+# settings at their defaults every log record and prompt must stay identical.
+
+def dyads_run_golden(root):
+    import json
+    import os
+    import re
+    from app.services import experiment_bridge as eb
+    from tests.test_channel_dyads import write_channel_sim
+
+    class RecordingClient:
+        batches: list = []
+        active = None   # sim dir of the run being recorded: threads of other tests may still call in
+
+        def __init__(self, sim_dir):
+            self.sim_dir = sim_dir
+
+        def send_game_interview(self, interviews, **kw):
+            from app.services.simulation_ipc import CommandStatus
+            out = []
+            if self.sim_dir == RecordingClient.active:
+                RecordingClient.batches.append([(it['agent_id'], it['prompt']) for it in interviews])
+            for it in interviews:
+                p, a = it['prompt'], it['agent_id']
+                if '"message"' in p:
+                    resp = json.dumps({"message": f"agent {a} says hello ({len(p) % 7})"})
+                elif '"contribution"' in p:
+                    r = int(re.search(r'round (\d+) of', p).group(1))
+                    resp = json.dumps({"contribution": (a * 3 + r * 5) % 21, "reason": "x"})
+                else:
+                    r = int(re.search(r'round (\d+) of', p, re.I).group(1))
+                    opts = re.search(r'choose (\S+) or (\S+) at the same', p).groups()
+                    resp = json.dumps({"choice": opts[(a + r) % 3 == 0], "reason": "x"})
+                out.append(dict(agent_id=a, response=resp))
+
+            class R:
+                status = CommandStatus.COMPLETED
+                result = {'answers': out}
+                error = None
+            return R()
+
+        def send_inject_posts(self, *a, **k):
+            return None
+
+        def send_run_rounds(self, *a, **k):
+            return None
+
+    orig = eb.SimulationIPCClient
+    eb.SimulationIPCClient = RecordingClient
+    result = {}
+    try:
+        for game in ('pd', 'pgg'):
+            RecordingClient.batches = []
+            sim = write_channel_sim(root / game)
+            RecordingClient.active = sim
+            b = eb.ExperimentBridge()
+            if game == 'pd':
+                agents = [dict(agent_id=i, partner_agent_id=i ^ 1) for i in range(16)]
+            else:
+                agents = [dict(agent_id=i, group_agent_ids=list(range(i // 4 * 4, i // 4 * 4 + 4)), role=1)
+                          for i in range(16)]
+            extra = {} if game == 'pd' else dict(game='pgg')
+            b.configure('gold', agents=agents, policy='llm', simulation_dir=sim, include_feed=False,
+                        num_rounds=3, inject_results='none', net_topology='ba', net_seed=1,
+                        net_contact_mean=2.0, net_channels=True, net_channel_beta=1.0,
+                        net_reply_model='reach', net_memory_mode='decay', **extra)
+            for r in range(1, 4):
+                for a in range(16):
+                    b.decide('gold', r, a)
+                b.round_complete('gold', r, {'outcomes': [
+                    dict(agent_id=a, choice=b._sessions['gold'].decisions[(r, a)].choice, payoff=10)
+                    for a in range(16)]})
+            import time
+            time.sleep(0.2)
+            gdir = os.path.join(sim, 'game', 'gold')
+
+            def lines(name):
+                with open(os.path.join(gdir, name), encoding='utf-8') as f:
+                    return [{k: v for k, v in json.loads(x).items() if k != 'ts'} for x in f]
+            doc = json.load(open(os.path.join(gdir, 'dyads.json'), encoding='utf-8'))
+            result[game] = dict(
+                dyads_json=doc, dyads=lines('dyads.jsonl'), memory_shown=lines('memory_shown.jsonl'),
+                network_contacts=lines('network_contacts.jsonl'),
+                prompts=[[[a, p] for a, p in batch] for batch in RecordingClient.batches])
+    finally:
+        eb.SimulationIPCClient = orig
+    return json.loads(json.dumps(result))

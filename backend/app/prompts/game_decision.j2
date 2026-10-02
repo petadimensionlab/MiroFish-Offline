@@ -27,7 +27,8 @@ Conversations you had with other participants (each of them plays with their own
 {% endfor %}{% if c.get('unanswered') %}- ({{ c.other }} did not reply)
 {% endif %}{% endfor %}{% endif %}{% if memory %}
 Conversations you had with other participants (each of them plays with their own partner, not with you or the other person you play with; nothing said is binding, and their choices do not change your points):
-{% include '_memory.j2' %}{% endif %}
+{% if reveal %}After each round, you and each person you talked with before it are told which option the other{{ " and the other's partner" if reveal == 'pair' }} chose.
+{% endif %}{% include '_memory.j2' %}{% endif %}
 {% if include_feed %}
 These are the social media posts you currently see:
 {{ feed_placeholder }}

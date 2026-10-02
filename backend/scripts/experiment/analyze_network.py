@@ -16,6 +16,10 @@ channel dyads (#55, network.json has edge_attrs): a dyads section (compatibility
 A against how often pairs talked and answered, reply rate by compatibility
 tercile, unanswered conversations). With memory_shown.jsonl (net_memory_mode
 'decay'): a memory section (block size, tier shares, remembered exposure).
+A betrayal section (NOTES.md #57, analyze_betrayal.py): what agents said they
+would choose against what they chose, what they did to their partner, and what
+that did to the people who heard of it; recomputed from the logs, so every
+network run has it (with the reveal off its 'told' facts are a placebo).
 Conversations nobody answered are no exposure: the responder never saw them.
 
 Usage:
@@ -37,6 +41,10 @@ import numpy as np
 from scipy import stats as sps
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+try:
+    import analyze_betrayal
+except Exception:  # noqa: BLE001 -- keep this script usable on its own
+    analyze_betrayal = None
 try:
     from analyze_session import GAME_TERMS
 except Exception:  # noqa: BLE001 -- keep this script usable on its own
@@ -292,6 +300,11 @@ def summarize(otree_csv, sim_dir, session=None):
     memory_rows = load_jsonl(os.path.join(sdir, "memory_shown.jsonl"))
     if memory_rows:
         out["memory"] = memory_summary(memory_rows, game, symbols, binary, agents, rounds, split)
+    if analyze_betrayal is not None:
+        try:
+            out["betrayal"] = analyze_betrayal.summarize(sdir)
+        except (KeyError, ValueError, IndexError):  # logs without outcomes / labels: no betrayal section
+            pass
     return out
 
 
@@ -358,7 +371,8 @@ def memory_summary(rows, game, symbols, binary, agents, rounds, split):
         tiers = defaultdict(int)
         for r in rs:
             for i in r["items"]:
-                tiers[i["tier"]] += 1
+                if i.get("kind") != "note":  # revealed choices (#57) are no conversation
+                    tiers[i["tier"]] += 1
         total = sum(tiers.values())
         out[purpose] = dict(
             prompts=len(rs), mean_chars=mean(r["chars"] for r in rs),
@@ -370,7 +384,7 @@ def memory_summary(rows, game, symbols, binary, agents, rounds, split):
         for r in rows:
             if r["purpose"] != "decision":
                 continue
-            dropped = {a["other"] for a in r["aggregates"] if a["dropped"]}
+            dropped = {a["other"] for a in r["aggregates"] if a["dropped"] and a.get("kind") != "note"}
             hit = any(d_sym in i.get("mentions_other", []) and (
                 i["tier"] in ("excerpt", "gist") or (i["tier"] == "aggregate" and i["other"] not in dropped))
                 for i in r["items"])
@@ -418,6 +432,15 @@ def show(s):
         print("\nmemory:")
         for k, v in s["memory"].items():
             print(f"  {k}: {v}")
+    if s.get("betrayal"):
+        b = s["betrayal"]
+        st = b["statements"]
+        print(f"\nbetrayal (reveal {b['reveal']}, rho_w {b['rho_w']}, rho_c {b['rho_c']}; facts are {b['facts_are']}):")
+        print(f"  statements {st['statements']} of {st['speaker_conversations']} speaker-conversations "
+              f"(coverage {st['coverage']}), kept {st['kept']} broken {st['broken']}")
+        print("  game events:", b["game_events"]["by_kind"], "exploits", b["game_events"]["exploits"])
+        for k in ("aftermath", "spillover", "selection", "speakers"):
+            print(f"  {k}: {b[k]}")
 
 
 def main():

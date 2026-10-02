@@ -48,13 +48,33 @@ def load_condition(label, csv, sim, session):
     msgs = D.build_messages(run, names, 600)
     net = D.load_network(run, names, dec, msgs)
     rounds, _, _ = D.build_rounds(run, dec, msgs, None)
+    bet = D.load_betrayal(run, net)
     s = run["cfg"].get("settings", {}) or {}
     model = next((x.replace("llm:", "") for x in dec["source"] if x), "")
     info = dict(label=label, game=run["game"], session=run["session"], persona=D.persona_set(sim), model=model or "n/a",
                 n_agents=len(agents), rounds=int(dec["round_number"].nunique()), messages=len(msgs),
                 topology=(net["raw"].get("topology") if net else None) or s.get("net_topology") or "none",
                 chat_turns=s.get("chat_turns", 0))
+    info['betrayal'] = betrayal_numbers(bet, dec)
     return run, dec, msgs, net, rounds, info
+
+
+def betrayal_numbers(bet, dec):
+    """Per condition: kept rate of announced choices, exploit-avoidance ratio (share of conversations
+    started with a neighbour something bad was revealed about, observed / expected from the base
+    contact weights; below 1 = avoided) and cooperation in rounds 2+. None without betrayal data."""
+    if bet is None:
+        return None
+    st = bet["statements"]
+    kept, broken = int(st.loc[st["kind"] == "kept", "n"].sum()), int(st.loc[st["kind"] == "broken", "n"].sum())
+    sh = bet["shares"]
+    ratio = None
+    if len(sh) and (sh["expected_base"] * sh["initiations"]).sum() > 0:
+        ratio = float((sh["observed"] * sh["initiations"]).sum() / (sh["expected_base"] * sh["initiations"]).sum())
+    late = dec[dec["round_number"] >= 2]
+    return dict(kept_rate=kept / (kept + broken) if kept + broken else None, avoidance=ratio,
+                coop_2plus=float(late["coop"].mean()) if len(late) else None, reveal=bet["reveal"],
+                statements=kept + broken)
 
 
 def net_stats(net):
@@ -139,6 +159,28 @@ def make_compare(conds):
                 color=alt.Color("condition:N", scale=colors, legend=None), opacity=op, tooltip=tip).add_params(hl).properties(
                 width=w, height=200, title=D._title(f"{title} vs agent {what}", "one dot per agent, pooled over network conditions"))
         charts.append(alt.hconcat(sc("degree:Q", "degree", W // 2 - 40), sc("lambda:Q", "contact rate λ", W // 2 - 40), spacing=30))
+
+    # betrayal and reputation (#57): kept rate, exploit-avoidance ratio, cooperation from round 2
+    brows = []
+    for c in conds:
+        b = c["info"].get("betrayal")
+        if b:
+            for measure, v in (("kept rate", b["kept_rate"]), ("avoidance ratio", b["avoidance"]),
+                               ("cooperation, rounds 2+", b["coop_2plus"])):
+                if v is not None:
+                    brows.append(dict(condition=c["info"]["label"], measure=measure, value=float(v)))
+    if brows:
+        bd = pd.DataFrame(brows)
+        bars = alt.Chart(bd).mark_bar(stroke="white", strokeWidth=2).encode(
+            y=alt.Y("condition:N", sort=order, title=None, axis=alt.Axis(labelColor=ink, labelLimit=200)),
+            x=alt.X("value:Q", title=None, axis=alt.Axis(labelColor=ink), scale=alt.Scale(domainMin=0)),
+            color=alt.Color("condition:N", scale=colors, legend=None),
+            tooltip=[alt.Tooltip("condition:N"), alt.Tooltip("measure:N"), alt.Tooltip("value:Q", format=".2f")])
+        charts.append(bars.properties(width=W // 3 - 60, height=alt.Step(16)).facet(
+            column=alt.Column("measure:N", title=None, sort=["kept rate", "avoidance ratio", "cooperation, rounds 2+"],
+                              header=alt.Header(labelColor=ink, labelFontSize=11))).properties(
+            title=D._title("Words, deeds and who gets contacted",
+                           "kept rate of announced choices; avoidance ratio < 1 = neighbours with something bad revealed are contacted less than the base weights predict")))
 
     # stats "table"
     rows = []
