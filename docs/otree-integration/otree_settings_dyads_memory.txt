@@ -1,0 +1,121 @@
+# oTree settings.py additions for NOTES #55 (channel-compatible dyads, communication memory).
+# Apply to MiroFish-oTree/mirofish_otree_test/settings.py AFTER the running queue has finished
+# (the orchestrator does this; nothing in the oTree code changes, bridge_client.net_settings
+# already forwards every bridge_net_<name> key to the bridge as net_<name>).
+#
+# Requires the bridge on branch feat/dyads-memory and the channel simulation
+# sim_workplace_ch_s1_n48 (scripts/experiment/add_channels.py, NOTES #53). The simulation is
+# chosen by MF_SIMULATION_DIR as for the other arms; bridge_simulation_id below is the fallback.
+# Session with net_channels=True raises at configure (and the session is removed, #23) if the
+# simulation has no persona channels.
+#
+# Recommended condition: beta = 1.0 with reply model 'reach' (about 21-23% of conversations
+# unanswered; Spearman(A, conversations per edge) about 0.33 for BA, 16 agents, preview_channel_contacts.py).
+#
+# ---------------------------------------------------------------------------------------------
+# 1. after NET_COMMON (top of the file):
+
+NET_CH = dict(
+    bridge_net_channels=True,                       # A_ij of every pair + dyad ledger (dyads.json / dyads.jsonl)
+    bridge_simulation_id='sim_workplace_ch_s1_n48',  # fallback when MF_SIMULATION_DIR is not set
+)
+NET_MEM = dict(bridge_net_memory_mode='decay')      # half life 2 rounds, budget 3200 chars (defaults)
+
+# ---------------------------------------------------------------------------------------------
+# 2. inside SESSION_CONFIGS, after the pgg_net_{topo} block (before live_test):
+
+    # -- NOTES #55: channel-compatible dyads (16 agents of sim_workplace_ch_s1_n48, same persona
+    #    set in every arm: the persona change is constant across the arms) ----------------------
+    dict(
+        name='pd_net_off_ch',
+        app_sequence=['pd_debate'],
+        num_demo_participants=16,
+        doc="Control for pd_net_*_ch: no talk at all, but the dyad ledger is written (dyads.json, dyads.jsonl) (NOTES #55)",
+        **{**NET_COMMON, **NET_CH, 'bridge_net_topology': 'none'},
+    ),
+    dict(
+        name='pd_net_ba_ch0',
+        app_sequence=['pd_debate'],
+        num_demo_participants=16,
+        doc="BA network on the channel personas, beta 0, every conversation answered: the #54 network with the #53 personas and the dyad ledger (NOTES #55)",
+        **{**NET_COMMON, **NET_CH, 'bridge_net_topology': 'ba',
+           'bridge_net_channel_beta': 0.0, 'bridge_net_reply_model': 'always'},
+    ),
+    dict(
+        name='pd_net_ba_ch',
+        app_sequence=['pd_debate'],
+        num_demo_participants=16,
+        doc="BA network, compatible pairs talk more (beta 1.0) and incompatible ones are answered less often (reply model reach) (NOTES #55)",
+        **{**NET_COMMON, **NET_CH, 'bridge_net_topology': 'ba',
+           'bridge_net_channel_beta': 1.0, 'bridge_net_reply_model': 'reach'},
+    ),
+    dict(
+        name='pd_net_ba_chsel',
+        app_sequence=['pd_debate'],
+        num_demo_participants=16,
+        doc="Optional: selection only (beta 1.0, every conversation answered) (NOTES #55)",
+        **{**NET_COMMON, **NET_CH, 'bridge_net_topology': 'ba',
+           'bridge_net_channel_beta': 1.0, 'bridge_net_reply_model': 'always'},
+    ),
+    dict(
+        name='pd_net_ba_chrep',
+        app_sequence=['pd_debate'],
+        num_demo_participants=16,
+        doc="Optional: replies only (beta 0, reply model reach); isolates the 'did not reply' signal (NOTES #55)",
+        **{**NET_COMMON, **NET_CH, 'bridge_net_topology': 'ba',
+           'bridge_net_channel_beta': 0.0, 'bridge_net_reply_model': 'reach'},
+    ),
+    dict(
+        name='pd_net_ba_ch_mem',
+        app_sequence=['pd_debate'],
+        num_demo_participants=16,
+        doc="pd_net_ba_ch with communication memory that forgets by age (half life 2 rounds) instead of the 2-round window (NOTES #55)",
+        **{**NET_COMMON, **NET_CH, **NET_MEM, 'bridge_net_topology': 'ba',
+           'bridge_net_channel_beta': 1.0, 'bridge_net_reply_model': 'reach'},
+    ),
+    dict(
+        name='pgg_net_off_ch',
+        app_sequence=['pgg'],
+        num_demo_participants=16,
+        doc="Control for pgg_net_*_ch: no talk, dyad ledger written (NOTES #55)",
+        bridge_belief_statement=PGG_BELIEF,
+        **{**NET_COMMON, **NET_CH, 'bridge_net_topology': 'none'},
+    ),
+    dict(
+        name='pgg_net_ba_ch0',
+        app_sequence=['pgg'],
+        num_demo_participants=16,
+        doc="Public goods game, BA network on the channel personas, beta 0, every conversation answered (NOTES #55)",
+        bridge_belief_statement=PGG_BELIEF,
+        **{**NET_COMMON, **NET_CH, 'bridge_net_topology': 'ba',
+           'bridge_net_channel_beta': 0.0, 'bridge_net_reply_model': 'always'},
+    ),
+    dict(
+        name='pgg_net_ba_ch',
+        app_sequence=['pgg'],
+        num_demo_participants=16,
+        doc="Public goods game, BA network, beta 1.0, reply model reach (NOTES #55)",
+        bridge_belief_statement=PGG_BELIEF,
+        **{**NET_COMMON, **NET_CH, 'bridge_net_topology': 'ba',
+           'bridge_net_channel_beta': 1.0, 'bridge_net_reply_model': 'reach'},
+    ),
+    dict(
+        name='pgg_net_ba_ch_mem',
+        app_sequence=['pgg'],
+        num_demo_participants=16,
+        doc="pgg_net_ba_ch with decaying communication memory (NOTES #55)",
+        bridge_belief_statement=PGG_BELIEF,
+        **{**NET_COMMON, **NET_CH, **NET_MEM, 'bridge_net_topology': 'ba',
+           'bridge_net_channel_beta': 1.0, 'bridge_net_reply_model': 'reach'},
+    ),
+
+# ---------------------------------------------------------------------------------------------
+# 3. other bridge_net_* keys (not used by the configs above; defaults in parentheses):
+#    bridge_net_channel_topic_weight (0.5)   w of A = w * topic + (1 - w) * medium, in [0, 1]
+#    bridge_net_channel_prompt ('none')      'medium' adds " by email" etc. to "You are now talking with X"
+#    bridge_net_dyad_hooks ('')              comma list of dyads.DYAD_HOOKS names (none registered yet)
+#    bridge_net_memory_half_life (2.0)       rounds until a conversation is remembered at weight 0.5
+#    bridge_net_memory_budget_chars (3200)   size of the memory block, >= 400
+#    bridge_net_memory_summary ('extract')   'llm' is NOT implemented (rejected at configure)
+#    bridge_net_pair_chat_model ('always')   'compat': REFERENCE ONLY, never for study runs (#51);
+#                                            needs bridge_chat_turns > 0, net_channels and topology none

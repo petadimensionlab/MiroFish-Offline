@@ -28,6 +28,24 @@ in the prompt, and the transcript goes into both partners' decision
 prompts. The debate rounds alone never turned to the game (NOTES.md #34,
 #44, #46), so without this the agents never actually talk to each other.
 
+Network chat (net_topology != none, NOTES.md #54): instead of the partner,
+each agent talks one to one with graph neighbours who are NOT its partner /
+group member. The graph is fixed per (seed, topology); how many conversations
+an agent starts in a round is Poisson(lambda_i) with gamma-distributed lambda_i.
+The conversations run in waves (one batched interview each, every agent at
+most once per wave) before the round's decisions, which see the agent's own
+conversations. PD and pgg only; network.json records graph and lambdas.
+
+Dyads and memory (NOTES.md #55), all off by default. net_channels computes a
+channel compatibility A_ij for every pair of participants from the persona
+channels (#53) and keeps a per-dyad ledger (dyads.py; dyads.json, dyads.jsonl).
+net_channel_beta tilts who talks to whom towards compatible pairs, and
+net_reply_model 'reach' lets a conversation go unanswered with a probability
+that depends on the two people's peer media habits; net_dyad_hooks names
+hooks of the ledger (none registered yet). net_memory_mode 'decay' replaces
+the fixed window of past conversations by a memory that forgets by age
+(memory.py; memory_shown.jsonl).
+
 Other games (game = pgg | beauty | trust | ultimatum, see games.py):
 agents carry group_agent_ids (and role for sequential games). In
 sequential games (trust, ultimatum) the round prefetch covers the first
@@ -40,13 +58,17 @@ append-only JSONL logs under <simulation_dir>/game/<session_code>/ for the
 llm policy, else uploads/experiments/<session_code>/.
 """
 
+import hashlib
 import json
 import os
 import random
+import tempfile
 import threading
 import time
 from dataclasses import dataclass, field, asdict
 from typing import Any, Callable, Dict, Iterable, List, Optional
+
+import numpy as np
 
 from ..config import Config
 from ..utils.logger import get_logger
@@ -55,7 +77,12 @@ from .game_decision import (
     render_belief_prompt, parse_likert, DEFAULT_BELIEF_STATEMENT,
     render_comprehension_prompt, parse_comprehension,
     render_chat_prompt, parse_chat_message, chat_view,
+    render_network_chat_prompt, _option_blocks, _shown_history,
 )
+from . import network_chat as nc
+from . import dyads as dy
+from . import memory as mem
+from . import public_goods as pg
 from .games import GAMES as GAME_REGISTRY, parse_comprehension as parse_game_comprehension
 from .simulation_ipc import SimulationIPCClient, CommandStatus
 
@@ -78,6 +105,13 @@ RUN_ROUNDS_TIMEOUT_SEC = 1800.0
 INJECT_MODES = ('none', 'each', 'summary')
 LABEL_UNITS = ('session', 'pair', 'agent')
 GAMES = ('pd',) + tuple(GAME_REGISTRY)
+NET_TOPOLOGIES = nc.NET_TOPOLOGIES
+NET_CHANNEL_PROMPTS = ('none', 'medium')
+NET_PAIR_CHAT_MODELS = ('always', 'compat')
+# A message that fails this many times aborts its conversation
+NET_MESSAGE_ATTEMPTS = 2
+# Runaway guard: more waves than this cannot happen with max_load * turns bounded
+NET_MAX_WAVES = 60
 
 
 @dataclass
@@ -126,6 +160,38 @@ class BridgeSettings:
     chat_turns: int = 0               # messages per pair per round; 0 = no chat
     chat_memory_rounds: int = 3       # earlier rounds of chat shown in prompts; -1 = all
     chat_max_chars: int = 400
+    # network chat (llm policy, PD / pgg, NOTES.md #54): one-to-one talk with
+    # graph neighbours who are not the agent's partner / group members
+    net_topology: str = 'none'        # none | er | ba | ws | ring
+    net_mean_degree: float = 4.0      # er: round(N*k/2) edges; ba: m=max(1,round(k/2)); ws/ring: k even >= 2
+    net_ws_p: float = 0.1
+    net_seed: int = -1                # -1 = seed; graph and lambdas never depend on the session code
+    net_exclude_partners: bool = True  # no edge to the PD partner / pgg group members (#51)
+    net_contact_mean: float = 1.0     # mu: mean conversations started per agent and round
+    net_contact_dispersion: float = 0.5  # r of the gamma lambda; <= 0: lambda = mu for all
+    net_lambda_assign: str = 'random'  # random | degree (largest lambda to highest degree)
+    net_max_initiate: int = 3
+    net_max_load: int = 4             # initiated + received per agent and round
+    net_turns: int = 2                # messages per conversation
+    net_memory_rounds: int = 2        # earlier rounds of conversations shown; -1 = all
+    net_max_convs_in_prompt: int = 8
+    net_identity: str = 'profile'     # profile | anon ("Participant 7")
+    # dyads (NOTES.md #55): channel compatibility of every pair; defaults = #54 behaviour
+    net_channels: bool = False        # compute A_ij from the persona channels, keep the dyad ledger
+    net_channel_topic_weight: float = 0.5  # w of A = w * topic + (1 - w) * medium
+    net_channel_beta: float = 0.0     # neighbour weight exp(beta * z_ij); 0 = uniform
+    net_reply_model: str = 'always'   # always | reach (a conversation may go unanswered)
+    net_channel_prompt: str = 'none'  # none | medium ("... by email" in the chat prompt)
+    net_pair_chat_model: str = 'always'  # always | compat: REFERENCE ONLY, never for study runs (#51)
+    net_dyad_hooks: str = ''          # comma list of names in dyads.DYAD_HOOKS
+    # communication memory (#55): window = the fixed window above, decay = forgetting by age
+    net_memory_mode: str = 'window'   # window | decay
+    net_memory_half_life: float = 2.0  # h of w = 2^(-delta / (h * s))
+    net_memory_budget_chars: int = 3200
+    net_memory_summary: str = 'extract'  # extract | llm (llm: not implemented)
+    # session-wide symbol mapping, but each agent lists the options in its own
+    # order: cancels position bias (#49) within one session
+    label_order_per_agent: bool = False
 
 
 @dataclass
@@ -159,6 +225,15 @@ class SessionState:
     roles: Dict[int, int] = field(default_factory=dict)
     # sequential games: round_number -> agent_id -> first movers' recorded decisions
     stage_outcomes: Dict[int, Dict[int, Dict[str, Any]]] = field(default_factory=dict)
+    # network chat: {neighbors, lambdas, names, exclusions, ...} from configure, else None
+    network: Optional[Dict[str, Any]] = None
+    # round_number -> conversations {conv_id, index, round_number, initiator,
+    # responder, messages: [{agent_id, text}], aborted}
+    net_convs: Dict[int, List[Dict[str, Any]]] = field(default_factory=dict)
+    # dyad state layer (#55), built when net_channels / net_dyad_hooks / net_memory_mode 'decay'
+    dyads: Optional[dy.DyadLedger] = None
+    compat: Optional[nc.Compat] = None
+    channel_profiles: Optional[Dict[str, Any]] = None
 
 
 class InjectedFailure(RuntimeError):
@@ -219,6 +294,9 @@ class ExperimentBridge:
         game = kwargs.get('game')
         if game is not None and game not in GAMES:
             raise ValueError(f"unknown game: {game} (expected one of {GAMES})")
+        topology = kwargs.get('net_topology')
+        if topology is not None and topology not in NET_TOPOLOGIES:
+            raise ValueError(f"unknown net_topology: {topology} (expected one of {NET_TOPOLOGIES})")
         inject = kwargs.get('inject_results')
         if inject is not None and inject not in INJECT_MODES:
             raise ValueError(f"unknown inject_results: {inject} (expected one of {INJECT_MODES})")
@@ -246,9 +324,33 @@ class ExperimentBridge:
                 # running a half-configured one.
                 del self._sessions[session_code]
                 raise ValueError("chat_turns > 0 needs label_unit 'session' or 'pair', not 'agent'")
+            net_error = self._network_conflict(state) if state.settings.net_topology != 'none' else None
+            net_error = net_error or self._channel_conflict(state)
+            if net_error:
+                del self._sessions[session_code]
+                raise ValueError(net_error)
             settings = asdict(state.settings)
             if settings['policy'] == 'llm':
                 self._simulation_dir(state.settings)  # validate early
+            network = None
+            dyads_doc = None
+            try:
+                if state.settings.net_channels and state.agents:
+                    self._load_compat(state)
+                if state.settings.net_topology != 'none' and state.agents:
+                    network = self._build_network(state)
+                    state.network = network
+                if self._wants_dyads(state.settings) and state.agents:
+                    dyads_doc = self._build_dyads(state)
+            except ValueError:
+                del self._sessions[session_code]
+                raise
+        if network is not None:
+            self._write_json(session_code, 'network.json', network['file'])
+            self._log(session_code, {'event': 'network_built', 'topology': state.settings.net_topology,
+                                     'stats': network['file']['stats']})
+        if dyads_doc is not None:
+            self._write_json(session_code, 'dyads.json', dyads_doc)
         self._log(session_code, {'event': 'configure', 'settings': settings,
                                  'n_agents': len(state.agents),
                                  'labels': self._labels_summary(session_code, state)})
@@ -305,15 +407,179 @@ class ExperimentBridge:
             state = self._sessions.get(session_code)
             partner = state.agents.get(agent_id, agent_id) if state else agent_id
             key = f"{session_code}:pair{min(agent_id, partner)}-{max(agent_id, partner)}"
-        return make_labels(key, scheme=settings.label_scheme,
+        base = make_labels(key, scheme=settings.label_scheme,
                            randomize=settings.label_randomize, swap=settings.swap_labels,
                            seed=settings.seed)
+        if (settings.label_unit == 'session' and settings.label_order_per_agent
+                and agent_id is not None):
+            # same symbols for everybody, own listing order (NOTES.md #49, #54)
+            digest = hashlib.sha256(f"order:{settings.seed}:{session_code}:{agent_id}".encode()).hexdigest()
+            order = random.Random(int(digest[:16], 16)).sample(list(base.order), 2)
+            return Labels(base.shown, tuple(order))
+        return base
 
     def _labels_summary(self, session_code: str, state: SessionState) -> Dict[str, Any]:
-        if state.settings.label_unit in ('agent', 'pair'):
+        if state.settings.label_unit in ('agent', 'pair') or state.settings.label_order_per_agent:
             return {str(a): self._labels(session_code, state.settings, a).to_dict()
                     for a in sorted(state.agents)}
         return self._labels(session_code, state.settings).to_dict()
+
+    # -- network chat (NOTES.md #54) ---------------------------------------------
+
+    @staticmethod
+    def _network_conflict(state: SessionState) -> Optional[str]:
+        s = state.settings
+        if s.game not in ('pd', 'pgg'):
+            return f"net_topology {s.net_topology!r} supports game 'pd' or 'pgg', not {s.game!r}"
+        if s.chat_turns > 0:
+            return "net_topology != 'none' needs chat_turns 0 (partners must not talk, #51)"
+        if s.game == 'pd' and s.label_unit != 'session':
+            return "net_topology != 'none' needs label_unit 'session' (everybody names the options alike)"
+        if s.net_turns < 1:
+            return "net_turns must be at least 1"
+        if s.net_lambda_assign not in nc.LAMBDA_ASSIGNS:
+            return f"unknown net_lambda_assign: {s.net_lambda_assign} (expected one of {nc.LAMBDA_ASSIGNS})"
+        if s.net_identity not in nc.NET_IDENTITIES:
+            return f"unknown net_identity: {s.net_identity} (expected one of {nc.NET_IDENTITIES})"
+        return None
+
+    # -- dyads (NOTES.md #55) ------------------------------------------------------
+
+    @staticmethod
+    def _hook_names(settings: BridgeSettings) -> List[str]:
+        return [h.strip() for h in settings.net_dyad_hooks.split(',') if h.strip()]
+
+    @staticmethod
+    def _wants_dyads(settings: BridgeSettings) -> bool:
+        return (settings.net_channels or bool(ExperimentBridge._hook_names(settings))
+                or settings.net_memory_mode == 'decay')
+
+    @staticmethod
+    def _channel_conflict(state: SessionState) -> Optional[str]:
+        """Validation of the dyad / memory settings, for every topology."""
+        s = state.settings
+        for name, value, allowed in (
+                ('net_reply_model', s.net_reply_model, nc.REPLY_MODELS),
+                ('net_channel_prompt', s.net_channel_prompt, NET_CHANNEL_PROMPTS),
+                ('net_pair_chat_model', s.net_pair_chat_model, NET_PAIR_CHAT_MODELS),
+                ('net_memory_mode', s.net_memory_mode, mem.MEMORY_MODES),
+                ('net_memory_summary', s.net_memory_summary, mem.MEMORY_SUMMARIES)):
+            if value not in allowed:
+                return f"unknown {name}: {value} (expected one of {allowed})"
+        if not 0.0 <= s.net_channel_topic_weight <= 1.0:
+            return f"net_channel_topic_weight must be in [0, 1], got {s.net_channel_topic_weight}"
+        if s.net_channel_beta < 0:
+            return f"net_channel_beta must be >= 0, got {s.net_channel_beta}"
+        unknown = [h for h in ExperimentBridge._hook_names(s) if h not in dy.DYAD_HOOKS]
+        if unknown:
+            return f"unknown net_dyad_hooks: {unknown} (registered: {sorted(dy.DYAD_HOOKS)})"
+        tilted = [n for n, on in (('net_channel_beta > 0', s.net_channel_beta > 0),
+                                  ("net_reply_model 'reach'", s.net_reply_model == 'reach'),
+                                  ("net_channel_prompt 'medium'", s.net_channel_prompt == 'medium')) if on]
+        if tilted and (s.net_topology == 'none' or not s.net_channels):
+            return f"{', '.join(tilted)} needs net_topology != 'none' and net_channels"
+        if s.net_pair_chat_model == 'compat' and (s.chat_turns <= 0 or not s.net_channels):
+            return "net_pair_chat_model 'compat' needs chat_turns > 0 and net_channels"
+        if s.net_memory_half_life <= 0:
+            return f"net_memory_half_life must be > 0, got {s.net_memory_half_life}"
+        if s.net_memory_budget_chars < 400:
+            return f"net_memory_budget_chars must be >= 400, got {s.net_memory_budget_chars}"
+        if s.net_memory_summary == 'llm':
+            if s.net_memory_mode != 'decay':
+                return "net_memory_summary 'llm' needs net_memory_mode 'decay'"
+            return "net_memory_summary 'llm' is not implemented yet (use 'extract')"
+        if s.net_memory_mode == 'decay' and s.net_topology == 'none':
+            return "net_memory_mode 'decay' needs net_topology != 'none' (it replaces the network-chat window)"
+        return None
+
+    def _load_compat(self, state: SessionState) -> None:
+        """Channel profiles and compatibility of the population (caller holds the lock).
+        ValueError when the simulation has no channels or lacks an agent (#23)."""
+        s = state.settings
+        sim_dir = self._simulation_dir(s) if s.policy == 'llm' else None
+        profiles = nc.channel_profiles(sim_dir)
+        if profiles is None:
+            raise ValueError("net_channels needs a simulation with persona channels "
+                             "(channels.json and channels in personas_meta.json, NOTES.md #53)")
+        missing = sorted(a for a in state.agents if a not in profiles['people'])
+        if missing:
+            raise ValueError(f"net_channels: agents {missing} have no channel profile")
+        state.channel_profiles = profiles
+        state.compat = nc.compatibility(profiles, s.net_channel_topic_weight)
+
+    @staticmethod
+    def _game_exclusions(state: SessionState) -> Dict[int, set]:
+        """Game partner / group members of every agent."""
+        ids = sorted(state.agents)
+        if state.settings.game == 'pd':
+            return {a: ({state.agents[a]} if state.agents[a] in state.agents else set()) for a in ids}
+        return {a: set(state.groups.get(a, [a])) - {a} for a in ids}
+
+    def _channel_method(self, state: SessionState) -> Dict[str, Any]:
+        s = state.settings
+        return {'levels': nc.LEVEL_VALUE, 'peer_media': list(nc.PEER_MEDIA),
+                'send_weight': nc.SEND_WEIGHT, 'reply_prob': nc.REPLY_PROB,
+                'topic_weight': s.net_channel_topic_weight, 'pop_mean': state.compat.pop_mean,
+                'pop_sd': state.compat.pop_sd, 'channels_sha256': state.channel_profiles['sha256']}
+
+    def _build_dyads(self, state: SessionState) -> Dict[str, Any]:
+        """The session's DyadLedger (caller holds the lock); returns the dyads.json document."""
+        s = state.settings
+        edges = state.network['file']['edges'] if state.network is not None else []
+        state.dyads = dy.DyadLedger(sorted(state.agents), edges, self._game_exclusions(state),
+                                    compat=state.compat, keep_memory=(s.net_memory_mode == 'decay'),
+                                    hooks=self._hook_names(s))
+        return {'version': 1,
+                'method': self._channel_method(state) if state.compat is not None else None,
+                'dyads': state.dyads.static_records()}
+
+    def _build_network(self, state: SessionState) -> Dict[str, Any]:
+        """Graph, lambdas and names for the session (caller holds the lock).
+        Returns the in-memory state plus 'file', the network.json document."""
+        s = state.settings
+        ids = sorted(state.agents)
+        seed = s.net_seed if s.net_seed >= 0 else s.seed
+        if not s.net_exclude_partners:
+            exclusions = {a: set() for a in ids}
+        else:
+            exclusions = self._game_exclusions(state)
+        net = nc.build_network(ids, exclusions, s.net_topology, s.net_mean_degree, s.net_ws_p, seed)
+        degrees = {a: len(v) for a, v in net['neighbors'].items()}
+        lambdas = nc.draw_lambdas(ids, s.net_contact_mean, s.net_contact_dispersion, seed,
+                                  s.net_lambda_assign, degrees)
+        sim_dir = self._simulation_dir(s) if s.policy == 'llm' else None
+        names = nc.participant_names(sim_dir, ids, s.net_identity if s.policy == 'llm' else 'anon')
+        doc = {
+            'version': 1, 'session_code': state.session_code, 'game': s.game, 'topology': s.net_topology,
+            'params': {'mean_degree_target': s.net_mean_degree, 'ba_m': net['params'].get('ba_m'),
+                       'ws_k': net['params'].get('ws_k'), 'ws_p': s.net_ws_p,
+                       'graph_seed': net['graph_seed'], 'seed': seed},
+            'contact': {'mean': s.net_contact_mean, 'dispersion': s.net_contact_dispersion,
+                        'max_initiate': s.net_max_initiate, 'max_load': s.net_max_load,
+                        'turns': s.net_turns, 'lambda_assign': s.net_lambda_assign},
+            'exclude_partners': s.net_exclude_partners,
+            'nodes': [{'agent_id': a, 'name': names[a]['name'], 'display': names[a]['display'],
+                       'degree': degrees[a], 'lambda': round(lambdas[a], 4),
+                       'excluded': sorted(exclusions[a])} for a in ids],
+            'edges': net['edges'],
+            'excluded_edges_dropped': net['excluded_edges_dropped'],
+            'repair_edges': net['repair_edges'],
+            'stats': net['stats'], 'layout': net['layout'],
+        }
+        dyad = None
+        if state.compat is not None:
+            dyad = nc.dyad_sampling(state.compat, net['neighbors'], s.net_channel_beta, s.net_reply_model)
+            c = state.compat
+            doc['channels'] = {'method': self._channel_method(state), 'beta': s.net_channel_beta,
+                               'reply_model': s.net_reply_model, 'prompt': s.net_channel_prompt}
+            doc['edge_attrs'] = [
+                {'a': a, 'b': b, 'compat': c.compat[(a, b)], 'topic': c.topic[(a, b)],
+                 'media': c.media[(a, b)], 'reach_ab': c.reach[(a, b)], 'reach_ba': c.reach[(b, a)],
+                 'z': c.z[(a, b)]} for a, b in net['edges']]
+            for node in doc['nodes']:
+                node['channel_engagement'] = state.channel_profiles['people'][node['agent_id']]['engagement']
+        return {'neighbors': net['neighbors'], 'lambdas': lambdas, 'names': names,
+                'exclusions': exclusions, 'seed': seed, 'file': doc, 'dyad': dyad}
 
     @staticmethod
     def _simulation_dir(settings: BridgeSettings) -> str:
@@ -380,6 +646,17 @@ class ExperimentBridge:
         return {**asdict(decision), 'cached': False, **self._chat_field(state, round_number, agent_id)}
 
     def _chat_field(self, state: SessionState, round_number: int, agent_id: int) -> Dict[str, Any]:
+        if state.settings.net_topology != 'none':
+            # this agent's conversations of this round, read-only (caller may hold the lock)
+            return {'network_chat': [
+                dict(conv_id=c['conv_id'], other_agent_id=(c['responder'] if c['initiator'] == agent_id
+                                                           else c['initiator']),
+                     initiator=c['initiator'],
+                     messages=[dict(agent_id=m['agent_id'], text=m['text']) for m in c['messages']],
+                     **{k: c[k] for k in ('medium', 'replied') if k in c})
+                for c in state.net_convs.get(round_number, [])
+                if agent_id in (c['initiator'], c['responder']) and c['messages']
+                and not (c.get('replied') is False and agent_id == c['responder'])]}
         if state.settings.chat_turns <= 0:
             return {}
         pair = self._pair(agent_id, state.agents.get(agent_id, agent_id))
@@ -507,6 +784,13 @@ class ExperimentBridge:
                     logger.error(f"Pair chat failed session={session_code} round={round_number}: {e}")
                     self._log(session_code, {'event': 'chat_failed', 'round_number': round_number,
                                              'error': str(e)})
+            if settings.net_topology != 'none' and state.network is not None:
+                try:
+                    self._network_phase(state, settings, round_number)
+                except Exception as e:  # noqa: BLE001 -- decide on whatever was said
+                    logger.error(f"Network chat failed session={session_code} round={round_number}: {e}")
+                    self._log(session_code, {'event': 'network_failed', 'round_number': round_number,
+                                             'error': str(e)})
             try:
                 decisions = self._llm_batch(state, settings, round_number, list(owned), histories)
                 with self._lock:
@@ -560,11 +844,15 @@ class ExperimentBridge:
         for strict in (False, True):
             if not pending:
                 break
+            # net_memory_mode 'decay': the conversations come as a memory block (#55)
+            memo = {a: self._memory_for(state, settings, a, round_number, 'decision') for a in pending}
             if spec is not None:
                 interviews = [
                     dict(agent_id=a, prompt=spec.prompt(
                         p, round_number, settings.num_rounds, state.roles.get(a, 1), histories.get(a, []),
-                        stages.get(a), include_feed=settings.include_feed, strict=strict, no_think=no_think))
+                        stages.get(a), include_feed=settings.include_feed, strict=strict, no_think=no_think,
+                        network_chat=self._network_for(state, settings, a, round_number),
+                        memory=memo[a]))
                     for a in pending
                 ]
             else:
@@ -572,7 +860,9 @@ class ExperimentBridge:
                     dict(agent_id=a, prompt=render_decision_prompt(
                         round_number, settings.num_rounds, settings.payoffs, histories.get(a, []),
                         labels[a], include_feed=settings.include_feed, strict=strict, no_think=no_think,
-                        chat=self._chat_for(state, settings, a, round_number, include_current=True)))
+                        chat=self._chat_for(state, settings, a, round_number, include_current=True),
+                        network_chat=self._network_for(state, settings, a, round_number),
+                        memory=memo[a]))
                     for a in pending
                 ]
             response = client.send_game_interview(interviews, platform=settings.platform,
@@ -658,6 +948,15 @@ class ExperimentBridge:
         model = os.environ.get('LLM_MODEL_NAME', 'llm')
         no_think = wants_no_think(settings.no_think, model)
         pairs = sorted({self._pair(a, p) for a, p in state.agents.items() if p in state.agents})
+        skipped: List[tuple] = []
+        if settings.net_pair_chat_model == 'compat' and state.compat is not None:
+            # REFERENCE ONLY, never for study runs (#51, #55): a pair chats with
+            # probability A_pair, one draw per pair in sorted order
+            rng = np.random.default_rng([settings.net_seed if settings.net_seed >= 0 else settings.seed,
+                                         4, round_number])
+            draws = {pair: float(rng.random()) for pair in pairs}
+            skipped = [pair for pair in pairs if draws[pair] >= state.compat.compat[pair]]
+            pairs = [pair for pair in pairs if pair not in skipped]
         with self._lock:
             transcripts = state.chats.setdefault(round_number, {})
             for pair in pairs:
@@ -709,10 +1008,198 @@ class ExperimentBridge:
                         'prompt': prompts[a], 'response': answer.get('response'),
                     })
                 pending = retry
-        self._log(session_code, {'event': 'chat_phase', 'round_number': round_number,
-                                 'pairs': len(pairs), 'turns': settings.chat_turns,
-                                 'messages': n_ok, 'failed': n_failed,
-                                 'elapsed_sec': round(time.time() - t0, 1)})
+        if state.dyads is not None:
+            mentions = self._mentions_fn(state, settings)
+            with self._lock:
+                for pair in pairs:
+                    msgs = list(transcripts[pair])
+                    state.dyads.record_pair_chat(round_number, pair, True, len(msgs), msgs, mentions)
+                for pair in skipped:
+                    state.dyads.record_pair_chat(round_number, pair, False, 0)
+        record = {'event': 'chat_phase', 'round_number': round_number,
+                  'pairs': len(pairs), 'turns': settings.chat_turns,
+                  'messages': n_ok, 'failed': n_failed,
+                  'elapsed_sec': round(time.time() - t0, 1)}
+        if settings.net_pair_chat_model == 'compat':
+            record['skipped_pairs'] = [list(p) for p in skipped]
+        self._log(session_code, record)
+
+    # -- network chat phase (NOTES.md #54) ---------------------------------------
+
+    def _net_visible(self, state: SessionState, settings: BridgeSettings, agent_id: int,
+                     round_number: int, exclude_conv: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Conversations this agent may see at round_number: rounds within
+        net_memory_rounds before it and this round's so far, non-empty only,
+        last net_max_convs_in_prompt. Copies, taken under the lock."""
+        lo = 1 if settings.net_memory_rounds < 0 else round_number - settings.net_memory_rounds
+        with self._lock:
+            convs = [dict(c, messages=list(c['messages']))
+                     for r in sorted(state.net_convs) if lo <= r <= round_number
+                     for c in state.net_convs[r]
+                     if agent_id in (c['initiator'], c['responder']) and c['messages']
+                     and c['conv_id'] != exclude_conv
+                     and not (c.get('replied') is False and agent_id == c['responder'])]
+        return convs[-settings.net_max_convs_in_prompt:]
+
+    def _network_for(self, state: SessionState, settings: BridgeSettings, agent_id: int,
+                     round_number: int) -> Optional[List[Dict[str, Any]]]:
+        """The network_chat block of a decision prompt, from this agent's view
+        (None in memory mode 'decay': see _memory_for)."""
+        if settings.net_topology == 'none' or state.network is None:
+            return None
+        if settings.net_memory_mode == 'decay':
+            return None
+        return nc.conversation_view(self._net_visible(state, settings, agent_id, round_number),
+                                    agent_id, state.network['names']) or None
+
+    def _game_ctx(self, state: SessionState, settings: BridgeSettings) -> Dict[str, Any]:
+        """What memory.extract_mentions needs: the option symbols (pd) or the endowment (pgg)."""
+        if settings.game == 'pd':
+            return {'options': list(self._labels(state.session_code, settings).order)}
+        return {'endowment': self._game(settings)[1]['endowment']}
+
+    def _mentions_fn(self, state: SessionState, settings: BridgeSettings):
+        ctx = self._game_ctx(state, settings)
+        return lambda text: mem.extract_mentions(text, settings.game, ctx)
+
+    def _memory_for(self, state: SessionState, settings: BridgeSettings, agent_id: int,
+                    round_number: int, purpose: str, conv_id: Optional[str] = None,
+                    live_convs: Optional[List[Dict[str, Any]]] = None,
+                    use_display: bool = True) -> Optional[str]:
+        """The memory block for this agent's prompt (net_memory_mode 'decay', #55);
+        None in window mode or when there is nothing to show. Logs what was shown
+        to memory_shown.jsonl."""
+        if settings.net_memory_mode != 'decay' or state.dyads is None or state.network is None:
+            return None
+        live = None
+        if live_convs is not None:
+            live = dy.memory_items_from_convs(agent_id, live_convs, self._mentions_fn(state, settings))
+        with self._lock:
+            block, shown = mem.build_memory(
+                agent_id, state.dyads, round_number, settings.net_memory_half_life,
+                settings.net_memory_budget_chars, state.network['names'],
+                self._game_ctx(state, settings), exclude_conv=conv_id, use_display=use_display,
+                live_items=live)
+        self._append(state.session_code, 'memory_shown.jsonl',
+                     {'purpose': purpose, 'conv_id': conv_id, **shown})
+        return block or None
+
+    def _network_phase(self, state: SessionState, settings: BridgeSettings, round_number: int) -> None:
+        """One-to-one conversations with graph neighbours before this round's decisions.
+
+        Contacts are drawn first (sample_contacts), then the messages run in
+        waves, one batched GAME_INTERVIEW each with every agent at most once,
+        so a conversation's two messages are never written concurrently. A
+        message that cannot be read stays pending for the next wave; after
+        NET_MESSAGE_ATTEMPTS failures its conversation is aborted.
+        """
+        session_code = state.session_code
+        net = state.network
+        client = SimulationIPCClient(self._simulation_dir(settings))
+        model = os.environ.get('LLM_MODEL_NAME', 'llm')
+        no_think = wants_no_think(settings.no_think, model)
+        names = net['names']
+        with self._lock:
+            histories = {a: self._history_from_outcomes(state, a, round_number) for a in sorted(state.agents)}
+        drawn, record = nc.sample_contacts(net['neighbors'], net['lambdas'], round_number, net['seed'],
+                                           settings.net_max_initiate, settings.net_max_load,
+                                           dyad=net.get('dyad'))
+        convs = [dict(c, round_number=round_number, messages=[], aborted=False, fails=0,
+                      **({'max_turns': 1} if c.get('replied') is False else {})) for c in drawn]
+        with self._lock:
+            state.net_convs[round_number] = convs
+        self._append(session_code, 'network_contacts.jsonl', {
+            'round_number': round_number,
+            'agents': {str(a): r for a, r in record.items()},
+            'conversations': [dict(conv_id=c['conv_id'], initiator=c['initiator'], responder=c['responder'],
+                                   **{k: c[k] for k in ('medium', 'reply_draw', 'replied') if k in c})
+                              for c in convs]})
+        if settings.game == 'pd':
+            rules = lambda a: dict(  # noqa: E731
+                options=self._labels(session_code, settings, a).order,
+                blocks=_option_blocks(settings.payoffs, self._labels(session_code, settings, a)))
+        else:
+            rules = lambda a: pg._rules(self._game(settings)[1])  # noqa: E731
+
+        t0 = time.time()
+        n_ok = n_failed = 0
+        wave_sizes: List[int] = []
+        decay = settings.net_memory_mode == 'decay'
+        try:
+            while len(wave_sizes) < NET_MAX_WAVES:
+                with self._lock:
+                    wave = nc.next_wave(convs, settings.net_turns)
+                if not wave:
+                    break
+                prompts, seen = {}, {}
+                for conv, a in wave:
+                    other_id = conv['responder'] if a == conv['initiator'] else conv['initiator']
+                    memory = None
+                    if decay:
+                        with self._lock:
+                            live = [dict(c, messages=list(c['messages'])) for c in convs]
+                        earlier = []
+                        memory = self._memory_for(state, settings, a, round_number, 'network_chat',
+                                                  conv_id=conv['conv_id'], live_convs=live, use_display=False)
+                    else:
+                        earlier = nc.conversation_view(
+                            self._net_visible(state, settings, a, round_number, exclude_conv=conv['conv_id']),
+                            a, names)
+                    with self._lock:
+                        so_far = list(conv['messages'])
+                    current = nc.conversation_view([dict(conv, messages=so_far)], a, names)
+                    history = histories.get(a, [])
+                    if settings.game == 'pd':
+                        history = _shown_history(history, self._labels(session_code, settings, a))
+                    phrase = (nc.MEDIUM_PHRASE.get(conv.get('medium'), '')
+                              if settings.net_channel_prompt == 'medium' else '')
+                    prompts[a] = render_network_chat_prompt(
+                        settings.game, round_number, settings.num_rounds, rules(a), history,
+                        dict(display=names[other_id]['display'], short=names[other_id]['short']),
+                        earlier, current[0]['messages'] if current else [], no_think=no_think,
+                        memory=memory, medium_phrase=phrase)
+                    seen[a] = [c['conv_id'] for c in earlier]
+                assert len({a for _, a in wave}) == len(wave), 'an agent speaks twice in one wave'
+                response = client.send_game_interview(
+                    [dict(agent_id=a, prompt=prompts[a]) for _, a in wave],
+                    platform=settings.platform, timeout=GAME_INTERVIEW_TIMEOUT_SEC)
+                if response.status != CommandStatus.COMPLETED:
+                    raise RuntimeError(f"game_interview (network chat) failed: {response.error}")
+                wave_sizes.append(len(wave))
+                answers = {int(x['agent_id']): x for x in response.result.get('answers', [])}
+                for conv, a in wave:
+                    answer = answers.get(a, {})
+                    text, error = parse_chat_message(answer.get('response'), settings.chat_max_chars)
+                    error = answer.get('error') or error
+                    turn = len(conv['messages'])
+                    attempt = conv['fails'] + 1
+                    with self._lock:
+                        if error is None:
+                            conv['messages'].append(dict(agent_id=a, text=text))
+                            conv['fails'] = 0
+                            n_ok += 1
+                        else:
+                            conv['fails'] += 1
+                            n_failed += 1
+                            if conv['fails'] >= NET_MESSAGE_ATTEMPTS:
+                                conv['aborted'] = True
+                    self._append(session_code, 'network_chat.jsonl', {
+                        'round_number': round_number, 'conv_id': conv['conv_id'], 'turn': turn,
+                        'wave': len(wave_sizes) - 1, 'attempt': attempt, 'agent_id': a,
+                        'other_agent_id': conv['responder'] if a == conv['initiator'] else conv['initiator'],
+                        'initiator': conv['initiator'], 'message': text, 'parse_error': error,
+                        'seen_conv_ids': seen[a], 'prompt': prompts[a], 'response': answer.get('response')})
+        finally:
+            if state.dyads is not None:
+                with self._lock:
+                    state.dyads.record_network_round(
+                        round_number, [dict(c, messages=list(c['messages'])) for c in convs],
+                        self._mentions_fn(state, settings))
+        self._log(session_code, {
+            'event': 'network_phase', 'round_number': round_number, 'conversations': len(convs),
+            'messages': n_ok, 'failed': n_failed, 'aborted': sum(1 for c in convs if c['aborted']),
+            'waves': len(wave_sizes), 'wave_sizes': wave_sizes, 'max_load': settings.net_max_load,
+            'elapsed_sec': round(time.time() - t0, 1)})
 
     # -- debate phase (Phase 4) -------------------------------------------------
 
@@ -937,10 +1424,17 @@ class ExperimentBridge:
             record = {**summary, 'decided_by_bridge': decided, 'mismatches': mismatches,
                       'received_at': time.time()}
             state.completed_rounds[round_number] = record
+            dyad_record = None
+            if state.dyads is not None:
+                dyad_record = state.dyads.close_round(
+                    round_number, dict(state.outcomes[round_number]),
+                    {'game': state.settings.game, 'session_code': session_code})
             next_round = round_number + 1
             prefetch_next = (state.settings.policy == 'llm' and state.agents
                              and next_round <= state.settings.num_rounds)
         self._log(session_code, {'event': 'round_complete', 'round_number': round_number, **record})
+        if dyad_record is not None:
+            self._append(session_code, 'dyads.jsonl', dyad_record)
         if (settings.policy == 'llm' and settings.belief_survey
                 and round_number == settings.num_rounds):
             threading.Thread(target=self._safe_survey, args=(session_code, 'post'),
@@ -997,6 +1491,25 @@ class ExperimentBridge:
             record = {'ts': time.time(), **record}
             with open(os.path.join(session_dir, filename), 'a', encoding='utf-8') as f:
                 f.write(json.dumps(record, ensure_ascii=False) + '\n')
+        except OSError as e:
+            logger.warning(f"Failed to write {filename} for {session_code}: {e}")
+
+    def _write_json(self, session_code: str, filename: str, obj: Dict[str, Any]) -> None:
+        """Atomic write (temp + fsync + os.replace), so a crash never leaves half a file."""
+        try:
+            session_dir = self._log_dir(session_code)
+            os.makedirs(session_dir, exist_ok=True)
+            fd, tmp = tempfile.mkstemp(dir=session_dir, prefix=f".{filename}.")
+            try:
+                with os.fdopen(fd, 'w', encoding='utf-8') as f:
+                    json.dump(obj, f, ensure_ascii=False)
+                    f.flush()
+                    os.fsync(f.fileno())
+                os.replace(tmp, os.path.join(session_dir, filename))
+            except BaseException:
+                if os.path.exists(tmp):
+                    os.unlink(tmp)
+                raise
         except OSError as e:
             logger.warning(f"Failed to write {filename} for {session_code}: {e}")
 

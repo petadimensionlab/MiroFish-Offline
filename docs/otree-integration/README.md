@@ -1,6 +1,6 @@
 # oTree × MiroFish-Offline — Technical Specification
 
-**日本語版: [README.ja.md](README.ja.md)** · Implementation & results report: [REPORT.md](REPORT.md) / [report.html](report.html) · Issue log: [NOTES.md](NOTES.md) · Audio versions (Japanese): [spec](audio/readme_ja.mp3), [report](audio/report_ja.mp3) — scripts in [narration/](narration/)
+**日本語版: [README.ja.md](README.ja.md)** · Implementation & results report: [REPORT.md](REPORT.md) / [report.html](report.html), second report (Japanese) [REPORT_2026-10.md](REPORT_2026-10.md) / [report_2026-10.html](report_2026-10.html) · Issue log: [NOTES.md](NOTES.md) · Audio versions (Japanese): [spec](audio/readme_ja.mp3), [report](audio/report_ja.mp3) — scripts in [narration/](narration/)
 
 MiroFish LLM agents play an oTree iterated prisoner's dilemma. Between game rounds the agents debate on a simulated social network (OASIS), so discourse and behavior can feed back into each other.
 
@@ -158,3 +158,70 @@ oTree client environment: `MF_BRIDGE_URL` (unset = fixed-strategy bots, no bridg
 - Do not edit `backend/` code or prompt templates during a run
 - The step-server deletes and recreates `<sim_dir>/twitter_simulation.db` on start; run experiments on a copy of a simulation directory
 - The oTree bot runner is serial; concurrent-access safety has not been load-tested
+
+## 11. Technical changes (2026-09-29 to 10-02)
+
+Changes on branch `feat/network-chat-dashboard-channels`, after PRs #3 and #4 of MiroFish-Offline were merged. Pair chat, games and workplace personas are described in §5 and "Games other than the PD" above; this section is an index plus the settings documented nowhere else (the Japanese [README.ja.md](README.ja.md) has the longer text, including the dyad / memory section). History: [NOTES.md](NOTES.md) #47–#56; results: [REPORT_2026-10.md](REPORT_2026-10.md) / [report_2026-10.html](report_2026-10.html) (Japanese).
+
+| Component | Added / changed | Key settings (defaults) |
+|---|---|---|
+| Pair chat | `chat_turns` (0), `label_unit=pair`, `prompts/game_chat.j2`. **Reference only** (NOTES #51) | `chat_memory_rounds=3`, `chat_max_chars=400`; session configs `pd_debate_llm_chat`, `_chat_debate`, `_nochat` |
+| Prompts v2 | Decision and chat prompts say: not a social-media post, points are real rewards, symbols carry no meaning, name your choice and give a reason | `prompts/_game_header.j2`, `_game_footer.j2`, `game_*.j2`, `comprehension_*.j2`; do not edit templates during a run |
+| Model / env | Main model gemma4:26b (MoE, with thinking) | `.env`: `LLM_MODEL_NAME=gemma4:26b`, `MODEL_TIMEOUT=600`; `LLM_REASONING_EFFORT=none` switches thinking off (12b needs it, but then always picks the first-listed option, NOTES #49) |
+| Games registry | `backend/app/services/games.py`: `pgg`, `beauty`, `trust`, `ultimatum`; second movers via `/stage_complete` | override with `game_params` (pgg: endowment 20, ×1.6, groups of 4; beauty: p=2/3, 0–100, prize 20; trust: 10, ×3; ultimatum: pie 20) |
+| Workplace personas | `make_workplace_sim.py`, `personas_meta.json` `agent_order` | oTree env `MF_AGENT_IDS` (JSON list) seats agents; first 16 of `agent_order`: `[3,4,6,14,1,7,8,17,5,9,10,13,0,2,11,12]` |
+| Persona channels | `add_channels.py` (no LLM, ~2 s), `workplace_channels.json` taxonomy | per-person level for every channel (ignore / skim / read / act) and habit for every medium; `--src`, `--out` (new dir), `--taxonomy`, `--seed`, `--max-chars 420`, `--verify-only` |
+| Network chat | `net_*` settings (below), `app/services/network_chat.py`, `prompts/game_network_chat.j2` | one-to-one talk with graph neighbours who are not the PD partner / pgg group mates |
+| Channel-compatible dyads | `net_channels`, `net_channel_beta`, `net_reply_model`, `net_channel_topic_weight`, `net_channel_prompt`, `net_pair_chat_model`, `net_dyad_hooks`; `dyads.json` / `dyads.jsonl` | `false`, `0.0`, `always`, `0.5`, `none`, `always` (`compat` is reference only), `""`; `DYAD_HOOKS` is empty |
+| Memory | `net_memory_mode`, `net_memory_half_life`, `net_memory_budget_chars`, `net_memory_summary`, `memory_shown.jsonl`, `prompts/_memory.j2` | `window`, `2.0`, `3200`, `extract` (`llm` not implemented) |
+| Analysis / dashboards | see below | |
+| oTree side | `MF_BRIDGE_SEED`, `network_transcript` column, `pd_net_*` / `pgg_net_*` session configs | see the MiroFish-oTree README |
+| Tests | `backend/tests/` | see below |
+
+### Network chat settings (`bridge_net_<name>`, NOTES #54)
+
+Off by default (`net_topology=none`; prompts, contacts and logs are byte-identical to before).
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `net_topology` | `none` | `none`, `er`, `ba`, `ws`, `ring` (PD and pgg only) |
+| `net_mean_degree` | `4.0` | er: round(N·k/2) edges; ba: m=max(1, round(k/2)); ws / ring: even k ≥ 2 |
+| `net_ws_p` | `0.1` | WS rewiring probability |
+| `net_seed` | `-1` | -1 = `seed`; graph and contact rates never depend on the session code |
+| `net_exclude_partners` | `true` | no edge to the PD partner / pgg group members (#51) |
+| `net_contact_mean` / `net_contact_dispersion` | `1.0` / `0.5` | μ / r: λ_i ~ Gamma(r, μ), conversations started k_i ~ Poisson(λ_i) (negative binomial); r ≤ 0 gives λ = μ |
+| `net_lambda_assign` | `random` | `degree`: largest λ to the highest degree |
+| `net_max_initiate` / `net_max_load` | `3` / `4` | conversations started per round / started + received |
+| `net_turns` | `2` | messages per conversation (run in waves) |
+| `net_memory_rounds` / `net_max_convs_in_prompt` | `2` / `8` | earlier rounds / conversations shown in `window` memory |
+| `net_identity` | `profile` | `anon`: "Participant 7" instead of names |
+| `label_order_per_agent` | `false` | symbol mapping shared per session, but each agent lists the options in its own random order (position bias, #49); `true` in all network / channel runs including controls |
+
+Dyad / memory semantics: A_ij = w·topic + (1−w)·medium (`net_channel_topic_weight`=w); neighbour choice weight exp(β·z); `net_reply_model=reach` draws medium and reply per conversation, an unanswered conversation shows the initiator one message and the responder nothing; `decay` memory weights items w = 2^(−Δ/h), shown verbatim (w ≥ 0.5), first sentence (≥ 0.25), one-line gist (≥ 0.1), else a per-partner aggregate, demoted only when over `net_memory_budget_chars`. Outputs in `<sim_dir>/game/<session>/`: `network.json`, `network_contacts.jsonl`, `network_chat.jsonl`, `dyads.json`, `dyads.jsonl`, `memory_shown.jsonl`, plus `network_built` / `network_phase` / `network_failed` events in `bridge_log.jsonl`; oTree CSV column `network_transcript` (pd_debate).
+
+### Analysis (`backend/scripts/experiment/`)
+
+| Script | Purpose |
+|---|---|
+| `analyze_session.py` | one PD session (cooperation, conditional cooperation, first-listed share, pair chat) |
+| `analyze_pgg.py` | public goods: decline, end_game_drop, trend_per_round, within-person conditional_slope, nash_share |
+| `analyze_games.py --game beauty\|trust\|ultimatum` | comparison with the game-theory benchmark |
+| `analyze_network.py --otree-csv … --sim-dir … [--session] [--json]` | network stats, Spearman, negative-binomial check, exposure tables, edge concordance (1000 permutations), talk quality, dyads and memory sections |
+| `collect_results.py [--manifest results_manifest.json] [--out-dir docs/otree-integration/results]` | calls the analyzers as libraries and writes `results/results.json` and `results_rounds.csv`; no LLM, no servers |
+| `dashboard.py --otree-csv … [--sim-dir] [--session] [--baseline-csv] [--out] [--title]` | static HTML for one run (Altair / Vega-Lite; vega, vega-lite and vega-embed come from jsdelivr) |
+| `dashboard_compare.py --run LABEL=CSV[:SIMDIR][@SESSION] … [--out] [--title]` | comparison page for several conditions |
+| `preview_channel_contacts.py` | dry check of compatibility and contacts (no LLM) |
+
+### oTree side
+
+`MF_BRIDGE_SEED` (default 0) becomes the session config `bridge_seed` and the bridge `seed` (labels, graph, contact rates, contact draws). The LLM's own sampling is not seeded, so equal seeds do not give equal results (used for replication runs).
+
+### Tests
+
+No LLM, no servers (fake client):
+
+```sh
+cd backend && .venv/bin/python -m pytest tests -q
+```
+
+`test_network_chat.py` (contacts and prompts; with the network off they must match the golden files `golden_*.json`), `test_channel_dyads.py`, `test_memory.py`, `test_add_channels.py`, `test_dashboard.py`, `test_dashboard_compare.py`. Tests that need a real simulation directory are skipped when it is absent (115 tests at NOTES #55, 9 skipped).

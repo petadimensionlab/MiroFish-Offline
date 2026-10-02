@@ -36,6 +36,11 @@ def configure():
         non-pd agents are [{agent_id, group_agent_ids, role}] (role 2 = second mover)
         pair chat: chat_turns (messages per pair per round, 0 = off),
         chat_memory_rounds, chat_max_chars; needs label_unit 'session' or 'pair'
+        network chat (pd / pgg, llm policy; needs chat_turns 0, PD label_unit 'session'; NOTES.md #54):
+        net_topology ('none'|'er'|'ba'|'ws'|'ring'), net_mean_degree, net_ws_p, net_seed (-1 = seed),
+        net_exclude_partners, net_contact_mean, net_contact_dispersion, net_lambda_assign
+        ('random'|'degree'), net_max_initiate, net_max_load, net_turns, net_memory_rounds,
+        net_max_convs_in_prompt, net_identity ('profile'|'anon'); label_order_per_agent
     """
     try:
         data = request.get_json(silent=True) or {}
@@ -64,7 +69,9 @@ def decide():
 
     Returns:
         {"choice": "A"|"B", "reason", "source", "latency_sec", "missing", "cached"}
-        plus "chat" ([{"agent_id", "text"}], this round's pair chat) when chat_turns > 0
+        plus "chat" ([{"agent_id", "text"}], this round's pair chat) when chat_turns > 0,
+        "network_chat" ([{conv_id, other_agent_id, initiator, messages: [{agent_id, text}]}],
+        this agent's conversations this round) when net_topology != 'none'
     """
     try:
         data = request.get_json(silent=True) or {}

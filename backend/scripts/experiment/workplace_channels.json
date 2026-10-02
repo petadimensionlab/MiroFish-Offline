@@ -1,0 +1,1611 @@
+{
+ "taxonomy_version": 1,
+ "categories": {
+  "leadership_company": "Leadership and company news",
+  "people_hr": "People, pay and HR",
+  "operations_compliance": "Operations, IT and compliance",
+  "business_knowledge": "Business and knowledge",
+  "social_community": "Social and community"
+ },
+ "provenance": {
+  "source": "/private/tmp/claude-502/-Users-nakaoka-workspace-research/ea7149a8-9259-49d6-9bd7-9bfc4185f5b8/scratchpad/workplace_channels_taxonomy.json",
+  "source_sha256": "98232e15c3aeaf3c6ae39330821b45cb7283fc63d82e9de80f85f208545aadd3",
+  "note": "Curated from the Haiku taxonomy: 35 channels / 19 media kept (no true duplicates, no media-like channels); company_strategy -> company_direction, recognition_rewards -> recognition_awards; texts reworded to avoid banned / soft-priming words; csr_volunteering kept with use_in_text=false."
+ },
+ "reaction_factors": [
+  {
+   "id": "sender_seniority",
+   "label": "Sender seniority",
+   "description": "Messages from C-suite or direct management typically get higher engagement than peer messages"
+  },
+  {
+   "id": "role_relevance",
+   "label": "Relevance to own role/department",
+   "description": "Employees prioritize messages about their own function (IT reads IT security, Finance reads expense policy) over company-wide"
+  },
+  {
+   "id": "mandatory_vs_optional",
+   "label": "Mandatory vs optional",
+   "description": "Mandatory training and compliance messages receive higher response rates; optional content is often skipped"
+  },
+  {
+   "id": "work_vs_personal_benefit",
+   "label": "Work value vs personal benefit",
+   "description": "Messages about personal benefits (pay, holidays, wellbeing) get more attention than company-wide strategy"
+  },
+  {
+   "id": "scope_relevance",
+   "label": "Geographic/organizational scope",
+   "description": "Employees prioritize messages affecting their office or region; global messages may be deprioritized if not locally relevant"
+  }
+ ],
+ "channels": [
+  {
+   "id": "pay_payroll",
+   "label": "Pay & payroll",
+   "phrase": "pay and payroll notices",
+   "category": "people_hr",
+   "kind": "informational",
+   "typical_sender": "HR / Payroll",
+   "typical_media": [
+    "all_staff_email",
+    "dept_email",
+    "payslip_insert",
+    "intranet_news"
+   ],
+   "description": "Salary, wages, tax information, pay date changes, payment issues, and remittance advice",
+   "examples": [
+    "October payroll: Dates and deadlines for expense claims",
+    "Urgent: PAYE changes affecting November payment"
+   ],
+   "base": 0.4,
+   "affinity": {
+    "dept": {
+     "Finance": 1.0,
+     "Human Resources": 0.8
+    },
+    "seniority": 0.0,
+    "age": 0.01,
+    "mbti": {},
+    "activity": 0.0
+   },
+   "hints": null,
+   "floor": "skim",
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "benefits_insurance",
+   "label": "Benefits & insurance",
+   "phrase": "benefits and insurance updates",
+   "category": "people_hr",
+   "kind": "informational",
+   "typical_sender": "HR / Benefits team",
+   "typical_media": [
+    "all_staff_email",
+    "intranet_news",
+    "webinar",
+    "elearning"
+   ],
+   "description": "Health insurance coverage, additional benefits packages, claims procedures, provider updates",
+   "examples": [
+    "Annual benefits enrollment now open – choose your cover by October 15",
+    "Dental plan provider change: What you need to know"
+   ],
+   "base": 0.0,
+   "affinity": {
+    "dept": {
+     "Human Resources": 1.5
+    },
+    "seniority": 0.0,
+    "age": 0.03,
+    "mbti": {},
+    "activity": 0.0
+   },
+   "hints": "famil|child|kids|parent",
+   "floor": null,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "pensions",
+   "label": "Pensions & retirement",
+   "phrase": "pension and retirement news",
+   "category": "people_hr",
+   "kind": "informational",
+   "typical_sender": "HR / Pensions administrator",
+   "typical_media": [
+    "all_staff_email",
+    "intranet_news",
+    "webinar",
+    "direct_email"
+   ],
+   "description": "Pension scheme updates, payment rates, retirement planning, pension access information",
+   "examples": [
+    "Pension payment rates changing January 2027",
+    "Free pension health-check webinar: Register by Friday"
+   ],
+   "base": -0.3,
+   "affinity": {
+    "dept": {
+     "Human Resources": 1.0,
+     "Finance": 0.4
+    },
+    "seniority": 0.1,
+    "age": 0.05,
+    "mbti": {},
+    "activity": 0.0
+   },
+   "hints": "retire|pension",
+   "floor": null,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "leave_holidays",
+   "label": "Leave & holidays",
+   "phrase": "leave and holiday notices",
+   "category": "people_hr",
+   "kind": "informational",
+   "typical_sender": "HR / Management",
+   "typical_media": [
+    "all_staff_email",
+    "intranet_news",
+    "calendar_invite",
+    "dept_email"
+   ],
+   "description": "Holiday schedules, leave request policies, public holiday dates by region, leave approvals",
+   "examples": [
+    "Christmas closure 2026: Office dates by location",
+    "Reminder: Submit Q4 holiday requests by September 30"
+   ],
+   "base": 0.3,
+   "affinity": {
+    "dept": {
+     "Human Resources": 1.0
+    },
+    "seniority": 0.0,
+    "age": 0.0,
+    "mbti": {},
+    "activity": 0.0
+   },
+   "hints": "famil|child|kids|holiday|travel",
+   "floor": null,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "wellbeing",
+   "label": "Wellbeing & mental health",
+   "phrase": "wellbeing and mental health resources",
+   "category": "people_hr",
+   "kind": "optional",
+   "typical_sender": "HR / Wellness team",
+   "typical_media": [
+    "all_staff_email",
+    "enterprise_chat",
+    "intranet_news",
+    "notice_board"
+   ],
+   "description": "Mental health support resources, employee assistance programs, wellness events, stress management",
+   "examples": [
+    "Mental Health Awareness Week: Free yoga classes & counselling drop-ins",
+    "Our confidential employee assistance helpline is open 24/7"
+   ],
+   "base": -0.2,
+   "affinity": {
+    "dept": {
+     "Human Resources": 0.8
+    },
+    "seniority": 0.0,
+    "age": 0.0,
+    "mbti": {
+     "F": 0.4
+    },
+    "activity": 0.0
+   },
+   "hints": "wellbeing|calm|balance",
+   "floor": null,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "learning_development",
+   "label": "Learning & development",
+   "phrase": "learning and development offers",
+   "category": "people_hr",
+   "kind": "optional",
+   "typical_sender": "HR / Learning & Development",
+   "typical_media": [
+    "all_staff_email",
+    "intranet_news",
+    "elearning",
+    "webinar"
+   ],
+   "description": "Training courses, skill development programs, professional certifications, course recommendations",
+   "examples": [
+    "Leadership masterclass series: Enrol now for Q4 cohort",
+    "Technical skills bursary: Fund your AWS certification"
+   ],
+   "base": 0.0,
+   "affinity": {
+    "dept": {
+     "Human Resources": 0.8
+    },
+    "seniority": -0.35,
+    "age": -0.03,
+    "mbti": {
+     "N": 0.4
+    },
+    "activity": 0.0
+   },
+   "hints": "learn|career|growth|mentor",
+   "floor": null,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "career_vacancies",
+   "label": "Career & internal vacancies",
+   "phrase": "internal vacancy postings",
+   "category": "people_hr",
+   "kind": "optional",
+   "typical_sender": "HR / Recruitment",
+   "typical_media": [
+    "all_staff_email",
+    "intranet_news",
+    "enterprise_chat",
+    "dept_email"
+   ],
+   "description": "Internal job postings, promotions, lateral moves, internal talent marketplace",
+   "examples": [
+    "Senior Product Manager role open – apply by October 20",
+    "Lateral move opportunity: Procurement specialist needed in Sydney"
+   ],
+   "base": -0.2,
+   "affinity": {
+    "dept": {
+     "Human Resources": 0.6
+    },
+    "seniority": -0.3,
+    "age": -0.03,
+    "mbti": {},
+    "activity": 0.0
+   },
+   "hints": "career|growth|ambiti",
+   "floor": null,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "performance_reviews",
+   "label": "Performance reviews & feedback",
+   "phrase": "performance review notices",
+   "category": "people_hr",
+   "kind": "mandatory",
+   "typical_sender": "HR / Management",
+   "typical_media": [
+    "direct_email",
+    "calendar_invite",
+    "one_on_one",
+    "dept_email"
+   ],
+   "description": "Annual appraisal notifications, review scheduling, feedback forums, 360-degree feedback",
+   "examples": [
+    "Annual appraisal window open: Schedule your review by October 31",
+    "Reminder: 360 feedback due Friday for Q3 reviews"
+   ],
+   "base": 0.3,
+   "affinity": {
+    "dept": {
+     "Human Resources": 0.8
+    },
+    "seniority": 0.25,
+    "age": 0.0,
+    "mbti": {},
+    "activity": 0.0
+   },
+   "hints": null,
+   "floor": "skim",
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "recognition_awards",
+   "label": "Recognition & awards",
+   "phrase": "recognition and award announcements",
+   "category": "people_hr",
+   "kind": "social",
+   "typical_sender": "Leadership / HR / Peers",
+   "typical_media": [
+    "all_staff_email",
+    "enterprise_chat",
+    "intranet_news",
+    "town_hall"
+   ],
+   "description": "Employee recognition, kudos, achievement awards, bonus announcements, peer recognition",
+   "examples": [
+    "Congratulations to Sarah Jones – Employee of the Month for outstanding customer care",
+    "Kestrel Heroes: Recognition for our disaster recovery team's 72-hour response"
+   ],
+   "base": 0.0,
+   "affinity": {
+    "dept": {
+     "Human Resources": 0.5
+    },
+    "seniority": 0.0,
+    "age": 0.0,
+    "mbti": {
+     "F": 0.5,
+     "E": 0.2
+    },
+    "activity": 0.0
+   },
+   "hints": null,
+   "floor": null,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "company_direction",
+   "label": "Company direction & results",
+   "phrase": "company direction and results updates",
+   "category": "leadership_company",
+   "kind": "informational",
+   "typical_sender": "C-suite / Leadership",
+   "typical_media": [
+    "all_staff_email",
+    "town_hall",
+    "video_broadcast",
+    "intranet_news"
+   ],
+   "description": "Company goals, quarterly/annual results, business performance, market positioning, vision updates",
+   "examples": [
+    "FY2026 Results: Record revenue and expanded market share",
+    "Priorities for 2027: Sustainability, AI innovation, regional growth"
+   ],
+   "base": 0.0,
+   "affinity": {
+    "dept": {
+     "Finance": 1.5
+    },
+    "seniority": 0.25,
+    "age": 0.0,
+    "mbti": {},
+    "activity": 0.0
+   },
+   "hints": "target|results|goal",
+   "floor": null,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "leadership_messages",
+   "label": "Leadership messages",
+   "phrase": "leadership messages",
+   "category": "leadership_company",
+   "kind": "informational",
+   "typical_sender": "CEO / Executive team",
+   "typical_media": [
+    "all_staff_email",
+    "video_broadcast",
+    "town_hall",
+    "intranet_news"
+   ],
+   "description": "Personal updates, CEO letters, leadership reflections, thank you messages from senior executives",
+   "examples": [
+    "Message from our new CEO: A warm welcome and our vision forward",
+    "From the CFO: Celebrating our progress on cost optimization"
+   ],
+   "base": 0.0,
+   "affinity": {
+    "dept": {},
+    "seniority": 0.25,
+    "age": 0.0,
+    "mbti": {
+     "J": 0.3
+    },
+    "activity": 0.0
+   },
+   "hints": null,
+   "floor": null,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "org_changes",
+   "label": "Organizational changes",
+   "phrase": "organizational change announcements",
+   "category": "leadership_company",
+   "kind": "mandatory",
+   "typical_sender": "HR / Leadership",
+   "typical_media": [
+    "all_staff_email",
+    "town_hall",
+    "one_on_one",
+    "direct_email"
+   ],
+   "description": "Restructuring announcements, role changes, reporting line updates, team reorganizations, redundancies",
+   "examples": [
+    "Organizational restructuring: New divisional structure effective November 1",
+    "Role announcement: New VP of Digital Operations appointed"
+   ],
+   "base": 0.3,
+   "affinity": {
+    "dept": {
+     "Human Resources": 0.6
+    },
+    "seniority": 0.2,
+    "age": 0.0,
+    "mbti": {},
+    "activity": 0.0
+   },
+   "hints": null,
+   "floor": "skim",
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "ma_news",
+   "label": "M&A & group news",
+   "phrase": "group and acquisition news",
+   "category": "leadership_company",
+   "kind": "informational",
+   "typical_sender": "C-suite / Corporate communications",
+   "typical_media": [
+    "all_staff_email",
+    "town_hall",
+    "video_broadcast",
+    "intranet_news"
+   ],
+   "description": "Acquisition announcements, merger updates, joint venture news, group-wide changes affecting multiple entities",
+   "examples": [
+    "Kestrel Harbour acquires Horizon Logistics – integration timeline",
+    "New supply agreement announced with European supply chain leader"
+   ],
+   "base": -0.3,
+   "affinity": {
+    "dept": {
+     "Legal": 0.8,
+     "Finance": 1.0
+    },
+    "seniority": 0.25,
+    "age": 0.0,
+    "mbti": {},
+    "activity": 0.0
+   },
+   "hints": null,
+   "floor": null,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "compliance_ethics",
+   "label": "Compliance & ethics",
+   "phrase": "compliance and ethics notices",
+   "category": "operations_compliance",
+   "kind": "mandatory",
+   "typical_sender": "Legal / Compliance / HR",
+   "typical_media": [
+    "all_staff_email",
+    "intranet_news",
+    "elearning",
+    "webinar"
+   ],
+   "description": "Compliance requirements, ethical guidelines, codes of conduct, conflict of interest policies, regulatory updates",
+   "examples": [
+    "Updated Anti-Bribery Policy: New requirements for vendor gifts",
+    "Data protection compliance: New GDPR documentation required by October 31"
+   ],
+   "base": 0.3,
+   "affinity": {
+    "dept": {
+     "Legal": 1.5,
+     "Finance": 0.5
+    },
+    "seniority": 0.15,
+    "age": 0.0,
+    "mbti": {
+     "J": 0.4
+    },
+    "activity": 0.0
+   },
+   "hints": null,
+   "floor": "skim",
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "mandatory_training",
+   "label": "Mandatory training reminders",
+   "phrase": "mandatory training reminders",
+   "category": "operations_compliance",
+   "kind": "mandatory",
+   "typical_sender": "HR / Compliance / Learning",
+   "typical_media": [
+    "all_staff_email",
+    "elearning",
+    "dept_email",
+    "calendar_invite"
+   ],
+   "description": "Reminders about required courses: health & safety, diversity, data protection, security awareness",
+   "examples": [
+    "Mandatory: Data protection refresher course due by November 15",
+    "Workplace harassment training: Enrol now in our online system"
+   ],
+   "base": 0.3,
+   "affinity": {
+    "dept": {
+     "Legal": 1.0,
+     "Human Resources": 0.5
+    },
+    "seniority": 0.0,
+    "age": 0.01,
+    "mbti": {
+     "J": 0.4
+    },
+    "activity": 0.0
+   },
+   "hints": null,
+   "floor": "skim",
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "it_security",
+   "label": "IT security & phishing alerts",
+   "phrase": "IT security and phishing alerts",
+   "category": "operations_compliance",
+   "kind": "mandatory",
+   "typical_sender": "IT Security / IT Infrastructure",
+   "typical_media": [
+    "all_staff_email",
+    "sms_push",
+    "enterprise_chat",
+    "notice_board"
+   ],
+   "description": "Security warnings, phishing test results, password reset requirements, security incident alerts",
+   "examples": [
+    "ALERT: Phishing campaign detected – do not click links in today's emails",
+    "Action required: Reset your password by tomorrow 17:00"
+   ],
+   "base": 0.3,
+   "affinity": {
+    "dept": {
+     "IT Infrastructure": 1.5,
+     "Software Engineering": 1.0
+    },
+    "seniority": 0.0,
+    "age": 0.0,
+    "mbti": {},
+    "activity": 0.0
+   },
+   "hints": "security",
+   "floor": "skim",
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "it_outages",
+   "label": "IT outages & maintenance",
+   "phrase": "IT outage and maintenance notices",
+   "category": "operations_compliance",
+   "kind": "informational",
+   "typical_sender": "IT Infrastructure / IT Operations",
+   "typical_media": [
+    "all_staff_email",
+    "enterprise_chat",
+    "sms_push",
+    "intranet_news"
+   ],
+   "description": "System downtime notifications, maintenance windows, service availability updates, incident reports",
+   "examples": [
+    "Planned maintenance: Email system offline Saturday 20:00-22:00 UTC",
+    "Incident report: Email service disruption resolved at 14:30"
+   ],
+   "base": 0.1,
+   "affinity": {
+    "dept": {
+     "IT Infrastructure": 1.2,
+     "Software Engineering": 1.0,
+     "Customer Support": 0.5
+    },
+    "seniority": 0.0,
+    "age": 0.0,
+    "mbti": {},
+    "activity": 0.0
+   },
+   "hints": null,
+   "floor": null,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "facilities_logistics",
+   "label": "Facilities & office logistics",
+   "phrase": "office and facilities notices",
+   "category": "operations_compliance",
+   "kind": "informational",
+   "typical_sender": "Facilities / Office management",
+   "typical_media": [
+    "notice_board",
+    "enterprise_chat",
+    "intranet_news",
+    "all_staff_email"
+   ],
+   "description": "Office access, room bookings, parking, heating/cooling issues, office layout changes, cleaning schedules",
+   "examples": [
+    "Room booking system down Monday for server upgrade – book via Outlook",
+    "London office: New security badge system going live September 15"
+   ],
+   "base": 0.0,
+   "affinity": {
+    "dept": {
+     "Facilities": 1.5,
+     "Operations": 0.5
+    },
+    "seniority": 0.0,
+    "age": 0.01,
+    "mbti": {},
+    "activity": 0.0
+   },
+   "hints": "site|office|building",
+   "floor": null,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "health_safety",
+   "label": "Health & safety",
+   "phrase": "health and safety notices",
+   "category": "operations_compliance",
+   "kind": "mandatory",
+   "typical_sender": "Health & Safety / Facilities",
+   "typical_media": [
+    "notice_board",
+    "all_staff_email",
+    "webinar",
+    "elearning"
+   ],
+   "description": "Safety procedures, incident reporting, hazard alerts, emergency procedures, safety inspections",
+   "examples": [
+    "Emergency evacuation drill scheduled for Friday 10:00 – all sites required",
+    "Near-miss incident in warehouse: New lifting procedures now mandatory"
+   ],
+   "base": 0.2,
+   "affinity": {
+    "dept": {
+     "Facilities": 1.5,
+     "Operations": 1.0
+    },
+    "seniority": 0.0,
+    "age": 0.0,
+    "mbti": {
+     "S": 0.2
+    },
+    "activity": 0.0
+   },
+   "hints": "safety|site",
+   "floor": "skim",
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "travel_expenses",
+   "label": "Travel & expenses",
+   "phrase": "travel and expense rules",
+   "category": "operations_compliance",
+   "kind": "informational",
+   "typical_sender": "Finance / Procurement",
+   "typical_media": [
+    "intranet_news",
+    "all_staff_email",
+    "ticketing"
+   ],
+   "description": "Travel policies, approved vendors, expense claim procedures, travel reimbursement updates",
+   "examples": [
+    "Expense policy update: New approval process for travel over £2,000",
+    "Preferred hotel list: Updated list available on intranet"
+   ],
+   "base": 0.1,
+   "affinity": {
+    "dept": {
+     "Finance": 1.0,
+     "Procurement": 0.8,
+     "Sales": 0.6
+    },
+    "seniority": 0.0,
+    "age": 0.0,
+    "mbti": {},
+    "activity": 0.0
+   },
+   "hints": "travel|client visit",
+   "floor": "skim",
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "procurement_purchasing",
+   "label": "Procurement & purchasing",
+   "phrase": "purchasing and supplier notices",
+   "category": "operations_compliance",
+   "kind": "informational",
+   "typical_sender": "Procurement",
+   "typical_media": [
+    "intranet_news",
+    "dept_email",
+    "webinar"
+   ],
+   "description": "Approved vendors, procurement rules, purchase order procedures, budget allocation, supplier announcements",
+   "examples": [
+    "Q4 purchasing: Budget codes updated – use new structure from October 1",
+    "New approved supplier for office equipment – cost savings of 15%"
+   ],
+   "base": -0.5,
+   "affinity": {
+    "dept": {
+     "Procurement": 1.5,
+     "Finance": 0.5
+    },
+    "seniority": 0.0,
+    "age": 0.0,
+    "mbti": {},
+    "activity": 0.0
+   },
+   "hints": "supplier|vendor|purchas",
+   "floor": null,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "product_news",
+   "label": "Product & customer news",
+   "phrase": "product and customer news",
+   "category": "business_knowledge",
+   "kind": "informational",
+   "typical_sender": "Product / Marketing / Sales",
+   "typical_media": [
+    "intranet_news",
+    "all_staff_email",
+    "enterprise_chat",
+    "newsletter"
+   ],
+   "description": "Product launches, updates, customer announcements, market news, competitive intelligence",
+   "examples": [
+    "Logistics Suite v3.0 now live: Key features explained in webinar",
+    "Customer success story: Digital Foods achieved 300% ROI"
+   ],
+   "base": 0.0,
+   "affinity": {
+    "dept": {
+     "Sales": 1.5,
+     "Marketing": 1.2,
+     "Customer Support": 1.0
+    },
+    "seniority": 0.0,
+    "age": 0.0,
+    "mbti": {},
+    "activity": 0.0
+   },
+   "hints": "customer|client|product",
+   "floor": null,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "sales_wins",
+   "label": "Sales wins & achievements",
+   "phrase": "sales wins and contract news",
+   "category": "business_knowledge",
+   "kind": "social",
+   "typical_sender": "Sales / Leadership",
+   "typical_media": [
+    "enterprise_chat",
+    "all_staff_email",
+    "intranet_news",
+    "town_hall"
+   ],
+   "description": "Significant sales closures, customer contract announcements, deal celebrations, sales team recognitions",
+   "examples": [
+    "Congratulations to the Enterprise Sales team on securing Westbrook Foods contract",
+    "Record quarter: £15.2M in new ARR across all divisions"
+   ],
+   "base": -0.3,
+   "affinity": {
+    "dept": {
+     "Sales": 1.5,
+     "Marketing": 0.6
+    },
+    "seniority": 0.0,
+    "age": 0.0,
+    "mbti": {
+     "E": 0.2
+    },
+    "activity": 0.0
+   },
+   "hints": null,
+   "floor": null,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "innovation",
+   "label": "Innovation & hackathons",
+   "phrase": "innovation and technology news",
+   "category": "business_knowledge",
+   "kind": "optional",
+   "typical_sender": "Product / R&D / Innovation committee",
+   "typical_media": [
+    "all_staff_email",
+    "enterprise_chat",
+    "intranet_news"
+   ],
+   "description": "Hackathon announcements, innovation challenges, R&D project highlights, new ideas programs",
+   "examples": [
+    "Spring Hackathon 2026: Submit your team idea by October 20",
+    "Innovation spotlight: Team wins with AI-powered supply chain predictor"
+   ],
+   "base": 0.0,
+   "affinity": {
+    "dept": {
+     "Research and Development": 1.5,
+     "Software Engineering": 1.2,
+     "IT Infrastructure": 0.8
+    },
+    "seniority": 0.0,
+    "age": 0.0,
+    "mbti": {
+     "N": 0.5
+    },
+    "activity": 0.0
+   },
+   "hints": "innovat|research|prototype|technolog|new idea",
+   "floor": null,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "csr_volunteering",
+   "label": "CSR & volunteering",
+   "phrase": "community programme notices",
+   "category": "social_community",
+   "kind": "optional",
+   "typical_sender": "Corporate relations / HR",
+   "typical_media": [
+    "all_staff_email",
+    "intranet_news",
+    "enterprise_chat"
+   ],
+   "description": "Corporate social responsibility initiatives, volunteering opportunities, charity campaigns, community events",
+   "examples": [
+    "Local Food Bank Day: Sign up to volunteer – October 22",
+    "Donate your annual volunteering day: Kestrel supports education in India"
+   ],
+   "base": -0.3,
+   "affinity": {
+    "dept": {
+     "Human Resources": 0.5
+    },
+    "seniority": 0.0,
+    "age": 0.0,
+    "mbti": {
+     "F": 0.3
+    },
+    "activity": 0.0
+   },
+   "hints": null,
+   "floor": null,
+   "use_in_text": false,
+   "reason": "charity/volunteering/donation items prime the giving games (soft-priming regex: volunteer*, donat*, charit*); kept for analysis, never mentioned in persona text"
+  },
+  {
+   "id": "sustainability",
+   "label": "Sustainability & environment",
+   "phrase": "sustainability and environment news",
+   "category": "business_knowledge",
+   "kind": "informational",
+   "typical_sender": "Sustainability team / Leadership",
+   "typical_media": [
+    "intranet_news",
+    "all_staff_email",
+    "notice_board"
+   ],
+   "description": "Environmental initiatives, carbon footprint targets, sustainable practices, green office updates",
+   "examples": [
+    "2026 Sustainability Report: We achieved net-zero emissions target",
+    "Office sustainability challenge: Reduce paper use by 20% this quarter"
+   ],
+   "base": -0.4,
+   "affinity": {
+    "dept": {
+     "Facilities": 0.6,
+     "Operations": 0.5
+    },
+    "seniority": 0.0,
+    "age": 0.0,
+    "mbti": {
+     "N": 0.2,
+     "F": 0.2
+    },
+    "activity": 0.0
+   },
+   "hints": "sustain|environment|green",
+   "floor": null,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "dei_ergs",
+   "label": "DEI & employee resource groups",
+   "phrase": "diversity and inclusion group news",
+   "category": "people_hr",
+   "kind": "optional",
+   "typical_sender": "HR / DEI team / ERG leaders",
+   "typical_media": [
+    "enterprise_chat",
+    "all_staff_email",
+    "intranet_news"
+   ],
+   "description": "Diversity & inclusion updates, employee resource group activities, inclusive policy updates, celebrations",
+   "examples": [
+    "Women in Leadership ERG: Mentorship program applications open",
+    "Black History Month celebration: Join events across all offices"
+   ],
+   "base": -0.4,
+   "affinity": {
+    "dept": {
+     "Human Resources": 1.0
+    },
+    "seniority": 0.0,
+    "age": 0.0,
+    "mbti": {
+     "F": 0.3
+    },
+    "activity": 0.0
+   },
+   "hints": null,
+   "floor": null,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "social_recreation",
+   "label": "Social & recreation",
+   "phrase": "social event announcements",
+   "category": "social_community",
+   "kind": "social",
+   "typical_sender": "Social committee / HR / Management",
+   "typical_media": [
+    "enterprise_chat",
+    "all_staff_email",
+    "notice_board"
+   ],
+   "description": "Team socials, parties, team outings, sports days, social committee events, holiday celebrations",
+   "examples": [
+    "Summer BBQ 2026: Saturday July 15, register by June 30",
+    "Office Halloween party – Fanciest costume wins £100!"
+   ],
+   "base": -0.1,
+   "affinity": {
+    "dept": {},
+    "seniority": 0.0,
+    "age": -0.03,
+    "mbti": {
+     "E": 1.0
+    },
+    "activity": 0.0
+   },
+   "hints": "lunch|drinks|event|social",
+   "floor": null,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "hobby_clubs",
+   "label": "Hobby & interest clubs",
+   "phrase": "hobby and sports club posts",
+   "category": "social_community",
+   "kind": "social",
+   "typical_sender": "Employees / Club organizers",
+   "typical_media": [
+    "enterprise_chat",
+    "notice_board",
+    "direct_email"
+   ],
+   "description": "Activity groups, sports clubs, hobby meetups, gaming tournaments, book club discussions",
+   "examples": [
+    "Running club: 5K this Saturday at 08:00 from London office",
+    "Boardgame night cancelled this Thursday – rescheduled for next week"
+   ],
+   "base": -0.5,
+   "affinity": {
+    "dept": {},
+    "seniority": 0.0,
+    "age": -0.02,
+    "mbti": {
+     "E": 0.6,
+     "P": 0.4
+    },
+    "activity": 0.0
+   },
+   "hints": "club|hobby|sport|running|fitness",
+   "floor": null,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "internal_marketplace",
+   "label": "Internal marketplace & classifieds",
+   "phrase": "classified ads and recommendations",
+   "category": "social_community",
+   "kind": "social",
+   "typical_sender": "Employees",
+   "typical_media": [
+    "enterprise_chat",
+    "intranet_news"
+   ],
+   "description": "Selling/trading of personal items via internal forum, job opportunities outside work, local recommendations",
+   "examples": [
+    "For sale: Unused furniture from home office relocation",
+    "Does anyone have recommendations for plumbers in Dublin?"
+   ],
+   "base": -0.6,
+   "affinity": {
+    "dept": {},
+    "seniority": 0.0,
+    "age": -0.02,
+    "mbti": {
+     "E": 0.3
+    },
+    "activity": 0.0
+   },
+   "hints": null,
+   "floor": null,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "engagement_surveys",
+   "label": "Engagement & feedback surveys",
+   "phrase": "engagement survey requests",
+   "category": "people_hr",
+   "kind": "optional",
+   "typical_sender": "HR / Leadership",
+   "typical_media": [
+    "survey",
+    "all_staff_email"
+   ],
+   "description": "Employee engagement surveys, pulse checks, satisfaction polls, feedback requests on policies/changes",
+   "examples": [
+    "Annual engagement survey now open – takes 10 minutes, complete by October 31",
+    "Quick poll: What time should our Wednesday team meeting start?"
+   ],
+   "base": 0.0,
+   "affinity": {
+    "dept": {
+     "Human Resources": 1.0
+    },
+    "seniority": 0.0,
+    "age": 0.0,
+    "mbti": {
+     "E": 0.3,
+     "J": 0.2
+    },
+    "activity": 0.0
+   },
+   "hints": null,
+   "floor": null,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "union_representation",
+   "label": "Union & employee representation",
+   "phrase": "union and staff representative updates",
+   "category": "people_hr",
+   "kind": "informational",
+   "typical_sender": "Union representatives / Works council",
+   "typical_media": [
+    "direct_email",
+    "notice_board",
+    "enterprise_chat"
+   ],
+   "description": "Union updates, works council news, employee representative announcements, collective issues",
+   "examples": [
+    "Union meeting: Thursday 18:00, all members invited – agenda attached",
+    "Works council election: Nomination period open until October 15"
+   ],
+   "base": -0.6,
+   "affinity": {
+    "dept": {
+     "Human Resources": 0.5,
+     "Operations": 0.6,
+     "Facilities": 0.6
+    },
+    "seniority": 0.0,
+    "age": 0.02,
+    "mbti": {},
+    "activity": 0.0
+   },
+   "hints": null,
+   "floor": null,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "emergency_continuity",
+   "label": "Emergency & business continuity",
+   "phrase": "emergency and continuity alerts",
+   "category": "operations_compliance",
+   "kind": "mandatory",
+   "typical_sender": "Operations / Crisis management team",
+   "typical_media": [
+    "sms_push",
+    "all_staff_email",
+    "webinar"
+   ],
+   "description": "Crisis communications, emergency procedures, disaster recovery activations, continuity plan tests",
+   "examples": [
+    "ALERT: Severe weather warning – work-from-home today or postpone travel",
+    "Disaster recovery drill: We will activate the DR site 10:00-12:00 Saturday"
+   ],
+   "base": 0.0,
+   "affinity": {
+    "dept": {
+     "Operations": 1.0,
+     "Facilities": 0.6,
+     "IT Infrastructure": 0.6
+    },
+    "seniority": 0.15,
+    "age": 0.0,
+    "mbti": {},
+    "activity": 0.0
+   },
+   "hints": null,
+   "floor": "skim",
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "media_policy",
+   "label": "Media & press policy",
+   "phrase": "press and media guidance",
+   "category": "leadership_company",
+   "kind": "informational",
+   "typical_sender": "Corporate communications / PR / Legal",
+   "typical_media": [
+    "all_staff_email",
+    "intranet_news"
+   ],
+   "description": "Press release approvals, media inquiry guidance, spokesperson information, social media policies",
+   "examples": [
+    "Press release: Do not comment on acquisition news – refer media to comms team",
+    "New social media policy: Review before posting about work"
+   ],
+   "base": -0.5,
+   "affinity": {
+    "dept": {
+     "Marketing": 1.5,
+     "Legal": 1.0
+    },
+    "seniority": 0.1,
+    "age": 0.0,
+    "mbti": {},
+    "activity": 0.0
+   },
+   "hints": null,
+   "floor": null,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "collaboration_requests",
+   "label": "Cross-department collaboration",
+   "phrase": "cross-department project requests",
+   "category": "business_knowledge",
+   "kind": "optional",
+   "typical_sender": "Project leads / Department heads",
+   "typical_media": [
+    "enterprise_chat",
+    "direct_email",
+    "dept_email"
+   ],
+   "description": "Requests for cross-team projects, knowledge exchange, collaboration opportunities, working groups",
+   "examples": [
+    "Customer success initiative: We need 2 representatives from each department",
+    "Monthly cross-functional working group: Design thinking workshop – sign up"
+   ],
+   "base": -0.2,
+   "affinity": {
+    "dept": {
+     "Operations": 0.3,
+     "Software Engineering": 0.3
+    },
+    "seniority": 0.15,
+    "age": 0.0,
+    "mbti": {
+     "E": 0.3
+    },
+    "activity": 0.0
+   },
+   "hints": null,
+   "floor": null,
+   "use_in_text": true,
+   "reason": ""
+  }
+ ],
+ "media": [
+  {
+   "id": "all_staff_email",
+   "label": "All-staff email",
+   "phrase": "all-staff emails",
+   "description": "Email broadcast to entire organization across all companies and offices",
+   "frequency": "2-3 times per week",
+   "base": 0.2,
+   "affinity": {
+    "dept": {},
+    "seniority": 0.0,
+    "age": 0.0,
+    "mbti": {},
+    "activity": 0.0
+   },
+   "engagement_term": true,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "dept_email",
+   "label": "Department/team email",
+   "phrase": "department emails",
+   "description": "Email to specific department, function, or team distribution list",
+   "frequency": "Daily to weekly",
+   "base": 0.3,
+   "affinity": {
+    "dept": {},
+    "seniority": 0.0,
+    "age": 0.0,
+    "mbti": {},
+    "activity": 0.0
+   },
+   "engagement_term": false,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "direct_email",
+   "label": "Direct email",
+   "phrase": "direct emails",
+   "description": "Individual or small-group email from sender to recipient(s)",
+   "frequency": "Daily",
+   "base": 0.5,
+   "affinity": {
+    "dept": {},
+    "seniority": 0.1,
+    "age": 0.0,
+    "mbti": {},
+    "activity": 0.0
+   },
+   "engagement_term": false,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "intranet_news",
+   "label": "Intranet news portal",
+   "phrase": "the intranet news portal",
+   "description": "Group-wide or regional intranet with news articles, updates, and documentation",
+   "frequency": "Multiple times daily",
+   "base": 0.0,
+   "affinity": {
+    "dept": {},
+    "seniority": 0.0,
+    "age": 0.0,
+    "mbti": {},
+    "activity": 0.0
+   },
+   "engagement_term": true,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "enterprise_chat",
+   "label": "Enterprise chat (Teams/Slack channels)",
+   "phrase": "enterprise chat channels",
+   "description": "Persistent messaging channels organized by topic, department, project, or office",
+   "frequency": "Continuous",
+   "base": 0.3,
+   "affinity": {
+    "dept": {
+     "Software Engineering": 1.0,
+     "IT Infrastructure": 1.0
+    },
+    "seniority": 0.0,
+    "age": -0.03,
+    "mbti": {},
+    "activity": 0.6
+   },
+   "engagement_term": false,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "direct_message",
+   "label": "Direct message (1:1 chat)",
+   "phrase": "direct messages",
+   "description": "Private message between two individuals in chat platform",
+   "frequency": "Daily",
+   "base": 0.2,
+   "affinity": {
+    "dept": {},
+    "seniority": 0.0,
+    "age": -0.02,
+    "mbti": {
+     "E": 0.3
+    },
+    "activity": 0.5
+   },
+   "engagement_term": false,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "town_hall",
+   "label": "Town hall / all-hands meeting",
+   "phrase": "town halls",
+   "description": "Large company-wide or division-wide gathering, usually in-person with broadcast option",
+   "frequency": "Quarterly to annually",
+   "base": -0.4,
+   "affinity": {
+    "dept": {},
+    "seniority": 0.3,
+    "age": 0.0,
+    "mbti": {
+     "E": 0.5
+    },
+    "activity": 0.0
+   },
+   "engagement_term": false,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "team_meeting",
+   "label": "Team/department meeting",
+   "phrase": "team meetings",
+   "description": "Scheduled meeting for a specific team, department, or function",
+   "frequency": "Weekly to monthly",
+   "base": 0.4,
+   "affinity": {
+    "dept": {},
+    "seniority": 0.15,
+    "age": 0.0,
+    "mbti": {},
+    "activity": 0.0
+   },
+   "engagement_term": false,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "one_on_one",
+   "label": "One-on-one meeting",
+   "phrase": "one-on-one meetings",
+   "description": "Private meeting between manager and direct report, or between colleagues",
+   "frequency": "Weekly to monthly",
+   "base": 0.0,
+   "affinity": {
+    "dept": {},
+    "seniority": 0.1,
+    "age": 0.0,
+    "mbti": {},
+    "activity": 0.0
+   },
+   "engagement_term": false,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "newsletter",
+   "label": "Email newsletter/digest",
+   "phrase": "the email newsletter",
+   "description": "Curated compilation of updates, often department-specific or weekly round-up",
+   "frequency": "Weekly to monthly",
+   "base": -0.3,
+   "affinity": {
+    "dept": {},
+    "seniority": 0.0,
+    "age": 0.03,
+    "mbti": {
+     "I": 0.3
+    },
+    "activity": 0.0
+   },
+   "engagement_term": true,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "notice_board",
+   "label": "Notice boards / digital signage",
+   "phrase": "notice boards",
+   "description": "Physical or digital posters, bulletin boards, and screens in offices",
+   "frequency": "As needed, updated weekly",
+   "base": -0.6,
+   "affinity": {
+    "dept": {
+     "Facilities": 1.0,
+     "Operations": 1.0
+    },
+    "seniority": 0.0,
+    "age": 0.0,
+    "mbti": {},
+    "activity": 0.0
+   },
+   "engagement_term": false,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "survey",
+   "label": "Survey/poll",
+   "phrase": "surveys",
+   "description": "Online survey, poll, or feedback form requesting employee input",
+   "frequency": "Monthly to quarterly",
+   "base": -0.4,
+   "affinity": {
+    "dept": {
+     "Human Resources": 0.5
+    },
+    "seniority": 0.0,
+    "age": 0.0,
+    "mbti": {},
+    "activity": 0.0
+   },
+   "engagement_term": false,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "elearning",
+   "label": "E-learning / LMS portal",
+   "phrase": "e-learning modules",
+   "description": "Mandatory or optional training accessible via learning management system",
+   "frequency": "As assigned, typically quarterly",
+   "base": -0.3,
+   "affinity": {
+    "dept": {},
+    "seniority": -0.15,
+    "age": 0.0,
+    "mbti": {
+     "J": 0.3
+    },
+    "activity": 0.0
+   },
+   "engagement_term": false,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "ticketing",
+   "label": "Ticketing system / service desk",
+   "phrase": "ticketing system notifications",
+   "description": "Automated notifications from IT/facilities/HR service desk about ticket status",
+   "frequency": "As needed, immediate",
+   "base": -0.2,
+   "affinity": {
+    "dept": {
+     "IT Infrastructure": 1.0,
+     "Facilities": 0.8,
+     "Customer Support": 0.8
+    },
+    "seniority": 0.0,
+    "age": 0.0,
+    "mbti": {},
+    "activity": 0.0
+   },
+   "engagement_term": false,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "calendar_invite",
+   "label": "Calendar invitation",
+   "phrase": "calendar invitations",
+   "description": "Meeting requests and calendar notifications sent via email/calendar system",
+   "frequency": "Daily",
+   "base": 0.4,
+   "affinity": {
+    "dept": {},
+    "seniority": 0.2,
+    "age": 0.0,
+    "mbti": {},
+    "activity": 0.0
+   },
+   "engagement_term": false,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "sms_push",
+   "label": "SMS / push notification",
+   "phrase": "SMS and push alerts",
+   "description": "Short messaging or mobile app push alerts for urgent or time-sensitive info",
+   "frequency": "As needed, rare to weekly",
+   "base": -0.6,
+   "affinity": {
+    "dept": {
+     "Operations": 0.6
+    },
+    "seniority": 0.0,
+    "age": -0.02,
+    "mbti": {},
+    "activity": 0.0
+   },
+   "engagement_term": false,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "payslip_insert",
+   "label": "Payslip insert / printed communication",
+   "phrase": "payslip inserts",
+   "description": "Messages included with payslip or as printed handout/poster",
+   "frequency": "With payroll, monthly or as needed",
+   "base": -0.8,
+   "affinity": {
+    "dept": {
+     "Facilities": 0.4,
+     "Operations": 0.4
+    },
+    "seniority": 0.0,
+    "age": 0.03,
+    "mbti": {},
+    "activity": 0.0
+   },
+   "engagement_term": false,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "video_broadcast",
+   "label": "Video message / broadcast",
+   "phrase": "video broadcasts",
+   "description": "Pre-recorded or live video message from leadership or department",
+   "frequency": "Monthly to quarterly",
+   "base": -0.6,
+   "affinity": {
+    "dept": {},
+    "seniority": 0.0,
+    "age": -0.02,
+    "mbti": {},
+    "activity": 0.0
+   },
+   "engagement_term": false,
+   "use_in_text": true,
+   "reason": ""
+  },
+  {
+   "id": "webinar",
+   "label": "Webinar / online presentation",
+   "phrase": "webinars",
+   "description": "Live or recorded online presentation with Q&A, typically on learning or policy topics",
+   "frequency": "Monthly to quarterly",
+   "base": -0.5,
+   "affinity": {
+    "dept": {
+     "Legal": 0.4,
+     "Human Resources": 0.4
+    },
+    "seniority": 0.0,
+    "age": 0.0,
+    "mbti": {
+     "N": 0.2
+    },
+    "activity": 0.0
+   },
+   "engagement_term": false,
+   "use_in_text": true,
+   "reason": ""
+  }
+ ]
+}

@@ -9,7 +9,14 @@ What happened so far:
 {% for h in history %}- Round {{ h.round_number }}: you put in {{ h.own }}, the other members put in {{ h.others | join(', ') }} (group total {{ h.total }}), you got {{ '%g' % h.payoff }} points
 {% endfor %}{% else %}
 This is the first round.
-{% endif %}
+{% endif %}{% if network_chat %}
+Conversations you had with other participants (each of them plays with their own group, not yours; nothing said is binding, and their choices do not change your points):
+{% for c in network_chat %}Before round {{ c.round_number }}{% if c.round_number == round_number %} (this round){% endif %}, with {{ c.other_display }}:
+{% for m in c.messages %}- {{ m.who }}: {{ m.text }}
+{% endfor %}{% if c.get('unanswered') %}- ({{ c.other }} did not reply)
+{% endif %}{% endfor %}{% endif %}{% if memory %}
+Conversations you had with other participants (each of them plays with their own group, not yours; nothing said is binding, and their choices do not change your points):
+{% include '_memory.j2' %}{% endif %}
 {% if include_feed %}
 These are the social media posts you currently see:
 {{ feed_placeholder }}
