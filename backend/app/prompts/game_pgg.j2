@@ -16,8 +16,7 @@ Conversations you had with other participants (each of them plays with their own
 {% endfor %}{% if c.get('unanswered') %}- ({{ c.other }} did not reply)
 {% endif %}{% endfor %}{% endif %}{% if memory %}
 Conversations you had with other participants (each of them plays with their own group, not yours; nothing said is binding, and their choices do not change your points):
-{% if reveal %}After each round, you and each person you talked with before it are told how much the other{{ " and the others in the other's group" if reveal == 'pair' }} put in.
-{% endif %}{% include '_memory.j2' %}{% endif %}
+{% include '_memory.j2' %}{% endif %}
 {% if include_feed %}
 These are the social media posts you currently see:
 {{ feed_placeholder }}

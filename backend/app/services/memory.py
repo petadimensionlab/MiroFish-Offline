@@ -127,7 +127,8 @@ class _Entry:
 def build_memory(owner: int, dyads: DyadLedger, round_number: int, half_life: float, budget: int,
                  names: Dict[int, Dict[str, str]], game_ctx: Optional[Dict[str, Any]] = None,
                  exclude_conv: Optional[str] = None, use_display: bool = True,
-                 live_items: Optional[Dict[int, List[MemoryItem]]] = None
+                 live_items: Optional[Dict[int, List[MemoryItem]]] = None,
+                 reveal: Optional[str] = None
                  ) -> Tuple[str, Dict[str, Any]]:
     """The memory block for owner's prompt at round_number.
 
@@ -138,6 +139,8 @@ def build_memory(owner: int, dyads: DyadLedger, round_number: int, half_life: fl
             (decision prompts) or short (chat prompts), as in window mode
         live_items: {other: [MemoryItem]} of this round's conversations not
             yet in the ledger (the network phase records it at its end)
+        reveal: None, 'talked' or 'pair' (net_reveal_choices, #57): the notes section of a
+            decision prompt starts with a line saying what agents are told after each round
 
     Returns:
         (block text, '' when there is nothing to show; shown = log record
@@ -299,6 +302,13 @@ def build_memory(owner: int, dyads: DyadLedger, round_number: int, half_life: fl
             text += 'What you remember about people you talked with earlier:\n' + ''.join(a[2] for a in kept_conv)
         kept_notes = [a[2] for a in kept if not isinstance(a[1], int)]
         if told or kept_notes:
+            if reveal:
+                if 'amount' in next((e.item.ext for e in entries if e.item.kind == 'note'), {}):
+                    text += ("After each round, you and each person you talked with before it were told how much the other person "
+                             "contributed" + (" and how much the others in their group contributed" if reveal == 'pair' else '') + ".\n")
+                else:
+                    text += ("After each round, you and each person you talked with before it were told which option the other person chose"
+                             + (" and which option their partner chose" if reveal == 'pair' else '') + ".\n")
             text += 'What you were told after earlier rounds:\n' + ''.join(told) + ''.join(kept_notes)
         return text, aggs
 

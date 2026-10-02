@@ -119,7 +119,6 @@ def render_decision_prompt(
     chat: Optional[List[Dict[str, Any]]] = None,
     network_chat: Optional[List[Dict[str, Any]]] = None,
     memory: Optional[str] = None,
-    reveal: Optional[str] = None,
 ) -> str:
     """
     Args:
@@ -134,8 +133,6 @@ def render_decision_prompt(
             "unanswered": True adds a line that the other did not reply (#55).
         memory: rendered memory block (memory.build_memory) in place of
             network_chat, net_memory_mode 'decay' (#55)
-        reveal: None, 'talked' or 'pair' (net_reveal_choices, #57): adds one line
-            to the memory block saying what the agent is told after each round
     """
     return _env.get_template('game_decision.j2').render(
         options=labels.order,
@@ -150,7 +147,6 @@ def render_decision_prompt(
         chat=chat or [],
         network_chat=network_chat or [],
         memory=memory or None,
-        reveal=reveal or None,
     )
 
 

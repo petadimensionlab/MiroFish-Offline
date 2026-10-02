@@ -39,10 +39,11 @@ Scores never appear in a prompt. Reply probabilities are not touched by reputati
 
 ## Prompts (reveal on only)
 
-* Decision prompt, inside the memory block, one line: "After each round, you and each person you talked with
-  before it are told which option the other [and the other's partner] chose." (pgg: "how much the other [and the others in the other's group] put in").
-* Network chat prompt, after "You do not talk with ...": "After this round, you will each be told which option
-  the other [and the other's partner] chose in round N." (the speaker who starts: "If X replies, after this round you will each ...").
+* Decision prompt, first line of the notes section of the memory block (right before "What you were told after earlier rounds:"):
+  "After each round, you and each person you talked with before it were told which option the other person chose [and which option their partner chose]."
+  (pgg: "how much the other person contributed [and how much the others in their group contributed]").
+* Network chat prompt, after "You do not talk with ...": "After this round, you will each be told which option the other person chose in round N[, and which option
+  their partner chose]." (the speaker who starts: "If X replies, after this round you will each ..."; pgg: "how much the other person contributed in round N[, and how much the others in their group contributed]").
 * Memory block, last section: one line per note down to the gist tier ("- After round 3, Ken chose ◇; Ken's partner chose △."),
   one line per person below it ("- Ken, after rounds 1-4: chose ◇ 3 times, △ once."). Under budget pressure the note
   aggregates are dropped oldest first, with the key `('note', person)`.

@@ -918,7 +918,6 @@ class ExperimentBridge:
                                             latency_sec=0.0)
                     pending.remove(a)
 
-        reveal = settings.net_reveal_choices if settings.net_reveal_choices != 'none' else None
         for strict in (False, True):
             if not pending:
                 break
@@ -930,7 +929,7 @@ class ExperimentBridge:
                         p, round_number, settings.num_rounds, state.roles.get(a, 1), histories.get(a, []),
                         stages.get(a), include_feed=settings.include_feed, strict=strict, no_think=no_think,
                         network_chat=self._network_for(state, settings, a, round_number),
-                        memory=memo[a], reveal=reveal))
+                        memory=memo[a]))
                     for a in pending
                 ]
             else:
@@ -940,7 +939,7 @@ class ExperimentBridge:
                         labels[a], include_feed=settings.include_feed, strict=strict, no_think=no_think,
                         chat=self._chat_for(state, settings, a, round_number, include_current=True),
                         network_chat=self._network_for(state, settings, a, round_number),
-                        memory=memo[a], reveal=reveal))
+                        memory=memo[a]))
                     for a in pending
                 ]
             response = client.send_game_interview(interviews, platform=settings.platform,
@@ -1157,7 +1156,8 @@ class ExperimentBridge:
                 agent_id, state.dyads, round_number, settings.net_memory_half_life,
                 settings.net_memory_budget_chars, state.network['names'],
                 self._game_ctx(state, settings), exclude_conv=conv_id, use_display=use_display,
-                live_items=live)
+                live_items=live,
+                reveal=settings.net_reveal_choices if purpose == 'decision' and settings.net_reveal_choices != 'none' else None)
         self._append(state.session_code, 'memory_shown.jsonl',
                      {'purpose': purpose, 'conv_id': conv_id, **shown})
         return block or None

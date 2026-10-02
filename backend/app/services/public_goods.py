@@ -42,18 +42,17 @@ def render_pgg_prompt(round_number: int, num_rounds: int, params: Dict[str, Any]
                       history: List[Dict[str, Any]], include_feed: bool = False,
                       strict: bool = False, no_think: bool = False,
                       network_chat: Optional[List[Dict[str, Any]]] = None,
-                      memory: Optional[str] = None, reveal: Optional[str] = None) -> str:
+                      memory: Optional[str] = None) -> str:
     """
     Args:
         history: [{"round_number", "own", "others": [int], "total", "payoff"}]
         network_chat: conversations with participants of other groups (NOTES.md #54)
         memory: rendered memory block in place of network_chat (#55)
-        reveal: None, 'talked' or 'pair' (net_reveal_choices, #57)
     """
     return _env.get_template('game_pgg.j2').render(
         **_rules(params), round_number=round_number, num_rounds=num_rounds, history=history,
         include_feed=include_feed, feed_placeholder=FEED_PLACEHOLDER, strict=strict, no_think=no_think,
-        network_chat=network_chat or [], memory=memory or None, reveal=reveal or None)
+        network_chat=network_chat or [], memory=memory or None)
 
 
 _CONTRIB_RE = re.compile(r'"contribution"\s*:\s*"?(-?\d+(?:\.\d+)?)')

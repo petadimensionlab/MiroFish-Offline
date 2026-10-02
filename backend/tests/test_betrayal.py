@@ -492,11 +492,13 @@ def test_end_to_end_reveal(tmp_path, say):
                for r in _events(sim, 'rev', name)]
     assert any('What you were told after earlier rounds:' in p for _, p in prompts)
     assert all(rn >= 2 for rn, p in prompts if 'What you were told after earlier rounds:' in p)
-    assert any("After this round, you will each be told which option the other and the other's partner chose in round"
-               in p for _, p in prompts)
-    assert any("If " in p and " replies, after this round you will each be told which option" in p for _, p in prompts)
-    assert any("After each round, you and each person you talked with before it are told which option the other "
-               "and the other's partner chose." in p for _, p in prompts)
+    assert any("After this round, you will each be told which option the other person chose in round"
+               in p and ", and which option their partner chose." in p for _, p in prompts)
+    assert any("If " in p and " replies, after this round you will each be told which option the other person chose" in p
+               for _, p in prompts)
+    assert any("After each round, you and each person you talked with before it were told which option the other "
+               "person chose and which option their partner chose.\nWhat you were told after earlier rounds:" in p
+               for _, p in prompts)
     for _, p in prompts:
         assert not re.search(r'betray|trust score|reputation', p.split('Reply with only')[0], re.I) or 'trust' in p
     # salience of a broken word: the listener's item of that conversation is 2.0
@@ -580,7 +582,10 @@ def test_end_to_end_pgg_reveal(tmp_path, monkeypatch):
     broken = [e for e in events if e['type'] == 'word' and not e['kept']]
     assert broken and all(e['deficit'] > 0 and e['speaker'] % 4 == 0 for e in broken)
     prompts = [r['prompt'] for name in ('network_chat.jsonl', 'llm_answers.jsonl') for r in _events(sim, 'pg', name)]
-    assert any("how much the other and the others in the other's group put in in round" in p for p in prompts)
+    assert any("how much the other person contributed in round" in p
+               and ", and how much the others in their group contributed." in p for p in prompts)
+    assert any("were told how much the other person contributed and how much the others in their group contributed.\n"
+               "What you were told after earlier rounds:" in p for p in prompts)
     assert any(re.search(r"- After round \d, .* put in \d+; the others in .*'s group put in [\d, and]+\.", p)
                for p in prompts)
     assert ab.check_online(_gdir(sim, 'pg'), ab.events_from_logs(_gdir(sim, 'pg')))['equal']
