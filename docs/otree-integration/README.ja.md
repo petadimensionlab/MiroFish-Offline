@@ -139,7 +139,7 @@ oTree アプリはこれらを `bridge_<設定名>` のセッション設定と�
 | `net_reply_model` | `always` | `reach`: 会話ごとに媒体と返信を引き、返信なしなら開始者だけが1通書く（相手には見えない） |
 | `net_channel_prompt` | `none` | `medium`: 「You are now talking with X by email」のように媒体だけを入れる |
 | `net_pair_chat_model` | `always` | `compat`: ペアチャットを確率 A で実行（**参照用、本実験では使わない**、#51） |
-| `net_dyad_hooks` | `""` | `dyads.DYAD_HOOKS` の名前（カンマ区切り）。いまは空（将来 betrayal / reputation） |
+| `net_dyad_hooks` | `""` | `dyads.DYAD_HOOKS` の名前（カンマ区切り）。`betrayal`、`reputation`（§12） |
 | `net_memory_mode` | `window` | `decay`: 会話の記憶が w=2^(-Δ/(h·s)) で 原文 → 最初の一文 → 1行要旨 → 相手ごとの集約 と薄れる。`net_topology`≠none が必要 |
 | `net_memory_half_life` | `2.0` | h（期）。h=2 で原文の範囲は従来の窓（Δ0〜2）と同じ |
 | `net_memory_budget_chars` | `3200` | 記憶ブロックの上限（400以上）。超えたら最低重みの項目から降格、集約行は古い順に削除、今期は降格しない |
@@ -290,3 +290,26 @@ cd backend && .venv/bin/python -m pytest tests -q
 ```
 
 `test_network_chat.py`（ネットワークの接触・プロンプト。off のとき導入前と一致するゴールデン `golden_*.json`）、`test_channel_dyads.py`、`test_memory.py`、`test_add_channels.py`、`test_dashboard.py`、`test_dashboard_compare.py`。実ランのシミュレーションディレクトリが無い環境では、それを使うテストはスキップされる（NOTES #55 の時点で全 115 件、うち 9 件がスキップ）。
+
+
+## 12. 技術的な変更（2026-10-02〜10-03）
+
+ブランチ `feat/dyad-betrayal-reputation` で、二者関係（ダイアド）に裏切り・選択の開示・評判を加えた。**既定ではすべてオフ**で、既定値ではプロンプトとログが導入前とバイト一致する（`backend/tests/golden_dyads_run.json`）。設計・イベントの定義・実行方法の詳細は [betrayal_reputation.md](betrayal_reputation.md)、経緯は [NOTES.md](NOTES.md) #57〜#59、結果は [REPORT_2026-10-03.md](REPORT_2026-10-03.md) ／ [report_2026-10-03.html](report_2026-10-03.html)。
+
+| 設定（`bridge_<名前>`） | 既定 | 意味 |
+|---|---|---|
+| `net_dyad_hooks` | `""` | `betrayal`、`reputation`（カンマ区切り）。`betrayal` は期ごとに言葉（宣言と実際の選択）と行為（PD の exploit、pgg の宣言額との比較）のイベントを `dyads.jsonl` に書く |
+| `net_reveal_choices` | `none` | `talked`: その期に会話した相手の選択を、次の期の記憶に「What you were told after earlier rounds」として入れる。`pair`: さらに相手のゲームの相手の選択（pgg は組の拠出額）も。会話の冒頭でも予告する。`net_memory_mode=decay` が必要 |
+| `net_betrayal_salience` | `1.0` | 食い違い（言葉を破った・exploit）を示すメモと会話の記憶の重み s（忘れにくさ） |
+| `net_reputation_word_weight` ／ `net_reputation_choice_weight` | `0.0` ／ `0.0` | ρw ／ ρc。近隣の選択重みに exp(ρw(2W−1)+ρc(2B−1)) を掛ける。W は言葉を守った割合、B は知らされた選択が協力だった割合（Beta 事後平均）。どちらも本人が知らされた事実だけから計算する |
+
+| 追加ファイル | 役割 |
+|---|---|
+| `backend/app/services/betrayal.py` | 規則（純関数、標準ライブラリのみ）: `stated_intention`、`word_events`、`game_events_pd` / `_pgg`、`beta_score`、`contact_multiplier` |
+| `backend/app/services/dyad_hooks.py` | `DYAD_HOOKS['betrayal']`、`['reputation']`。`round_complete` 内で bridge のロック下に実行 |
+| `backend/scripts/experiment/analyze_betrayal.py` | ログから全イベントを再計算（LLM なし）。宣言の遵守、exploit、波及（spillover）、会話相手の選択（selection / initiation_shares）、自己報告の真偽、うわさ（第三者への言及）。オンラインのイベントとの一致を確認。開示のないランでは「知らされたはずの事実」がプラセボになる |
+| `backend/tests/test_betrayal.py` | 規則・フック・既定値でのバイト一致（全 189 件） |
+
+oTree 側の設定: `pd_net_ba_ch_mem_rev`（`pair`、s=2）、`pd_net_ba_ch_mem_rev_talked`、`pd_net_ba_ch_mem_rep`（＋ ρw=ρc=2）、`pgg_net_ba_ch_mem_rev` / `_rep`。反復ランは `MF_BRIDGE_SEED=<seed>` と `MF_AGENT_IDS` で行う。
+
+**運用の注意**: LLM のサンプリングには seed がなく、同じ設定でも第1期の協力率が 0.2 ほどずれ、それが後まで残る（第1期と第6〜10期の Spearman ρ=0.84、33ラン、NOTES #59）。条件の比較は複数 seed で、第1期を共変量にするか第2期以降の変化で行う。

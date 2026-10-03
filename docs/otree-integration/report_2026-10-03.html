@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>oTree × MiroFish-Offline 結果報告（第3報）</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface-1: #fcfcfb;
+  --surface-2: #f3f2ee;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11,11,11,0.10);
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --c1: #2a78d6; --c2: #eb6834; --c3: #1baf7a; --c4: #eda100; --c5: #e87ba4; --ctrl: #898781;
+  --accent: #2a78d6;
+  --critical: #d03b3b;
+  --good-text: #006300;
+  --warn-bg: #fff4dc;
+  --warn-ink: #6b4a00;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface-1: #1a1a19;
+    --surface-2: #232321;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255,255,255,0.10);
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #c98500; --c5: #d55181; --ctrl: #9b9a94;
+    --accent: #3987e5;
+    --good-text: #0ca30c;
+    --warn-bg: #3a2e12;
+    --warn-ink: #f3d48a;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d;
+  --surface-1: #1a1a19;
+  --surface-2: #232321;
+  --text-primary: #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted: #898781;
+  --grid: #2c2c2a;
+  --axis: #383835;
+  --border: rgba(255,255,255,0.10);
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #c98500; --c5: #d55181; --ctrl: #9b9a94;
+  --accent: #3987e5;
+  --good-text: #0ca30c;
+  --warn-bg: #3a2e12;
+  --warn-ink: #f3d48a;
+}
+* { box-sizing: border-box; }
+html, body { overflow-x: hidden; }
+body {
+  margin: 0; background: var(--page); color: var(--text-primary);
+  font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  line-height: 1.75; font-size: 16px;
+}
+.wrap { max-width: 1040px; margin: 0 auto; padding: 32px 16px 80px; }
+header.hero { padding: 24px 0 8px; }
+.eyebrow { color: var(--text-muted); font-size: 13px; letter-spacing: .04em; }
+h1 { font-size: 30px; line-height: 1.3; margin: 6px 0 12px; }
+h2 { font-size: 22px; margin: 48px 0 12px; padding-top: 8px; border-top: 1px solid var(--border); }
+h3 { font-size: 17px; margin: 28px 0 8px; }
+p, li { color: var(--text-primary); }
+.sub { color: var(--text-secondary); }
+a { color: var(--accent); }
+nav.toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 8px; }
+nav.toc a { font-size: 13px; text-decoration: none; padding: 4px 10px; border-radius: 999px;
+  background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--border); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr)); gap: 12px; margin: 20px 0; }
+.tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+.tile .k { font-size: 13px; color: var(--text-secondary); }
+.tile .v { font-size: 26px; font-weight: 650; margin-top: 2px; }
+.tile .n { font-size: 12px; color: var(--text-muted); }
+.card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; margin: 14px 0; }
+.callout { background: var(--warn-bg); color: var(--warn-ink); border-radius: 12px; padding: 14px 18px; margin: 16px 0; }
+.callout strong { color: inherit; }
+.findings { counter-reset: f; list-style: none; padding: 0; }
+.findings li { counter-increment: f; position: relative; padding: 12px 16px 12px 52px; margin: 10px 0;
+  background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; }
+.findings li::before { content: counter(f); position: absolute; left: 16px; top: 12px; width: 24px; height: 24px;
+  border-radius: 50%; background: var(--surface-2); color: var(--text-secondary); font-size: 13px; font-weight: 650;
+  display: grid; place-items: center; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { color: var(--text-secondary); font-weight: 600; background: var(--surface-2); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.table-scroll { overflow-x: auto; }
+code { overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; background: var(--surface-2);
+  padding: 1px 5px; border-radius: 4px; }
+pre { background: var(--surface-2); padding: 12px 14px; border-radius: 10px; overflow-x: auto; font-size: 13px; line-height: 1.5; }
+.flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr)); gap: 10px; margin: 14px 0; }
+.flow .step { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+.flow .step b { display: block; font-size: 14px; }
+.flow .step span { font-size: 13px; color: var(--text-secondary); }
+.pill { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--surface-2);
+  color: var(--text-secondary); border: 1px solid var(--border); white-space: nowrap; }
+.pill.done::before { content: "✓ "; color: var(--good-text); font-weight: 700; }
+.pill.wip::before { content: "… "; }
+footer { margin-top: 56px; font-size: 13px; color: var(--text-muted); }
+
+.multiples { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(290px, 100%), 1fr)); gap: 12px; margin-top: 8px; }
+.panel { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px 4px; min-width: 0; }
+.panel .t { font-size: 13px; font-weight: 600; }
+figure.fig { margin: 20px 0; background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px 10px; }
+figure.fig figcaption { font-size: 13px; color: var(--text-secondary); margin-top: 8px; line-height: 1.6; }
+figure.fig .ft { font-weight: 650; font-size: 15px; margin-bottom: 4px; }
+.viz { width: 100%; min-height: 120px; overflow: hidden; }
+.viz .vega-embed { width: 100%; }
+.viz-note { font-size: 13px; color: var(--text-muted); padding: 24px 4px; }
+.multiples .panel .t { margin-bottom: 2px; }
+details.tbl { margin-top: 8px; }
+details.tbl summary { cursor: pointer; font-size: 13px; color: var(--accent); padding: 4px 0; }
+.cap { font-weight: 650; font-size: 14px; margin: 18px 0 6px; }
+blockquote.q { margin: 14px 0; padding: 10px 16px; border-left: 3px solid var(--accent); background: var(--surface-1); border-radius: 0 10px 10px 0; }
+blockquote.q p { margin: 4px 0; }
+blockquote.q .en { font-size: 15px; }
+blockquote.q .meta { font-size: 12px; color: var(--text-muted); }
+.wrap { overflow-wrap: anywhere; }
+.table-scroll table { min-width: 0; }
+.table-scroll.wide table { min-width: 640px; }
+.vega-embed summary, .vega-embed details { display: none; }
+.vega-embed .vega-actions { display: none; }
+h1 { overflow-wrap: anywhere; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/vega@6"></script>
+<script src="https://cdn.jsdelivr.net/npm/vega-lite@6.4.1"></script>
+<script src="https://cdn.jsdelivr.net/npm/vega-embed@7"></script>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <div class="eyebrow">作成日 2026-10-03 ・ 対象 2026-10-02〜10-03 のラン（NOTES #57〜#59）</div>
+  <h1>oTree × MiroFish-Offline シミュレーション結果報告（第3報）— 複数 seed での再現・公共財ゲームのネットワーク条件・選択の開示と評判</h1>
+  <p class="sub">作成日: 2026-10-03 ／ 対象: 2026-10-02〜10-03 のラン（NOTES #57〜#59）／ 前回レポート: <a href="REPORT_2026-10.md">REPORT_2026-10.md</a>（第2報、2026-10-02、seed 0 の1ランずつ）</p>
+  <p class="sub">技術仕様は <a href="README.ja.md">README.ja.md</a>（<a href="README.md">English</a>）、観察ログは <a href="NOTES.md">NOTES.md</a>。グラフ付きの版は <a href="report_2026-10-03.html">report_2026-10-03.html</a>。数値はすべてアーカイブされたランの oTree 出力と <code>analyze_betrayal.py</code> の出力から計算し、<a href="results/results_replication.json">results/results_replication.json</a> に保存した。</p>
+  <nav class="toc"><a href="#summary">1. 概要</a><a href="#aim">2. 狙いと目的</a><a href="#approach">3. アプローチ（解析方法）</a><a href="#results">4. 結果</a><a href="#discussion">5. 考察</a><a href="#appendix">6. 付録</a></nav>
+</header>
+<section id="summary"><h2>1. 概要</h2>
+<p>第2報の条件（PD のトポロジ5条件とチャネル4条件）を seed 1・2 で繰り返し、各条件 3ランにした。公共財ゲーム（pgg）にネットワーク会話の4条件を加えた。さらに、会話した相手の実際の選択を後で知らせる「開示」と、悪い評判の相手と話しにくくする「評判」を二者関係（ダイアド）に組み込み、PD で各 3ラン、pgg で各 1ランを実行した。追加は計 30ラン（16体×10期、gemma4:26b 思考あり）で、決定の欠測は 0。</p>
+<h3>主な発見</h3>
+<ol><li><strong>同じ条件でも、ランごとのばらつきが大きい。</strong> 会話なしの対照どうしでも、全期平均の協力率は 0.38 / 0.53 / 0.61（seed 0 / 1 / 2）と 0.24 の幅がある。第1期の協力率と第6〜10期の協力率の順位相関は ρ=0.84（33ラン、p=6.7e-10）で、第1期の偶然の差がそのまま後まで残る。</li><li><strong>一般的な職場ペルソナでは、トポロジの差は再現しなかった。</strong> 第2報で目立った ER の高さ（全期平均 0.68）は seed 1 で 0.70 と再現したが、seed 2 では 0.59 で対照（0.61）を下回った。BA・WS・ring は対照との差の符号が seed で入れ替わる。</li><li><strong>チャネル付きペルソナでは、ネットワーク会話がある条件の協力率が、3 seed すべてで会話なしの対照を上回った。</strong> 対照との差は、相性なしが +0.33 / +0.39 / +0.10、相性あり＋記憶が +0.34 / +0.23 / +0.06。会話なしの対照は 3 seed とも最も低い（0.32 / 0.37 / 0.21）。</li><li><strong>選択を開示すると、第1期からの低下が大きくなった。</strong> 第2〜10期の平均と第1期の差は、開示ありで -0.32 / -0.29 / -0.24、比較対照（相性あり＋記憶）で -0.10 / -0.10 / -0.19。3 seed とも開示ありのほうが大きく下がった。全期平均は 0.45 ± 0.07（対照 0.51 ± 0.21）。</li><li><strong>評判による接触の重みづけは、効果が小さすぎて判定できない。</strong> 開示＋評判の全期平均は 0.44 / 0.65 / 0.99、低下は -0.06 / -0.25 / -0.01 で、2 seed では開示だけ（-0.32 / -0.29 / -0.24）より小さかった。しかし評判の重みが変えたのは、「悪い知らせのある相手」へ会話を始める期待割合の 0.093 → 0.074 だけである。しかも、第1期まで同じ条件の2つの条件で、第1期の協力率がすでに 0.69 対 0.50, 0.69 対 0.88, 0.75 対 1.00（開示 対 開示＋評判）と違っていた。評判の効果とは言えない。</li><li><strong>エージェントは宣言を守り、他人のうわさはしない。</strong> 「今期これを選ぶ」と言った宣言 833 件のうち 830 件が守られた（開示あり・評判ありの合計）。第三者の名前を出したメッセージは、全 1750 通のうち 0 通。情報は開示の仕組みを通してしか広がらなかった。</li><li><strong>公共財ゲームでは、拠出の開示が拠出を保った（1ラン）。</strong> 全期平均の拠出（満額 20）は、会話なし 6.4（第10期 0.0）、相性あり＋記憶 5.8、開示あり 12.9（第10期 10.0）、開示＋評判 7.4。会話なしは理論どおり 0 に収束した。</li></ol>
+</section>
+<section id="aim"><h2>2. 狙いと目的</h2>
+<p>研究の問いは第2報と同じで、<strong>ゲームの相手以外との言説が、相手との行動を変えるか</strong>である。相手と直接話す条件は、合意で行動が決まってしまうので使わない（<code>chat_turns=0</code>、NOTES #51）。PD では、会話の中で「裏切る」と言い出すことはほぼない（宣言はほぼ守られ、裏切りは宣言なしに起きる）。そのため裏切りは、会話の言葉ではなくゲームの記録（相手が協力し自分が裏切った＝exploit）から取り出す。</p>
+<p>今回の目的は3つ。</p>
+<ol><li><strong>再現性</strong>: 第2報の条件差（1条件1ラン）が、seed を変えても残るかを確かめる。</li><li><strong>ゲームの一般性</strong>: 公共財ゲームでも、ネットワーク会話が拠出の減衰を変えるかを見る。</li><li><strong>裏切りと評判</strong>: 会話した相手の実際の選択を知らせると、協力と会話相手の選び方が変わるか。さらに、悪い評判の相手と話しにくくすると協力が保たれるか。</li></ol>
+</section>
+<section id="approach"><h2>3. アプローチ（解析方法）</h2>
+<h3>3.1 システムの変更点（NOTES #57）</h3>
+<ul><li><strong>裏切りイベント</strong>（<code>app/services/betrayal.py</code>、純関数・LLM なし）: (1) 言葉: 会話の発言から「今期これを選ぶ」という宣言を規則で取り出し、同じ期の実際の選択と比べる（kept / broken）。(2) 行為: PD で相手が協力・自分が裏切り（exploit）。pgg は宣言額との比較。</li><li><strong>開示</strong>（<code>net_reveal_choices</code>）: <code>pair</code> では、その期に会話した相手ごとに「相手が選んだもの、相手のペアの相手が選んだもの」を、次の期の記憶に「What you were told after earlier rounds」として入れる（pgg は相手と相手の組の拠出額）。会話の冒頭で「この期の後、互いの選択が知らされる」と伝える。食い違い（言葉を破った、exploit した）は記憶の重み（salience=2）を上げる。</li><li><strong>評判</strong>（<code>net_reputation_word_weight</code> ρw、<code>net_reputation_choice_weight</code> ρc）: 接触の重みに exp(ρw(2W−1)+ρc(2B−1)) を掛ける。W は言葉を守った割合、B は開示された選択が協力だった割合（Beta 事後平均）。今回は ρw=ρc=2。</li><li><strong>解析</strong>（<code>scripts/experiment/analyze_betrayal.py</code>）: ログから全イベントを再計算し、オンラインで記録したイベントと一致することを確かめる（開示ありの全 8ランで一致）。開示のないランでも同じ「知らされたはずの事実」を計算できるので、対照はプラセボとして使える。</li><li><strong>seed</strong>: <code>MF_BRIDGE_SEED</code>（oTree の <code>bridge_seed</code>）でネットワーク・接触率・接触の抽選を決め、<code>MF_AGENT_IDS</code> で席順を固定した。LLM のサンプリングには seed を与えていない。</li></ul>
+<h3>3.2 実験デザイン</h3>
+<div class="cap">表 3-1　今回のラン</div><div class="table-scroll"><table><thead><tr><th class="">フェーズ</th><th class="">条件</th><th class="">seed</th><th class="num">ラン数</th></tr></thead><tbody><tr><td class="">(a) 再現</td><td class="">PD トポロジ 5条件（net_off / ba / er / ws / ring、職場ペルソナ）＋チャネル 4条件（ch_off / ba0 / ba / ba_mem）</td><td class="">1, 2（seed 0 は第2報）</td><td class="num">18</td></tr><tr><td class="">(b) 公共財</td><td class="">pgg_net_off_ch / ba_ch0 / ba_ch / ba_ch_mem（チャネル付きペルソナ、4人組、持ち点 20、倍率 1.6）</td><td class="">0</td><td class="num">4</td></tr><tr><td class="">(c) 開示と評判</td><td class="">pd_net_ba_ch_mem_rev（開示 pair）、pd_net_ba_ch_mem_rep（開示 pair＋評判 ρw=ρc=2）。比較対照は ch_ba_mem</td><td class="">0, 1, 2</td><td class="num">6</td></tr><tr><td class="">(c) 開示と評判（pgg）</td><td class="">pgg_net_ba_ch_mem_rev / _rep。比較対照は pgg_ba_ch_mem</td><td class="">0</td><td class="num">2</td></tr></tbody></table></div>
+<p>全条件 16体×10期、gemma4:26b（思考あり）、<code>chat_turns=0</code>、選択肢の提示順はエージェントごとにランダム。理解テストは全ランで満点、決定の欠測は 0。</p>
+<h3>3.3 指標</h3>
+<div class="cap">表 3-2　指標</div><div class="table-scroll"><table><thead><tr><th class="">指標</th><th class="">定義</th></tr></thead><tbody><tr><td class="">全期平均・第6〜10期の平均</td><td class="">協力率（PD）または平均拠出（pgg）の期平均</td></tr><tr><td class="">低下</td><td class="">第2〜10期の平均 − 第1期</td></tr><tr><td class="">対照との差</td><td class="">同じ seed の対照との差（seed ごとに対応をとる。接触の抽選が seed で共有されるため）</td></tr><tr><td class="">波及（spillover）</td><td class="">前期に協力した人が、会話相手について「悪い知らせ（exploit・言葉を破った・PD で裏切り）」を知らされた後に協力した割合</td></tr><tr><td class="">選択（selection）</td><td class="">前期に悪い知らせを知った相手に、次の期に自分から話しかけた割合。initiation_shares は、実際の割合と、基準の重み・評判の重みで抽選した場合の期待割合</td></tr><tr><td class="">宣言の遵守</td><td class="">宣言 1件ごとに、実際の選択が宣言どおりか</td></tr></tbody></table></div>
+<div class="callout"><strong>注意</strong>　<strong>検定について。</strong> 各条件 3ラン（pgg は 1ラン）で、第1期のばらつきが後まで残るため（ρ=0.84）、条件間の差は記述的に扱う。有意性検定はしていない。</div>
+</section>
+<section id="results"><h2>4. 結果</h2>
+<p>16体の実験では 1体 = 1/16 = 0.0625。表の値は 3 seed の全期平均と、その平均 ± 標準偏差。</p>
+<h3>4(a) 複数 seed での再現（PD）</h3>
+<div class="cap">表 A1　協力率（seed 0 / 1 / 2）</div><div class="table-scroll wide"><table><thead><tr><th class="">条件</th><th class="num">全期平均</th><th class="num">平均 ± SD</th><th class="num">第1期</th><th class="num">第10期</th></tr></thead><tbody><tr><td class="">対照（会話なし）</td><td class="num">0.38 / 0.53 / 0.61</td><td class="num">0.51 ± 0.12</td><td class="num">0.50 / 0.62 / 0.69</td><td class="num">0.31 / 0.38 / 0.44</td></tr><tr><td class="">BA</td><td class="num">0.37 / 0.53 / 0.76</td><td class="num">0.55 ± 0.20</td><td class="num">0.69 / 0.69 / 0.75</td><td class="num">0.31 / 0.44 / 0.69</td></tr><tr><td class="">ER</td><td class="num">0.68 / 0.70 / 0.59</td><td class="num">0.66 ± 0.06</td><td class="num">0.81 / 0.81 / 0.75</td><td class="num">0.56 / 0.62 / 0.44</td></tr><tr><td class="">WS</td><td class="num">0.53 / 0.42 / 0.68</td><td class="num">0.54 ± 0.13</td><td class="num">0.69 / 0.56 / 0.81</td><td class="num">0.50 / 0.38 / 0.50</td></tr><tr><td class="">ring</td><td class="num">0.41 / 0.44 / 0.66</td><td class="num">0.50 ± 0.13</td><td class="num">0.62 / 0.69 / 0.81</td><td class="num">0.31 / 0.25 / 0.56</td></tr><tr><td class="">チャネル対照（会話なし）</td><td class="num">0.32 / 0.37 / 0.21</td><td class="num">0.30 ± 0.08</td><td class="num">0.62 / 0.56 / 0.56</td><td class="num">0.19 / 0.31 / 0.06</td></tr><tr><td class="">チャネル BA・相性なし</td><td class="num">0.64 / 0.76 / 0.31</td><td class="num">0.57 ± 0.24</td><td class="num">0.81 / 0.81 / 0.56</td><td class="num">0.56 / 0.75 / 0.25</td></tr><tr><td class="">チャネル BA・相性あり</td><td class="num">0.57 / 0.23 / 0.52</td><td class="num">0.44 ± 0.18</td><td class="num">0.69 / 0.56 / 0.69</td><td class="num">0.44 / 0.12 / 0.38</td></tr><tr><td class="">チャネル BA・相性あり＋記憶</td><td class="num">0.66 / 0.60 / 0.26</td><td class="num">0.51 ± 0.21</td><td class="num">0.75 / 0.69 / 0.44</td><td class="num">0.62 / 0.56 / 0.12</td></tr></tbody></table></div>
+<div class="cap">表 A2　同じ seed の対照との差（全期平均）</div><div class="table-scroll"><table><thead><tr><th class="">条件</th><th class="">対照</th><th class="num">seed 0 / 1 / 2</th><th class="">向き</th></tr></thead><tbody><tr><td class="">BA</td><td class="">対照（会話なし）</td><td class="num">-0.01 / -0.01 / +0.15</td><td class="">1/3 で正</td></tr><tr><td class="">ER</td><td class="">対照（会話なし）</td><td class="num">+0.31 / +0.17 / -0.03</td><td class="">2/3 で正</td></tr><tr><td class="">WS</td><td class="">対照（会話なし）</td><td class="num">+0.16 / -0.11 / +0.06</td><td class="">2/3 で正</td></tr><tr><td class="">ring</td><td class="">対照（会話なし）</td><td class="num">+0.04 / -0.09 / +0.04</td><td class="">2/3 で正</td></tr><tr><td class="">チャネル BA・相性なし</td><td class="">チャネル対照（会話なし）</td><td class="num">+0.33 / +0.39 / +0.10</td><td class="">3/3 で正</td></tr><tr><td class="">チャネル BA・相性あり</td><td class="">チャネル対照（会話なし）</td><td class="num">+0.26 / -0.14 / +0.31</td><td class="">2/3 で正</td></tr><tr><td class="">チャネル BA・相性あり＋記憶</td><td class="">チャネル対照（会話なし）</td><td class="num">+0.34 / +0.23 / +0.06</td><td class="">3/3 で正</td></tr></tbody></table></div>
+<figure class="fig" id="fig-a1"><div class="ft">図 A1　協力率の推移（職場ペルソナ、トポロジ、seed ごと）</div><div class="multiples" id="viz-a1"></div><noscript><p class="viz-note">グラフには JavaScript が必要です。下の数値表を見てください。</p></noscript><figcaption>3つのパネルは seed 0 / 1 / 2。対照（グレー破線）は会話なし。seed 0 で目立った ER の高さは seed 2 で消える。</figcaption><details class="tbl"><summary>数値表</summary><div class="table-scroll wide"><table><thead><tr><th class="">系列</th><th class="num">1</th><th class="num">2</th><th class="num">3</th><th class="num">4</th><th class="num">5</th><th class="num">6</th><th class="num">7</th><th class="num">8</th><th class="num">9</th><th class="num">10</th></tr></thead><tbody><tr><td class="">seed 0：対照</td><td class="num">0.50</td><td class="num">0.31</td><td class="num">0.38</td><td class="num">0.38</td><td class="num">0.38</td><td class="num">0.38</td><td class="num">0.38</td><td class="num">0.38</td><td class="num">0.38</td><td class="num">0.31</td></tr><tr><td class="">seed 0：BA</td><td class="num">0.69</td><td class="num">0.38</td><td class="num">0.38</td><td class="num">0.38</td><td class="num">0.31</td><td class="num">0.31</td><td class="num">0.31</td><td class="num">0.31</td><td class="num">0.31</td><td class="num">0.31</td></tr><tr><td class="">seed 0：ER</td><td class="num">0.81</td><td class="num">0.81</td><td class="num">0.69</td><td class="num">0.62</td><td class="num">0.62</td><td class="num">0.69</td><td class="num">0.69</td><td class="num">0.69</td><td class="num">0.62</td><td class="num">0.56</td></tr><tr><td class="">seed 0：WS</td><td class="num">0.69</td><td class="num">0.56</td><td class="num">0.56</td><td class="num">0.50</td><td class="num">0.50</td><td class="num">0.50</td><td class="num">0.50</td><td class="num">0.50</td><td class="num">0.50</td><td class="num">0.50</td></tr><tr><td class="">seed 0：ring</td><td class="num">0.62</td><td class="num">0.44</td><td class="num">0.38</td><td class="num">0.38</td><td class="num">0.44</td><td class="num">0.44</td><td class="num">0.38</td><td class="num">0.38</td><td class="num">0.38</td><td class="num">0.31</td></tr><tr><td class="">seed 1：対照</td><td class="num">0.62</td><td class="num">0.56</td><td class="num">0.69</td><td class="num">0.56</td><td class="num">0.50</td><td class="num">0.50</td><td class="num">0.50</td><td class="num">0.50</td><td class="num">0.50</td><td class="num">0.38</td></tr><tr><td class="">seed 1：BA</td><td class="num">0.69</td><td class="num">0.62</td><td class="num">0.50</td><td class="num">0.50</td><td class="num">0.50</td><td class="num">0.50</td><td class="num">0.50</td><td class="num">0.50</td><td class="num">0.50</td><td class="num">0.44</td></tr><tr><td class="">seed 1：ER</td><td class="num">0.81</td><td class="num">0.75</td><td class="num">0.69</td><td class="num">0.75</td><td class="num">0.69</td><td class="num">0.69</td><td class="num">0.69</td><td class="num">0.69</td><td class="num">0.62</td><td class="num">0.62</td></tr><tr><td class="">seed 1：WS</td><td class="num">0.56</td><td class="num">0.56</td><td class="num">0.44</td><td class="num">0.44</td><td class="num">0.38</td><td class="num">0.38</td><td class="num">0.38</td><td class="num">0.38</td><td class="num">0.38</td><td class="num">0.38</td></tr><tr><td class="">seed 1：ring</td><td class="num">0.69</td><td class="num">0.44</td><td class="num">0.62</td><td class="num">0.44</td><td class="num">0.38</td><td class="num">0.44</td><td class="num">0.44</td><td class="num">0.38</td><td class="num">0.38</td><td class="num">0.25</td></tr><tr><td class="">seed 2：対照</td><td class="num">0.69</td><td class="num">0.62</td><td class="num">0.62</td><td class="num">0.56</td><td class="num">0.69</td><td class="num">0.62</td><td class="num">0.62</td><td class="num">0.62</td><td class="num">0.62</td><td class="num">0.44</td></tr><tr><td class="">seed 2：BA</td><td class="num">0.75</td><td class="num">0.81</td><td class="num">0.88</td><td class="num">0.75</td><td class="num">0.75</td><td class="num">0.75</td><td class="num">0.75</td><td class="num">0.75</td><td class="num">0.75</td><td class="num">0.69</td></tr><tr><td class="">seed 2：ER</td><td class="num">0.75</td><td class="num">0.69</td><td class="num">0.69</td><td class="num">0.56</td><td class="num">0.62</td><td class="num">0.56</td><td class="num">0.56</td><td class="num">0.50</td><td class="num">0.50</td><td class="num">0.44</td></tr><tr><td class="">seed 2：WS</td><td class="num">0.81</td><td class="num">0.75</td><td class="num">0.75</td><td class="num">0.75</td><td class="num">0.62</td><td class="num">0.69</td><td class="num">0.62</td><td class="num">0.62</td><td class="num">0.62</td><td class="num">0.50</td></tr><tr><td class="">seed 2：ring</td><td class="num">0.81</td><td class="num">0.75</td><td class="num">0.62</td><td class="num">0.62</td><td class="num">0.69</td><td class="num">0.62</td><td class="num">0.62</td><td class="num">0.62</td><td class="num">0.62</td><td class="num">0.56</td></tr></tbody></table></div></details></figure>
+<figure class="fig" id="fig-a2"><div class="ft">図 A2　協力率の推移（チャネル付きペルソナ、seed ごと）</div><div class="multiples" id="viz-a2"></div><noscript><p class="viz-note">グラフには JavaScript が必要です。下の数値表を見てください。</p></noscript><figcaption>会話なしの対照（グレー破線）は、全期平均では 3 seed とも最も低い。会話あり3条件の順位は seed で入れ替わる（seed 1 の相性ありは第5期以降 0.12 で対照より低い）。</figcaption><details class="tbl"><summary>数値表</summary><div class="table-scroll wide"><table><thead><tr><th class="">系列</th><th class="num">1</th><th class="num">2</th><th class="num">3</th><th class="num">4</th><th class="num">5</th><th class="num">6</th><th class="num">7</th><th class="num">8</th><th class="num">9</th><th class="num">10</th></tr></thead><tbody><tr><td class="">seed 0：対照</td><td class="num">0.62</td><td class="num">0.44</td><td class="num">0.31</td><td class="num">0.31</td><td class="num">0.25</td><td class="num">0.25</td><td class="num">0.31</td><td class="num">0.25</td><td class="num">0.25</td><td class="num">0.19</td></tr><tr><td class="">seed 0：相性なし</td><td class="num">0.81</td><td class="num">0.62</td><td class="num">0.69</td><td class="num">0.62</td><td class="num">0.62</td><td class="num">0.62</td><td class="num">0.62</td><td class="num">0.62</td><td class="num">0.62</td><td class="num">0.56</td></tr><tr><td class="">seed 0：相性あり</td><td class="num">0.69</td><td class="num">0.62</td><td class="num">0.56</td><td class="num">0.62</td><td class="num">0.56</td><td class="num">0.56</td><td class="num">0.56</td><td class="num">0.56</td><td class="num">0.56</td><td class="num">0.44</td></tr><tr><td class="">seed 0：相性あり＋記憶</td><td class="num">0.75</td><td class="num">0.69</td><td class="num">0.75</td><td class="num">0.62</td><td class="num">0.62</td><td class="num">0.62</td><td class="num">0.62</td><td class="num">0.62</td><td class="num">0.62</td><td class="num">0.62</td></tr><tr><td class="">seed 1：対照</td><td class="num">0.56</td><td class="num">0.38</td><td class="num">0.44</td><td class="num">0.44</td><td class="num">0.31</td><td class="num">0.38</td><td class="num">0.31</td><td class="num">0.25</td><td class="num">0.31</td><td class="num">0.31</td></tr><tr><td class="">seed 1：相性なし</td><td class="num">0.81</td><td class="num">0.69</td><td class="num">0.81</td><td class="num">0.75</td><td class="num">0.75</td><td class="num">0.75</td><td class="num">0.81</td><td class="num">0.75</td><td class="num">0.75</td><td class="num">0.75</td></tr><tr><td class="">seed 1：相性あり</td><td class="num">0.56</td><td class="num">0.44</td><td class="num">0.25</td><td class="num">0.31</td><td class="num">0.12</td><td class="num">0.12</td><td class="num">0.12</td><td class="num">0.12</td><td class="num">0.12</td><td class="num">0.12</td></tr><tr><td class="">seed 1：相性あり＋記憶</td><td class="num">0.69</td><td class="num">0.62</td><td class="num">0.62</td><td class="num">0.62</td><td class="num">0.62</td><td class="num">0.56</td><td class="num">0.56</td><td class="num">0.56</td><td class="num">0.56</td><td class="num">0.56</td></tr><tr><td class="">seed 2：対照</td><td class="num">0.56</td><td class="num">0.19</td><td class="num">0.25</td><td class="num">0.19</td><td class="num">0.12</td><td class="num">0.19</td><td class="num">0.19</td><td class="num">0.12</td><td class="num">0.19</td><td class="num">0.06</td></tr><tr><td class="">seed 2：相性なし</td><td class="num">0.56</td><td class="num">0.31</td><td class="num">0.25</td><td class="num">0.31</td><td class="num">0.25</td><td class="num">0.25</td><td class="num">0.25</td><td class="num">0.25</td><td class="num">0.38</td><td class="num">0.25</td></tr><tr><td class="">seed 2：相性あり</td><td class="num">0.69</td><td class="num">0.44</td><td class="num">0.56</td><td class="num">0.56</td><td class="num">0.62</td><td class="num">0.50</td><td class="num">0.50</td><td class="num">0.50</td><td class="num">0.44</td><td class="num">0.38</td></tr><tr><td class="">seed 2：相性あり＋記憶</td><td class="num">0.44</td><td class="num">0.50</td><td class="num">0.31</td><td class="num">0.19</td><td class="num">0.19</td><td class="num">0.19</td><td class="num">0.25</td><td class="num">0.25</td><td class="num">0.19</td><td class="num">0.12</td></tr></tbody></table></div></details></figure>
+<p><strong>読み取り。</strong> 一般的な職場ペルソナでは、会話なしの対照どうしの幅（0.38〜0.61）が、トポロジ間の差と同じくらい大きい。第2報の「ER と WS で協力が残り、BA と ring は対照並み」という見え方は、seed 0 の1ランに限った結果だった。ER の 3 seed 平均（0.66）は最も高く、標準偏差（0.06）も最も小さいが、seed 2 では対照を下回る。</p>
+<p>チャネル付きペルソナでは、会話なしの対照の協力率が 3 seed とも低い（全期平均 0.32 / 0.37 / 0.21、第10期 0.19 / 0.31 / 0.06）。相性なしと相性あり＋記憶は 3 seed とも対照を上回った（相性ありは seed 1 で下回った）。ただし両条件とも、seed 2 では差が小さい（0.10、0.06）。「相性ありは相性なしより協力的」という第2報の見え方は再現しなかった（相性ありの seed 1 は 0.23）。</p>
+<figure class="fig" id="fig-a3"><div class="ft">図 A3　第1期の協力率と第6〜10期の協力率（全 33ラン）</div><div class="viz" id="viz-a3"></div><noscript><p class="viz-note">グラフには JavaScript が必要です。下の数値表を見てください。</p></noscript><figcaption>1点が1ラン（PD 11条件 × 3 seed）。第1期が高いランほど後半も高い（Spearman ρ=0.84、p=6.7e-10）。条件の効果を見るには、第1期のばらつきを均すだけの反復が要る。</figcaption><details class="tbl"><summary>数値表</summary><div class="table-scroll wide"><table><thead><tr><th class="">ラン</th><th class="num">第1期</th><th class="num">第6〜10期</th></tr></thead><tbody><tr><td class="">対照（会話なし） seed 0</td><td class="num">0.50</td><td class="num">0.36</td></tr><tr><td class="">対照（会話なし） seed 1</td><td class="num">0.62</td><td class="num">0.47</td></tr><tr><td class="">対照（会話なし） seed 2</td><td class="num">0.69</td><td class="num">0.59</td></tr><tr><td class="">BA seed 0</td><td class="num">0.69</td><td class="num">0.31</td></tr><tr><td class="">BA seed 1</td><td class="num">0.69</td><td class="num">0.49</td></tr><tr><td class="">BA seed 2</td><td class="num">0.75</td><td class="num">0.74</td></tr><tr><td class="">ER seed 0</td><td class="num">0.81</td><td class="num">0.65</td></tr><tr><td class="">ER seed 1</td><td class="num">0.81</td><td class="num">0.66</td></tr><tr><td class="">ER seed 2</td><td class="num">0.75</td><td class="num">0.51</td></tr><tr><td class="">WS seed 0</td><td class="num">0.69</td><td class="num">0.50</td></tr><tr><td class="">WS seed 1</td><td class="num">0.56</td><td class="num">0.38</td></tr><tr><td class="">WS seed 2</td><td class="num">0.81</td><td class="num">0.61</td></tr><tr><td class="">ring seed 0</td><td class="num">0.62</td><td class="num">0.38</td></tr><tr><td class="">ring seed 1</td><td class="num">0.69</td><td class="num">0.38</td></tr><tr><td class="">ring seed 2</td><td class="num">0.81</td><td class="num">0.61</td></tr><tr><td class="">チャネル対照（会話なし） seed 0</td><td class="num">0.62</td><td class="num">0.25</td></tr><tr><td class="">チャネル対照（会話なし） seed 1</td><td class="num">0.56</td><td class="num">0.31</td></tr><tr><td class="">チャネル対照（会話なし） seed 2</td><td class="num">0.56</td><td class="num">0.15</td></tr><tr><td class="">チャネル BA・相性なし seed 0</td><td class="num">0.81</td><td class="num">0.61</td></tr><tr><td class="">チャネル BA・相性なし seed 1</td><td class="num">0.81</td><td class="num">0.76</td></tr><tr><td class="">チャネル BA・相性なし seed 2</td><td class="num">0.56</td><td class="num">0.28</td></tr><tr><td class="">チャネル BA・相性あり seed 0</td><td class="num">0.69</td><td class="num">0.54</td></tr><tr><td class="">チャネル BA・相性あり seed 1</td><td class="num">0.56</td><td class="num">0.12</td></tr><tr><td class="">チャネル BA・相性あり seed 2</td><td class="num">0.69</td><td class="num">0.46</td></tr><tr><td class="">チャネル BA・相性あり＋記憶 seed 0</td><td class="num">0.75</td><td class="num">0.62</td></tr><tr><td class="">チャネル BA・相性あり＋記憶 seed 1</td><td class="num">0.69</td><td class="num">0.56</td></tr><tr><td class="">チャネル BA・相性あり＋記憶 seed 2</td><td class="num">0.44</td><td class="num">0.20</td></tr><tr><td class="">＋選択の開示 seed 0</td><td class="num">0.69</td><td class="num">0.36</td></tr><tr><td class="">＋選択の開示 seed 1</td><td class="num">0.69</td><td class="num">0.38</td></tr><tr><td class="">＋選択の開示 seed 2</td><td class="num">0.75</td><td class="num">0.46</td></tr><tr><td class="">＋選択の開示＋評判 seed 0</td><td class="num">0.50</td><td class="num">0.42</td></tr><tr><td class="">＋選択の開示＋評判 seed 1</td><td class="num">0.88</td><td class="num">0.59</td></tr><tr><td class="">＋選択の開示＋評判 seed 2</td><td class="num">1.00</td><td class="num">0.97</td></tr></tbody></table></div></details></figure>
+<h3>4(b) 公共財ゲームのネットワーク条件（seed 0、1ラン）</h3>
+<div class="cap">表 B1　平均拠出（満額 20、4人組・倍率 1.6、チャネル付きペルソナ）</div><div class="table-scroll"><table><thead><tr><th class="">条件</th><th class="num">第1期</th><th class="num">第10期</th><th class="num">全期平均</th><th class="num">拠出 0 の割合</th></tr></thead><tbody><tr><td class="">会話なし</td><td class="num">16.2</td><td class="num">0.0</td><td class="num">6.4</td><td class="num">0.644</td></tr><tr><td class="">BA・相性なし</td><td class="num">12.5</td><td class="num">5.6</td><td class="num">7.7</td><td class="num">0.500</td></tr><tr><td class="">BA・相性あり</td><td class="num">12.8</td><td class="num">6.2</td><td class="num">8.8</td><td class="num">0.481</td></tr><tr><td class="">BA・相性あり＋記憶</td><td class="num">12.8</td><td class="num">3.8</td><td class="num">5.8</td><td class="num">0.537</td></tr><tr><td class="">＋拠出の開示</td><td class="num">16.9</td><td class="num">10.0</td><td class="num">12.9</td><td class="num">0.244</td></tr><tr><td class="">＋拠出の開示＋評判</td><td class="num">13.1</td><td class="num">5.0</td><td class="num">7.4</td><td class="num">0.500</td></tr></tbody></table></div>
+<figure class="fig" id="fig-b1"><div class="ft">図 B1　平均拠出の推移（pgg、seed 0）</div><div class="viz" id="viz-b1"></div><noscript><p class="viz-note">グラフには JavaScript が必要です。下の数値表を見てください。</p></noscript><figcaption>会話なし（グレー破線）は 16.2 から 0 まで下がる（ナッシュ均衡）。会話のある条件は第1期が低いが、0 まで崩れない。拠出の開示は全期を通じて最も高い。各1ラン。</figcaption><details class="tbl"><summary>数値表</summary><div class="table-scroll wide"><table><thead><tr><th class="">系列</th><th class="num">1</th><th class="num">2</th><th class="num">3</th><th class="num">4</th><th class="num">5</th><th class="num">6</th><th class="num">7</th><th class="num">8</th><th class="num">9</th><th class="num">10</th></tr></thead><tbody><tr><td class="">会話なし</td><td class="num">16.25</td><td class="num">16.25</td><td class="num">13.12</td><td class="num">8.12</td><td class="num">4.38</td><td class="num">3.12</td><td class="num">1.25</td><td class="num">1.25</td><td class="num">0.00</td><td class="num">0.00</td></tr><tr><td class="">相性なし</td><td class="num">12.50</td><td class="num">10.31</td><td class="num">7.19</td><td class="num">6.88</td><td class="num">6.88</td><td class="num">6.88</td><td class="num">6.88</td><td class="num">6.88</td><td class="num">6.88</td><td class="num">5.62</td></tr><tr><td class="">相性あり</td><td class="num">12.81</td><td class="num">9.38</td><td class="num">11.25</td><td class="num">9.69</td><td class="num">8.75</td><td class="num">7.81</td><td class="num">8.12</td><td class="num">7.19</td><td class="num">6.25</td><td class="num">6.25</td></tr><tr><td class="">相性あり＋記憶</td><td class="num">12.81</td><td class="num">8.44</td><td class="num">6.25</td><td class="num">4.69</td><td class="num">4.38</td><td class="num">4.38</td><td class="num">4.38</td><td class="num">4.38</td><td class="num">4.38</td><td class="num">3.75</td></tr><tr><td class="">＋開示</td><td class="num">16.88</td><td class="num">14.38</td><td class="num">12.50</td><td class="num">12.50</td><td class="num">12.50</td><td class="num">12.50</td><td class="num">12.50</td><td class="num">12.50</td><td class="num">12.50</td><td class="num">10.00</td></tr><tr><td class="">＋開示＋評判</td><td class="num">13.12</td><td class="num">9.69</td><td class="num">8.12</td><td class="num">7.94</td><td class="num">7.81</td><td class="num">7.19</td><td class="num">5.31</td><td class="num">5.00</td><td class="num">5.00</td><td class="num">5.00</td></tr></tbody></table></div></details></figure>
+<p><strong>読み取り。</strong> 会話なしの条件は、拠出が第1期の 16.2 から単調に下がり、第9・10期は 0 になった。ゲーム理論の予測（拠出 0）と、人間の実験でよく見られる減衰の両方に沿う。ネットワーク会話があると、第1期の拠出はむしろ低い（12.5〜12.8）。一方で、第10期は 3.8〜6.2 に残った。拠出を開示した条件は第1期 16.9、第10期 10.0 で、全期平均 12.9 は他のどの条件よりも高い。1ランずつなので、この順位は確定しない。</p>
+<h3>4(c) 選択の開示と評判（PD、seed 0 / 1 / 2）</h3>
+<div class="cap">表 C1　協力率（チャネル付きペルソナ、BA、相性あり＋記憶を基準）</div><div class="table-scroll wide"><table><thead><tr><th class="">条件</th><th class="num">全期平均</th><th class="num">平均 ± SD</th><th class="num">第1期</th><th class="num">低下（第2〜10期 − 第1期）</th><th class="num">第10期</th></tr></thead><tbody><tr><td class="">相性あり＋記憶</td><td class="num">0.66 / 0.60 / 0.26</td><td class="num">0.51 ± 0.21</td><td class="num">0.75 / 0.69 / 0.44</td><td class="num">-0.10 / -0.10 / -0.19</td><td class="num">0.62 / 0.56 / 0.12</td></tr><tr><td class="">＋選択の開示</td><td class="num">0.40 / 0.42 / 0.53</td><td class="num">0.45 ± 0.07</td><td class="num">0.69 / 0.69 / 0.75</td><td class="num">-0.32 / -0.29 / -0.24</td><td class="num">0.31 / 0.38 / 0.38</td></tr><tr><td class="">＋選択の開示＋評判</td><td class="num">0.44 / 0.65 / 0.99</td><td class="num">0.69 ± 0.27</td><td class="num">0.50 / 0.88 / 1.00</td><td class="num">-0.06 / -0.25 / -0.01</td><td class="num">0.38 / 0.50 / 0.88</td></tr></tbody></table></div>
+<figure class="fig" id="fig-c1"><div class="ft">図 C1　協力率の推移（対照・開示・開示＋評判、seed ごと）</div><div class="multiples" id="viz-c1"></div><noscript><p class="viz-note">グラフには JavaScript が必要です。下の数値表を見てください。</p></noscript><figcaption>開示あり（青）は 3 seed とも第1期から大きく下がる。開示＋評判（橙）は seed 2 で全期ほぼ 1.00、seed 0 では第1期から 0.50。</figcaption><details class="tbl"><summary>数値表</summary><div class="table-scroll wide"><table><thead><tr><th class="">系列</th><th class="num">1</th><th class="num">2</th><th class="num">3</th><th class="num">4</th><th class="num">5</th><th class="num">6</th><th class="num">7</th><th class="num">8</th><th class="num">9</th><th class="num">10</th></tr></thead><tbody><tr><td class="">seed 0：相性あり＋記憶（対照）</td><td class="num">0.75</td><td class="num">0.69</td><td class="num">0.75</td><td class="num">0.62</td><td class="num">0.62</td><td class="num">0.62</td><td class="num">0.62</td><td class="num">0.62</td><td class="num">0.62</td><td class="num">0.62</td></tr><tr><td class="">seed 0：＋開示</td><td class="num">0.69</td><td class="num">0.38</td><td class="num">0.38</td><td class="num">0.38</td><td class="num">0.38</td><td class="num">0.38</td><td class="num">0.38</td><td class="num">0.38</td><td class="num">0.38</td><td class="num">0.31</td></tr><tr><td class="">seed 0：＋開示＋評判</td><td class="num">0.50</td><td class="num">0.50</td><td class="num">0.44</td><td class="num">0.44</td><td class="num">0.44</td><td class="num">0.44</td><td class="num">0.44</td><td class="num">0.44</td><td class="num">0.44</td><td class="num">0.38</td></tr><tr><td class="">seed 1：相性あり＋記憶（対照）</td><td class="num">0.69</td><td class="num">0.62</td><td class="num">0.62</td><td class="num">0.62</td><td class="num">0.62</td><td class="num">0.56</td><td class="num">0.56</td><td class="num">0.56</td><td class="num">0.56</td><td class="num">0.56</td></tr><tr><td class="">seed 1：＋開示</td><td class="num">0.69</td><td class="num">0.44</td><td class="num">0.50</td><td class="num">0.38</td><td class="num">0.38</td><td class="num">0.38</td><td class="num">0.38</td><td class="num">0.38</td><td class="num">0.38</td><td class="num">0.38</td></tr><tr><td class="">seed 1：＋開示＋評判</td><td class="num">0.88</td><td class="num">0.75</td><td class="num">0.62</td><td class="num">0.69</td><td class="num">0.62</td><td class="num">0.62</td><td class="num">0.62</td><td class="num">0.62</td><td class="num">0.56</td><td class="num">0.50</td></tr><tr><td class="">seed 2：相性あり＋記憶（対照）</td><td class="num">0.44</td><td class="num">0.50</td><td class="num">0.31</td><td class="num">0.19</td><td class="num">0.19</td><td class="num">0.19</td><td class="num">0.25</td><td class="num">0.25</td><td class="num">0.19</td><td class="num">0.12</td></tr><tr><td class="">seed 2：＋開示</td><td class="num">0.75</td><td class="num">0.62</td><td class="num">0.56</td><td class="num">0.50</td><td class="num">0.56</td><td class="num">0.50</td><td class="num">0.50</td><td class="num">0.50</td><td class="num">0.44</td><td class="num">0.38</td></tr><tr><td class="">seed 2：＋開示＋評判</td><td class="num">1.00</td><td class="num">1.00</td><td class="num">1.00</td><td class="num">1.00</td><td class="num">1.00</td><td class="num">1.00</td><td class="num">1.00</td><td class="num">1.00</td><td class="num">1.00</td><td class="num">0.88</td></tr></tbody></table></div></details></figure>
+<p><strong>開示は低下を早めた。</strong> 開示ありでは、3 seed とも第1期からの低下が対照より大きい（-0.32 / -0.29 / -0.24 対 -0.10 / -0.10 / -0.19）。開示ありの第1期は 0.69 / 0.69 / 0.75 で対照（0.75 / 0.69 / 0.44）と大差ない。差が出たのは、互いの選択が知らされた第2期以降である。全期平均は 3 seed で 0.40 / 0.42 / 0.53 とそろっており、ばらつき（SD 0.07）は対照（0.21）より小さい。</p>
+<p><strong>悪い知らせの波及。</strong> 前期に協力した人が、会話相手について悪い知らせ（相手やそのペアの相手の裏切り）を知らされた後に協力した割合は 0.50（n=8）。良い知らせの後は 0.95（n=110）だった。開示のない対照で、同じ事実が「知らされたはず」だった場面（プラセボ）では 0.95（n=20）。向きは「悪い知らせが協力を下げる」だが、n が小さい。</p>
+<p><strong>評判の重みは、接触をほとんど変えなかった。</strong> 開示＋評判の条件で、悪い知らせのある近隣へ会話を始めた割合は 0.092（249 回の開始）だった。基準の重みでの期待は 0.093、評判の重みでの期待は 0.074 で、重みの効果自体が小さい。悪い評判が付く相手が少なく、ρ=2 でも Beta の事後平均が 0.5 からあまり離れないためである。開示＋評判は、seed 0 と 2 で開示だけより低下が小さかった（-0.06 / -0.25 / -0.01 対 -0.32 / -0.29 / -0.24）。ただし、接触の違いがこれだけ小さいので、評判の効果とは考えにくい。第1期以降は会話の抽選が分岐するため、2条件の違いはランごとの偶然を含む。開示と評判の2条件は第1期まで同じ文面・同じ接触なのに、第1期の協力率は 0.69 対 0.50, 0.69 対 0.88, 0.75 対 1.00 と違っていた。</p>
+<div class="cap">表 C2　宣言・exploit・波及（3 seed 合算）</div><div class="table-scroll wide"><table><thead><tr><th class="">条件</th><th class="num">宣言の遵守</th><th class="num">exploit（seed 0 / 1 / 2）</th><th class="num">悪い知らせの後の協力</th><th class="num">良い知らせの後の協力</th></tr></thead><tbody><tr><td class="">相性あり＋記憶（対照）</td><td class="num">411/411（1.000）</td><td class="num">5 / 20 / 18</td><td class="num">0.95（n=20）</td><td class="num">0.94（n=119）</td></tr><tr><td class="">＋開示</td><td class="num">413/415（0.995）</td><td class="num">6 / 8 / 11</td><td class="num">0.50（n=8）</td><td class="num">0.95（n=110）</td></tr><tr><td class="">＋開示＋評判</td><td class="num">417/418（0.998）</td><td class="num">11 / 6 / 2</td><td class="num">1.00（n=12）</td><td class="num">0.98（n=178）</td></tr></tbody></table></div>
+<p><strong>うわさは出なかった。</strong> 9ランの PD と 3ランの pgg の会話 1750 通のうち、第三者の名前を出したものは 0 通だった。開示された事実は、本人の記憶にはとどまったが、会話で他の人へは伝わらなかった。宣言はほぼすべて守られ、裏切り（exploit）は宣言なしに起きた。</p>
+<blockquote class="q"><p class="en" lang="en">In round 1, my partner chose ◇, and in round 2, they chose □. I intend to select □ in round 3, as it remains the mathematically dominant strategy for maximizing my payoff.</p><p class="sub">訳: 「第1期、相手は ◇ を選び、第2期は □ を選んだ。第3期は □ にするつもりだ。自分の点数を最大にするには、それが数学的に支配的な戦略だから。」</p><p class="meta">s1_rev、第3期、エージェント 8 → 11。自分の相手の行動を会話相手に報告し、裏切りに転じると宣言している（□ がこのランの裏切りの記号）</p></blockquote>
+<blockquote class="q"><p class="en" lang="en">After round 1, Elena V. (Operations) chose ○; Elena V. (Operations)&#x27;s partner chose ○.</p><p class="sub">訳: 「第1期の後、Elena V.（Operations）は ○ を選び、Elena V. の相手も ○ を選んだ。」</p><p class="meta">s1_rep、第3期の会話プロンプトの記憶ブロック「What you were told after earlier rounds」の1行</p></blockquote>
+<h3>4(d) 公共財ゲームの開示と評判（seed 0）</h3>
+<p>拠出の開示は、pgg では PD と逆向きに見えた。開示ありの全期平均は 12.9、第3〜9期は 12.5 で横ばいだった。対照（相性あり＋記憶）は 5.8、開示＋評判は 7.4 である。PD で知らされるのは協力か裏切りかの二択で、裏切りがはっきり見える。pgg では他者の拠出額が知らされ、少しでも拠出している人がいることが見える。この違いが向きの差になった可能性はあるが、確かめてはいない。ただし 1ランずつである。</p>
+</section>
+<section id="discussion"><h2>5. 考察</h2>
+<h3>5.1 1ランでは条件の比較はできない</h3>
+<p>LLM のサンプリングに seed を与えていないので、同じ設定でも第1期の協力率が 0.19〜0.25 ずれる（第1期まで同じ条件の、開示と評判の比較）。そのずれが10期まで残る（ρ=0.84）。第2報の条件差の多く（ER の優位、相性ありの高さ）は、この幅に収まった。今後の比較は、第1期を共変量にするか、第2期以降の変化（低下）で行う。そのうえで、条件あたり 5 seed 以上をとるのがよい。</p>
+<h3>5.2 会話の効果はペルソナの集合で違う</h3>
+<p>チャネル付きペルソナでは、会話なしの対照が 3 seed とも低く、会話があると一貫して高くなった。一般的な職場ペルソナでは、会話の有無やトポロジによる差が seed のばらつきに埋もれた。ペルソナの文面（チャネルへの関心の段落）がベースラインを下げ、会話が入る余地を広げたのかもしれない。ペルソナの集合は処置の一部として扱う（第2報 §5.2 と同じ）。</p>
+<h3>5.3 開示は「現実」を見せ、協力を下げる</h3>
+<p>PD で相手の実際の選択を知らせると、協力は早く下がった。会話の中での宣言はほぼ守られるため、会話だけでは裏切りが見えにくい。そのため協力的な雰囲気が保たれる。開示で裏切りが可視化されると、協力者も裏切りに転じた（悪い知らせの後の協力 0.50）。人間の実験で知られる「他人の裏切りを知ると協力が崩れる」と同じ向きである。pgg で拠出の開示が拠出を保ったのは、人間の公共財実験で知られる「他者の拠出の観察が条件付き協力を支える」と同じ向きである。いずれも記述的な観察にとどまる。</p>
+<h3>5.4 評判の仕組みは弱すぎた</h3>
+<p>評判で接触を変える仕組みは動いた（オンラインとオフラインの再計算が一致し、期待割合が 0.093 → 0.074 に下がった）。ただし効果量が小さく、協力への影響は第1期のばらつきに埋もれた。次の段階では、ρ を大きくする（例: 4〜6）。あるいは、評判をエージェントに見せる（「この人は以前裏切った」と記憶に入れる）経路を加える。エージェントは自分ではうわさを広めない（第三者への言及 0 通）。したがって「評判が広がる」効果を見るには、仕組みとして伝える必要がある。</p>
+<h3>5.5 妥当性への脅威</h3>
+<ul><li>seed は3つ（pgg は1つ）で、検出力が低い。</li><li>開示と評判の比較対照（相性あり＋記憶）は、別の日の別のランである（同じ seed・同じ席順・同じネットワーク）。</li><li>開示は会話の冒頭でも予告される（「この期の後、互いの選択が知らされる」）。第1期の差の一部は予告の効果かもしれない。開示の2条件の第1期どうしの差（ランダム）と比べて区別するには、ランが足りない。</li><li>うわさの検出は、名前の一致による規則ベースで、言い換えは拾わない。</li></ul>
+<h3>5.6 次にやること</h3>
+<ol><li>条件を絞り（会話なし、相性なし、相性あり＋記憶、＋開示）、各 5〜8 seed で反復する。</li><li>第1期を共変量にした比較（または第2期以降の低下）を、事前に主要指標として決めておく。</li><li>評判を強める（ρ を大きくする、評判を記憶に入れる）条件を作る。</li><li>pgg の開示を複数 seed で確かめる。</li></ol>
+</section>
+<section id="appendix"><h2>6. 付録</h2>
+<h3>A. ラン一覧（今回の 30ラン）</h3>
+<div class="cap">表 6-1　ラン一覧</div><div class="table-scroll"><table><thead><tr><th class="">ラン ID（アーカイブ名）</th><th class="">oTree の設定</th><th class="num">seed</th></tr></thead><tbody><tr><td class="">s{1,2}_netoff / netba / neter / netws / netring</td><td class="">pd_net_off / ba / er / ws / ring（sim_workplace_s1_n48）</td><td class="num">1, 2</td></tr><tr><td class="">s{1,2}_off_ch / ba_ch0 / ba_ch / ba_ch_mem</td><td class="">pd_net_off_ch / ba_ch0 / ba_ch / ba_ch_mem（sim_workplace_ch_s1_n48）</td><td class="num">1, 2</td></tr><tr><td class="">s0_pgg_off_ch / ba_ch0 / ba_ch / ba_ch_mem</td><td class="">pgg_net_off_ch / ba_ch0 / ba_ch / ba_ch_mem</td><td class="num">0</td></tr><tr><td class="">s{0,1,2}_rev / rep</td><td class="">pd_net_ba_ch_mem_rev / _rep</td><td class="num">0, 1, 2</td></tr><tr><td class="">s0_pgg_rev / rep</td><td class="">pgg_net_ba_ch_mem_rev / _rep</td><td class="num">0</td></tr></tbody></table></div>
+<p>seed 0 の PD 9条件は第2報のラン（netoff … chbamem）。席順は全ランで <code>[3,4,6,14,1,7,8,17,5,9,10,13,0,2,11,12]</code>。</p>
+<h3>B. データと成果物の置き場所</h3>
+<ul><li>ラン: <code>~/workspace/research/mirofish_runs/runs/{export,sim}_&lt;ラン ID&gt;</code></li><li>ダッシュボード: <code>~/workspace/research/mirofish_runs/dashboards/index.html</code>（seed ごとの比較、開示・評判、pgg を追加）</li><li>集計: <a href="results/results_replication.json">results/results_replication.json</a></li></ul>
+<h3>C. 再現</h3>
+<pre><code>cd MiroFish-oTree/mirofish_otree_test
+MF_BRIDGE_SEED=1 MF_AGENT_IDS=&quot;[3,4,6,14,1,7,8,17,5,9,10,13,0,2,11,12]&quot; \
+  MF_BRIDGE_URL=http://127.0.0.1:5055/api/experiment MF_SIMULATION_DIR=&lt;sim copy&gt; \
+  ../.venv/bin/otree test pd_net_ba_ch_mem_rev 16 --export &lt;out&gt;
+
+# 1ランの裏切り・開示の解析（LLM なし）
+backend/.venv/bin/python backend/scripts/experiment/analyze_betrayal.py --json &lt;sim copy&gt;/game/&lt;session&gt;</code></pre>
+</section>
+</div>
+<script>
+const CHARTS = [{"id": "a1", "grid": true, "panels": [{"title": "seed 0", "ytitle": "協力率", "domain": [0, 1], "rule": null, "pct": false, "series": [{"name": "対照", "color": "ctrl", "dash": true, "values": [0.5, 0.312, 0.375, 0.375, 0.375, 0.375, 0.375, 0.375, 0.375, 0.312]}, {"name": "BA", "color": "c1", "dash": false, "values": [0.688, 0.375, 0.375, 0.375, 0.312, 0.312, 0.312, 0.312, 0.312, 0.312]}, {"name": "ER", "color": "c2", "dash": false, "values": [0.812, 0.812, 0.688, 0.625, 0.625, 0.688, 0.688, 0.688, 0.625, 0.562]}, {"name": "WS", "color": "c3", "dash": false, "values": [0.688, 0.562, 0.562, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]}, {"name": "ring", "color": "c4", "dash": false, "values": [0.625, 0.438, 0.375, 0.375, 0.438, 0.438, 0.375, 0.375, 0.375, 0.312]}]}, {"title": "seed 1", "ytitle": "協力率", "domain": [0, 1], "rule": null, "pct": false, "series": [{"name": "対照", "color": "ctrl", "dash": true, "values": [0.625, 0.562, 0.688, 0.562, 0.5, 0.5, 0.5, 0.5, 0.5, 0.375]}, {"name": "BA", "color": "c1", "dash": false, "values": [0.688, 0.625, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.438]}, {"name": "ER", "color": "c2", "dash": false, "values": [0.812, 0.75, 0.688, 0.75, 0.688, 0.688, 0.688, 0.688, 0.625, 0.625]}, {"name": "WS", "color": "c3", "dash": false, "values": [0.562, 0.562, 0.438, 0.438, 0.375, 0.375, 0.375, 0.375, 0.375, 0.375]}, {"name": "ring", "color": "c4", "dash": false, "values": [0.688, 0.438, 0.625, 0.438, 0.375, 0.438, 0.438, 0.375, 0.375, 0.25]}]}, {"title": "seed 2", "ytitle": "協力率", "domain": [0, 1], "rule": null, "pct": false, "series": [{"name": "対照", "color": "ctrl", "dash": true, "values": [0.688, 0.625, 0.625, 0.562, 0.688, 0.625, 0.625, 0.625, 0.625, 0.438]}, {"name": "BA", "color": "c1", "dash": false, "values": [0.75, 0.812, 0.875, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.688]}, {"name": "ER", "color": "c2", "dash": false, "values": [0.75, 0.688, 0.688, 0.562, 0.625, 0.562, 0.562, 0.5, 0.5, 0.438]}, {"name": "WS", "color": "c3", "dash": false, "values": [0.812, 0.75, 0.75, 0.75, 0.625, 0.688, 0.625, 0.625, 0.625, 0.5]}, {"name": "ring", "color": "c4", "dash": false, "values": [0.812, 0.75, 0.625, 0.625, 0.688, 0.625, 0.625, 0.625, 0.625, 0.562]}]}]}, {"id": "a2", "grid": true, "panels": [{"title": "seed 0", "ytitle": "協力率", "domain": [0, 1], "rule": null, "pct": false, "series": [{"name": "対照", "color": "ctrl", "dash": true, "values": [0.625, 0.438, 0.312, 0.312, 0.25, 0.25, 0.312, 0.25, 0.25, 0.188]}, {"name": "相性なし", "color": "c1", "dash": false, "values": [0.812, 0.625, 0.688, 0.625, 0.625, 0.625, 0.625, 0.625, 0.625, 0.562]}, {"name": "相性あり", "color": "c2", "dash": false, "values": [0.688, 0.625, 0.562, 0.625, 0.562, 0.562, 0.562, 0.562, 0.562, 0.438]}, {"name": "相性あり＋記憶", "color": "c3", "dash": false, "values": [0.75, 0.688, 0.75, 0.625, 0.625, 0.625, 0.625, 0.625, 0.625, 0.625]}]}, {"title": "seed 1", "ytitle": "協力率", "domain": [0, 1], "rule": null, "pct": false, "series": [{"name": "対照", "color": "ctrl", "dash": true, "values": [0.562, 0.375, 0.438, 0.438, 0.312, 0.375, 0.312, 0.25, 0.312, 0.312]}, {"name": "相性なし", "color": "c1", "dash": false, "values": [0.812, 0.688, 0.812, 0.75, 0.75, 0.75, 0.812, 0.75, 0.75, 0.75]}, {"name": "相性あり", "color": "c2", "dash": false, "values": [0.562, 0.438, 0.25, 0.312, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125]}, {"name": "相性あり＋記憶", "color": "c3", "dash": false, "values": [0.688, 0.625, 0.625, 0.625, 0.625, 0.562, 0.562, 0.562, 0.562, 0.562]}]}, {"title": "seed 2", "ytitle": "協力率", "domain": [0, 1], "rule": null, "pct": false, "series": [{"name": "対照", "color": "ctrl", "dash": true, "values": [0.562, 0.188, 0.25, 0.188, 0.125, 0.188, 0.188, 0.125, 0.188, 0.062]}, {"name": "相性なし", "color": "c1", "dash": false, "values": [0.562, 0.312, 0.25, 0.312, 0.25, 0.25, 0.25, 0.25, 0.375, 0.25]}, {"name": "相性あり", "color": "c2", "dash": false, "values": [0.688, 0.438, 0.562, 0.562, 0.625, 0.5, 0.5, 0.5, 0.438, 0.375]}, {"name": "相性あり＋記憶", "color": "c3", "dash": false, "values": [0.438, 0.5, 0.312, 0.188, 0.188, 0.188, 0.25, 0.25, 0.188, 0.125]}]}]}, {"id": "a3", "grid": false, "panels": [{"title": "", "ytitle": "", "domain": [0, 1], "rule": null, "pct": false, "scatter": true, "points": [{"x": 0.5, "y": 0.362, "s": "対照（会話なし） seed 0"}, {"x": 0.625, "y": 0.475, "s": "対照（会話なし） seed 1"}, {"x": 0.688, "y": 0.588, "s": "対照（会話なし） seed 2"}, {"x": 0.688, "y": 0.312, "s": "BA seed 0"}, {"x": 0.688, "y": 0.487, "s": "BA seed 1"}, {"x": 0.75, "y": 0.738, "s": "BA seed 2"}, {"x": 0.812, "y": 0.65, "s": "ER seed 0"}, {"x": 0.812, "y": 0.662, "s": "ER seed 1"}, {"x": 0.75, "y": 0.512, "s": "ER seed 2"}, {"x": 0.688, "y": 0.5, "s": "WS seed 0"}, {"x": 0.562, "y": 0.375, "s": "WS seed 1"}, {"x": 0.812, "y": 0.613, "s": "WS seed 2"}, {"x": 0.625, "y": 0.375, "s": "ring seed 0"}, {"x": 0.688, "y": 0.375, "s": "ring seed 1"}, {"x": 0.812, "y": 0.613, "s": "ring seed 2"}, {"x": 0.625, "y": 0.25, "s": "チャネル対照（会話なし） seed 0"}, {"x": 0.562, "y": 0.312, "s": "チャネル対照（会話なし） seed 1"}, {"x": 0.562, "y": 0.15, "s": "チャネル対照（会話なし） seed 2"}, {"x": 0.812, "y": 0.613, "s": "チャネル BA・相性なし seed 0"}, {"x": 0.812, "y": 0.762, "s": "チャネル BA・相性なし seed 1"}, {"x": 0.562, "y": 0.275, "s": "チャネル BA・相性なし seed 2"}, {"x": 0.688, "y": 0.537, "s": "チャネル BA・相性あり seed 0"}, {"x": 0.562, "y": 0.125, "s": "チャネル BA・相性あり seed 1"}, {"x": 0.688, "y": 0.463, "s": "チャネル BA・相性あり seed 2"}, {"x": 0.75, "y": 0.625, "s": "チャネル BA・相性あり＋記憶 seed 0"}, {"x": 0.688, "y": 0.562, "s": "チャネル BA・相性あり＋記憶 seed 1"}, {"x": 0.438, "y": 0.2, "s": "チャネル BA・相性あり＋記憶 seed 2"}, {"x": 0.688, "y": 0.362, "s": "＋選択の開示 seed 0"}, {"x": 0.688, "y": 0.375, "s": "＋選択の開示 seed 1"}, {"x": 0.75, "y": 0.463, "s": "＋選択の開示 seed 2"}, {"x": 0.5, "y": 0.425, "s": "＋選択の開示＋評判 seed 0"}, {"x": 0.875, "y": 0.588, "s": "＋選択の開示＋評判 seed 1"}, {"x": 1.0, "y": 0.975, "s": "＋選択の開示＋評判 seed 2"}], "series": []}]}, {"id": "b1", "grid": false, "panels": [{"title": "", "ytitle": "平均拠出", "domain": [0, 20], "rule": [0, "均衡（0）"], "pct": false, "series": [{"name": "会話なし", "color": "ctrl", "dash": true, "values": [16.25, 16.25, 13.125, 8.125, 4.375, 3.125, 1.25, 1.25, 0.0, 0.0]}, {"name": "相性なし", "color": "c1", "dash": false, "values": [12.5, 10.312, 7.188, 6.875, 6.875, 6.875, 6.875, 6.875, 6.875, 5.625]}, {"name": "相性あり", "color": "c2", "dash": false, "values": [12.812, 9.375, 11.25, 9.688, 8.75, 7.812, 8.125, 7.188, 6.25, 6.25]}, {"name": "相性あり＋記憶", "color": "c3", "dash": false, "values": [12.812, 8.438, 6.25, 4.688, 4.375, 4.375, 4.375, 4.375, 4.375, 3.75]}, {"name": "＋開示", "color": "c4", "dash": false, "values": [16.875, 14.375, 12.5, 12.5, 12.5, 12.5, 12.5, 12.5, 12.5, 10.0]}, {"name": "＋開示＋評判", "color": "c5", "dash": false, "values": [13.125, 9.688, 8.125, 7.938, 7.812, 7.188, 5.312, 5.0, 5.0, 5.0]}]}]}, {"id": "c1", "grid": true, "panels": [{"title": "seed 0", "ytitle": "協力率", "domain": [0, 1], "rule": null, "pct": false, "series": [{"name": "相性あり＋記憶（対照）", "color": "ctrl", "dash": true, "values": [0.75, 0.688, 0.75, 0.625, 0.625, 0.625, 0.625, 0.625, 0.625, 0.625]}, {"name": "＋開示", "color": "c1", "dash": false, "values": [0.688, 0.375, 0.375, 0.375, 0.375, 0.375, 0.375, 0.375, 0.375, 0.312]}, {"name": "＋開示＋評判", "color": "c2", "dash": false, "values": [0.5, 0.5, 0.438, 0.438, 0.438, 0.438, 0.438, 0.438, 0.438, 0.375]}]}, {"title": "seed 1", "ytitle": "協力率", "domain": [0, 1], "rule": null, "pct": false, "series": [{"name": "相性あり＋記憶（対照）", "color": "ctrl", "dash": true, "values": [0.688, 0.625, 0.625, 0.625, 0.625, 0.562, 0.562, 0.562, 0.562, 0.562]}, {"name": "＋開示", "color": "c1", "dash": false, "values": [0.688, 0.438, 0.5, 0.375, 0.375, 0.375, 0.375, 0.375, 0.375, 0.375]}, {"name": "＋開示＋評判", "color": "c2", "dash": false, "values": [0.875, 0.75, 0.625, 0.688, 0.625, 0.625, 0.625, 0.625, 0.562, 0.5]}]}, {"title": "seed 2", "ytitle": "協力率", "domain": [0, 1], "rule": null, "pct": false, "series": [{"name": "相性あり＋記憶（対照）", "color": "ctrl", "dash": true, "values": [0.438, 0.5, 0.312, 0.188, 0.188, 0.188, 0.25, 0.25, 0.188, 0.125]}, {"name": "＋開示", "color": "c1", "dash": false, "values": [0.75, 0.625, 0.562, 0.5, 0.562, 0.5, 0.5, 0.5, 0.438, 0.375]}, {"name": "＋開示＋評判", "color": "c2", "dash": false, "values": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.875]}]}]}];
+const CDN_OK = typeof vegaEmbed !== 'undefined';
+function cv(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function colour(t){ return t === 'ctrl' ? cv('--ctrl') : cv('--' + t); }
+function spec(p, w){
+  if (p.scatter) return scatterSpec(p, w);
+  const names = p.series.map(s => s.name), narrow = w < 520;
+  const values = [];
+  p.series.forEach(s => s.values.forEach((v, i) => values.push({s: s.name, round: i + 1, v: v})));
+  const multi = p.series.length > 1;
+  const enc = {
+    x: {field: 'round', type: 'quantitative', scale: {domain: [1, 10], nice: false}, axis: {values: [1,2,3,4,5,6,7,8,9,10], format: 'd', title: 'ラウンド', grid: false}},
+    y: {field: 'v', type: 'quantitative', scale: {domain: p.domain}, axis: {title: p.ytitle, tickCount: 5}},
+    tooltip: [{field: 's', title: '系列'}, {field: 'round', title: 'ラウンド'}, {field: 'v', title: p.ytitle}]
+  };
+  if (multi) {
+    enc.color = {field: 's', type: 'nominal', scale: {domain: names, range: p.series.map(s => colour(s.color))},
+                 legend: {orient: 'bottom', title: null, direction: 'horizontal', columns: narrow ? 1 : 2, symbolType: 'stroke', symbolStrokeWidth: 2}};
+    enc.strokeDash = {field: 's', type: 'nominal', scale: {domain: names, range: p.series.map(s => s.dash ? [5,4] : [1,0])}, legend: {orient: 'bottom', title: null, direction: 'horizontal', columns: narrow ? 1 : 2}};
+  }
+  const mark = {type: 'line', strokeWidth: 2, point: {filled: true, size: 36}, tooltip: true};
+  if (!multi) { mark.color = colour(p.series[0].color); mark.point.color = mark.color; }
+  const layers = [{mark: mark, encoding: enc}];
+  if (p.rule) {
+    layers.push({mark: {type: 'rule', strokeDash: [2,3], color: cv('--text-muted')}, encoding: {y: {datum: p.rule[0]}}});
+    layers.push({mark: {type: 'text', align: 'left', dx: 4, dy: -6, fontSize: 11, color: cv('--text-secondary')}, encoding: {x: {datum: 1}, y: {datum: p.rule[0]}, text: {value: p.rule[1]}}});
+  }
+  const tc = cv('--text-secondary'), mu = cv('--text-muted');
+  return {
+    $schema: 'https://vega.github.io/schema/vega-lite/v6.json', width: 'container', height: narrow ? 200 : 240,
+    data: {values: values}, layer: layers, background: 'transparent',
+    config: {view: {stroke: null}, font: 'system-ui, sans-serif',
+      axis: {labelColor: mu, titleColor: tc, gridColor: cv('--grid'), domainColor: cv('--axis'), tickColor: cv('--axis'), labelFontSize: 11, titleFontSize: 12},
+      legend: {labelColor: tc, labelFontSize: 12, symbolSize: 120}}
+  };
+}
+
+function scatterSpec(p, w){
+  const tc = cv('--text-secondary'), mu = cv('--text-muted');
+  return {$schema: 'https://vega.github.io/schema/vega-lite/v6.json', width: 'container', height: w < 520 ? 240 : 300,
+    data: {values: p.points}, background: 'transparent',
+    layer: [
+      {mark: {type: 'rule', strokeDash: [2,3], color: mu}, data: {values: [{x: 0, y: 0, x2: 1, y2: 1}]}, encoding: {x: {field: 'x', type: 'quantitative'}, y: {field: 'y', type: 'quantitative'}, x2: {field: 'x2'}, y2: {field: 'y2'}}},
+      {mark: {type: 'point', filled: true, size: 70, opacity: 0.75, color: cv('--c1')},
+       encoding: {x: {field: 'x', type: 'quantitative', scale: {domain: [0, 1]}, axis: {title: '第1期の協力率', grid: false, tickCount: 5}},
+                  y: {field: 'y', type: 'quantitative', scale: {domain: [0, 1]}, axis: {title: '第6〜10期の協力率', tickCount: 5}},
+                  tooltip: [{field: 's', title: 'ラン'}, {field: 'x', title: '第1期'}, {field: 'y', title: '第6〜10期'}]}}],
+    config: {view: {stroke: null}, font: 'system-ui, sans-serif',
+      axis: {labelColor: mu, titleColor: tc, gridColor: cv('--grid'), domainColor: cv('--axis'), tickColor: cv('--axis'), labelFontSize: 11, titleFontSize: 12}}};
+}
+function renderAll(){
+  CHARTS.forEach(c => {
+    const host = document.getElementById('viz-' + c.id); if (!host) return;
+    if (!CDN_OK) { host.innerHTML = '<p class="viz-note">グラフを読み込めませんでした（オフラインの可能性）。下の「数値表」に同じ数値があります。</p>'; return; }
+    host.innerHTML = '';
+    c.panels.forEach(p => {
+      let el = host;
+      if (c.grid) { const w = document.createElement('div'); w.className = 'panel'; w.innerHTML = '<div class="t"></div><div class="viz"></div>'; w.firstChild.textContent = p.title; host.appendChild(w); el = w.lastChild; }
+      const width = el.clientWidth || host.clientWidth || 360;
+      vegaEmbed(el, spec(p, width), {actions: false, renderer: 'svg'}).catch(e => { el.innerHTML = '<p class="viz-note">グラフの描画に失敗しました。数値表を見てください。</p>'; });
+    });
+  });
+}
+window.addEventListener('DOMContentLoaded', renderAll);
+try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', renderAll); } catch (e) {}
+try { new MutationObserver(renderAll).observe(document.documentElement, {attributes: true, attributeFilter: ['data-theme']}); } catch (e) {}
+</script>
+</body>
+</html>
