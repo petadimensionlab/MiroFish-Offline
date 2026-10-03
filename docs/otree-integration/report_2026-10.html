@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>oTree × MiroFish-Offline 結果報告（第2報）</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface-1: #fcfcfb;
+  --surface-2: #f3f2ee;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11,11,11,0.10);
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --c1: #2a78d6; --c2: #eb6834; --c3: #1baf7a; --c4: #eda100; --c5: #e87ba4; --ctrl: #898781;
+  --accent: #2a78d6;
+  --critical: #d03b3b;
+  --good-text: #006300;
+  --warn-bg: #fff4dc;
+  --warn-ink: #6b4a00;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface-1: #1a1a19;
+    --surface-2: #232321;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255,255,255,0.10);
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #c98500; --c5: #d55181; --ctrl: #9b9a94;
+    --accent: #3987e5;
+    --good-text: #0ca30c;
+    --warn-bg: #3a2e12;
+    --warn-ink: #f3d48a;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d;
+  --surface-1: #1a1a19;
+  --surface-2: #232321;
+  --text-primary: #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted: #898781;
+  --grid: #2c2c2a;
+  --axis: #383835;
+  --border: rgba(255,255,255,0.10);
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #c98500; --c5: #d55181; --ctrl: #9b9a94;
+  --accent: #3987e5;
+  --good-text: #0ca30c;
+  --warn-bg: #3a2e12;
+  --warn-ink: #f3d48a;
+}
+* { box-sizing: border-box; }
+html, body { overflow-x: hidden; }
+body {
+  margin: 0; background: var(--page); color: var(--text-primary);
+  font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  line-height: 1.75; font-size: 16px;
+}
+.wrap { max-width: 1040px; margin: 0 auto; padding: 32px 16px 80px; }
+header.hero { padding: 24px 0 8px; }
+.eyebrow { color: var(--text-muted); font-size: 13px; letter-spacing: .04em; }
+h1 { font-size: 30px; line-height: 1.3; margin: 6px 0 12px; }
+h2 { font-size: 22px; margin: 48px 0 12px; padding-top: 8px; border-top: 1px solid var(--border); }
+h3 { font-size: 17px; margin: 28px 0 8px; }
+p, li { color: var(--text-primary); }
+.sub { color: var(--text-secondary); }
+a { color: var(--accent); }
+nav.toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 8px; }
+nav.toc a { font-size: 13px; text-decoration: none; padding: 4px 10px; border-radius: 999px;
+  background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--border); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr)); gap: 12px; margin: 20px 0; }
+.tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+.tile .k { font-size: 13px; color: var(--text-secondary); }
+.tile .v { font-size: 26px; font-weight: 650; margin-top: 2px; }
+.tile .n { font-size: 12px; color: var(--text-muted); }
+.card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; margin: 14px 0; }
+.callout { background: var(--warn-bg); color: var(--warn-ink); border-radius: 12px; padding: 14px 18px; margin: 16px 0; }
+.callout strong { color: inherit; }
+.findings { counter-reset: f; list-style: none; padding: 0; }
+.findings li { counter-increment: f; position: relative; padding: 12px 16px 12px 52px; margin: 10px 0;
+  background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; }
+.findings li::before { content: counter(f); position: absolute; left: 16px; top: 12px; width: 24px; height: 24px;
+  border-radius: 50%; background: var(--surface-2); color: var(--text-secondary); font-size: 13px; font-weight: 650;
+  display: grid; place-items: center; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { color: var(--text-secondary); font-weight: 600; background: var(--surface-2); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.table-scroll { overflow-x: auto; }
+code { overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; background: var(--surface-2);
+  padding: 1px 5px; border-radius: 4px; }
+pre { background: var(--surface-2); padding: 12px 14px; border-radius: 10px; overflow-x: auto; font-size: 13px; line-height: 1.5; }
+.flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr)); gap: 10px; margin: 14px 0; }
+.flow .step { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+.flow .step b { display: block; font-size: 14px; }
+.flow .step span { font-size: 13px; color: var(--text-secondary); }
+.pill { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--surface-2);
+  color: var(--text-secondary); border: 1px solid var(--border); white-space: nowrap; }
+.pill.done::before { content: "✓ "; color: var(--good-text); font-weight: 700; }
+.pill.wip::before { content: "… "; }
+footer { margin-top: 56px; font-size: 13px; color: var(--text-muted); }
+
+.multiples { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(290px, 100%), 1fr)); gap: 12px; margin-top: 8px; }
+.panel { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px 4px; min-width: 0; }
+.panel .t { font-size: 13px; font-weight: 600; }
+figure.fig { margin: 20px 0; background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px 10px; }
+figure.fig figcaption { font-size: 13px; color: var(--text-secondary); margin-top: 8px; line-height: 1.6; }
+figure.fig .ft { font-weight: 650; font-size: 15px; margin-bottom: 4px; }
+.viz { width: 100%; min-height: 120px; overflow: hidden; }
+.viz .vega-embed { width: 100%; }
+.viz-note { font-size: 13px; color: var(--text-muted); padding: 24px 4px; }
+.multiples .panel .t { margin-bottom: 2px; }
+details.tbl { margin-top: 8px; }
+details.tbl summary { cursor: pointer; font-size: 13px; color: var(--accent); padding: 4px 0; }
+.cap { font-weight: 650; font-size: 14px; margin: 18px 0 6px; }
+blockquote.q { margin: 14px 0; padding: 10px 16px; border-left: 3px solid var(--accent); background: var(--surface-1); border-radius: 0 10px 10px 0; }
+blockquote.q p { margin: 4px 0; }
+blockquote.q .en { font-size: 15px; }
+blockquote.q .meta { font-size: 12px; color: var(--text-muted); }
+.wrap { overflow-wrap: anywhere; }
+.table-scroll table { min-width: 0; }
+.table-scroll.wide table { min-width: 640px; }
+.vega-embed summary, .vega-embed details { display: none; }
+.vega-embed .vega-actions { display: none; }
+h1 { overflow-wrap: anywhere; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/vega@6"></script>
+<script src="https://cdn.jsdelivr.net/npm/vega-lite@6.4.1"></script>
+<script src="https://cdn.jsdelivr.net/npm/vega-embed@7"></script>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <div class="eyebrow">作成日 2026-10-02 ・ 対象 2026-09-29〜10-02 のラン（NOTES #47〜#56）</div>
+  <h1>oTree × MiroFish-Offline シミュレーション結果報告（第2報）— モデル選択・6種のゲーム・ペルソナ・ネットワーク会話・記憶</h1>
+  <p class="sub">前回レポート: <a href="report.html">report.html</a>／<a href="REPORT.md">REPORT.md</a>（2026-09-28、qwen3:4b・gemma4:e4b の初期ラン、NOTES #1〜#46）。技術仕様は <a href="README.ja.md">README.ja.md</a>（<a href="README.md">English</a>）、観察ログは <a href="NOTES.md">NOTES.md</a>。数値は <a href="results/results.json">results.json</a> と <a href="results/results_rounds.csv">results_rounds.csv</a> だけから取り、それ以外は「（NOTES #nn より）」と明記した。</p>
+  <nav class="toc"><a href="#summary">1. 概要</a><a href="#aim">2. 狙いと目的</a><a href="#approach">3. アプローチ（解析方法）</a><a href="#results">4. 結果</a><a href="#discussion">5. 考察</a><a href="#appendix">6. 付録</a></nav>
+</header>
+<section id="summary"><h2>1. 概要</h2>
+<p>モデルと実験デザインを固定したうえで、ゲームの種類、ペルソナの集合、ネットワークのトポロジ、チャネル適合ダイアド、忘却つき記憶を順に変えて、LLM エージェント（gemma4:26b、思考あり）の行動を比べた。各条件は 8体または 16体 × 10期、<strong>1条件につき1ラン（seed 0）</strong>。ここから言えるのは「傾向の手がかり」までで、因果や有意差は主張しない。同じ条件の反復ラン（seed 1・2）は現在実行中で、結果は未着。</p>
+<p class="sub">最初の2つの発見（位置バイアスとペア内チャット）は、本実験の設計（チャットなし、複数ゲーム、ネットワーク会話）がなぜそうなったかの根拠でもある。</p>
+<h3>主な発見</h3>
+<ol class="findings"><li><strong>思考なしの 12b は先頭の選択肢を選ぶだけだった。</strong> gemma4:12b（思考なし）は 160 回の決定すべてで先に提示された選択肢を選んだ（chat_12b 80/80、nochat_12b 80/80）。協力率はチャットの有無にかかわらず全期 0.50。思考ありの 26b では先頭の選択肢の割合が、チャットありで 40/80（0.50）、なしで 67/80（0.838）。</li><li><strong>ペア内チャットは協力を 1.00 に張り付かせる。</strong> chat_26b は協力率が 10期とも 1.00。チャット 160 通すべてがゲームの話題で、宣言した意図は 80/80 守られた。チャットなし（nochat_26b）は 0.625 → 0.25（全期平均 0.412）、条件付き協力 0.806 / 0.073。研究の問いを測るため、本実験は <code>chat_turns=0</code> を守る（NOTES #51）。</li><li><strong>理論への近さはゲームごとに違う。</strong> beauty は平均 20.06 → 0（全員 0 は第7期から）。ultimatum は 10/20 の折半が毎期、受諾率 1.00。trust は送金が 5.88 → 7.88（最大 9.12）、返金割合は 0.45 → 0.657。</li><li><strong>ペルソナの集合が結果を大きく変える。</strong> 公共財（pgg）は、一般人ペルソナで 0.984 → 1.00（nash_share 0）、職場ペルソナで 0.875 → 0.188（nash_share 0.537、個人内の条件付き協力の傾き +0.636）。</li><li><strong>ネットワーク会話は第1期の協力を上げる。持続はトポロジ次第。</strong> 第1期は対照 0.50、会話あり 0.625〜0.812。第10期は ER 0.562、WS 0.50、BA と ring は 0.312（対照と同じ）。</li><li><strong>チャネル適合は辺の使われ方を予測し、記憶つきの条件で協力が最も残った。</strong> 相性 A と辺ごとの会話の試行数の Spearman は 0.411（p=0.03、28辺）。94会話中 22 が未返信（実現返信率 0.766）。第10期の協力率は、忘却つき記憶の条件が 0.625 で、チャネル付き 4条件の最高（対照 0.188）。いずれも1ラン。</li></ol>
+<div class="tiles"><div class="tile"><div class="k">LLM ラン</div><div class="v">19 回</div><div class="n">8〜16体×10期、各1ラン、seed 0</div></div><div class="tile"><div class="k">12b が先頭の選択肢を選んだ決定</div><div class="v">160/160</div><div class="n">チャットあり 80/80、なし 80/80</div></div><div class="tile"><div class="k">26b のペア内チャット</div><div class="v">1.00 全期</div><div class="n">チャットなしは 0.625 → 0.25（平均 0.412）</div></div><div class="tile"><div class="k">beauty の平均推測</div><div class="v">20.06 → 0</div><div class="n">全員 0 は第7期から</div></div><div class="tile"><div class="k">pgg 拠出割合 第1期 → 第10期</div><div class="v">1.00 vs 0.188</div><div class="n">一般人 0.984 → 1.00、職場 0.875 → 0.188</div></div><div class="tile"><div class="k">欠測の決定</div><div class="v">0</div><div class="n">全19ランで。理解テストも全ラン満点</div></div></div>
+</section>
+<section id="aim"><h2>2. 狙いと目的</h2>
+<h3>研究の問い</h3>
+<p>出発点は前回レポート（<a href="REPORT.md">REPORT.md</a>）と同じ、「言説 → 行動 → 言説」の閉ループである（<a href="plan.md">plan.md</a> §1〜3）。ここでは問いを次のように絞っている。<strong>ゲームの相手以外との言説が、相手との行動を変えるか。</strong> 相手と直接話せる条件では行動が合意で決まってしまい、言説の効果が測れないからである。</p>
+<p>妥当性の条件は2つ。(1) まず人間で知られている規則性を再現できるか確かめる。(2) 選択肢の並びをランダムにして位置の影響を打ち消す。1つのゲームだけでは (1) を確かめにくいので、複数のゲームを使う。</p>
+<h3>前回から持ち越した課題</h3>
+<p>前回（qwen3:4b と gemma4:e4b の初期ラン、NOTES #1〜#46）の未解決点は次の4つ。</p>
+<ul><li>qwen3:4b が選択肢の文字 A を「協力的」と連想して選ぶ。</li><li>gemma4:e4b は記号の見た目で選び、相手が協力した後ほど裏切る逆向きの相互主義を示す。</li><li>SNS 上の議論は、ゲームの話にほとんどならない。</li><li>その結果、「言説が行動を変えた」証拠としては使えない（前回の結論）。</li></ul>
+<h3>今回の経緯（NOTES #47〜#56）</h3>
+<div class="cap">表 2-1　今回の経緯</div>
+<div class="table-scroll"><table><thead><tr><th class="">NOTES（日付）</th><th class="">何をしたか</th><th class="">何が分かったか</th></tr></thead><tbody>
+<tr><td class="">#47（09-29）</td><td class="">ゲームの相手に向けた経路が無いという指摘を受け、ペア内チャット（<code>chat_turns</code>）を実装</td><td class="">相手と話せる条件が作れた</td></tr>
+<tr><td class="">#48〜#50（09-30）</td><td class="">プロンプト v2、モデルを 12b → 26b（思考あり）へ。8体×10期で検証</td><td class="">12b は先頭の選択肢 160/160。26b ではチャットで協力が 1.00 に固定</td></tr>
+<tr><td class="">#51（09-30）</td><td class="">本実験は <code>chat_turns=0</code> に固定（チャットは参照用）</td><td class="">直接の合意では言説の効果が入り込む余地がない</td></tr>
+<tr><td class="">#52（09-30）</td><td class="">公共財（pgg）を追加</td><td class="">一般人ペルソナで 100% 固定、枠組みの切り分けを実施</td></tr>
+<tr><td class="">#53（09-30）</td><td class="">beauty・trust・ultimatum と職場ペルソナを追加</td><td class="">ゲームとペルソナで理論への近さが変わる</td></tr>
+<tr><td class="">#54（09-30）</td><td class="">ネットワーク会話の仕様。相手以外の近隣と1対1で話す。相手との辺は除外。接触率 λ ~ Gamma（会話数は負の二項）</td><td class="">実機ランは #56 から</td></tr>
+<tr><td class="">#55（10-01）</td><td class="">チャネル適合ダイアドと忘却つき記憶の仕様、重複名の修正</td><td class="">実機ランは #56 から</td></tr>
+<tr><td class="">#56（10-01）</td><td class="">トポロジ5条件とチャネル4条件を実機で実行</td><td class="">本報告の §4(d)(e)</td></tr>
+</tbody></table></div>
+</section>
+<section id="approach"><h2>3. アプローチ（解析方法）</h2>
+<p>システムの全体像（oTree、bridge、step-server）は <a href="REPORT.md">REPORT.md</a> §3〜4 と <a href="README.ja.md">README.ja.md</a> にあり、ここでは繰り返さない。変更点だけ書く。</p>
+<h3>3.1 システムの変更点</h3>
+<ul><li>経路は変わらない: oTree の bot → bridge <code>/api/experiment</code> → step-server（OASIS）→ Ollama。</li><li>意思決定プロンプトを v2 にした。「SNS の投稿ではない」「点数は実際の報酬」「記号に意味はない」「何を選ぶか理由と共に言う」を入れた（NOTES #48 より）。</li><li>利得（PD）は R=30、T=50、S=0、P=10。</li><li>モデルは3種を使った。gemma4:e4b（前回の続き。今回は部分ランのみ）、gemma4:12b（<code>LLM_REASONING_EFFORT=none</code>、思考なし）、gemma4:26b（MoE、思考あり。以降の主力。<code>MODEL_TIMEOUT=600</code>）。</li><li>記号 △□○◇ はセッションごと（pgg などのゲーム、ネットワークとチャネルのラン）またはペアごと（PD のペアチャット、職場ペルソナの PD）にランダム化した。ネットワークとチャネルのランでは、選択肢を並べる順をエージェントごとにランダム化した（<code>label_order_per_agent</code>）。</li><li>理解テストは全19ランで満点（<code>comprehension</code>）。欠測の決定は全19ランで 0。</li><li>oTree 側に設定だけ用意して今回は実行していない条件: <code>pd_net_ba_chsel</code>、<code>pd_net_ba_chrep</code>。</li></ul>
+<h3>3.2 実験デザイン</h3>
+<div class="cap">表 3-1　フェーズ別の実験デザイン</div>
+<div class="table-scroll"><table><thead><tr><th class="">フェーズ</th><th class="">条件（ラン ID）</th><th class="">ゲーム</th><th class="">ペルソナ</th><th class="">規模</th><th class="">操作する要因</th></tr></thead><tbody>
+<tr><td class="">(a) ペアチャット・モデル</td><td class="">chat_12b, nochat_12b, chat_26b, nochat_26b（参考: e4b の部分ラン）</td><td class="">PD</td><td class="">一般人</td><td class="">8体×10期</td><td class="">モデル（12b / 26b）× <code>chat_turns</code>（4 / 0）</td></tr>
+<tr><td class="">(b) ゲームの種類</td><td class="">pgg_general, beauty, trust, ultimatum</td><td class="">pgg, beauty, trust, ultimatum</td><td class="">一般人</td><td class="">16体×10期</td><td class="">ゲーム。pgg は4人組・持ち点20・倍率1.6。beauty は p=2/3、0〜100、4人組、賞金20。trust は持ち点10、3倍。ultimatum は 20 を分ける</td></tr>
+<tr><td class="">(c) ペルソナ</td><td class="">pd_workplace, pgg_workplace（比較: nochat_26b, pgg_general, ch_off）</td><td class="">PD, pgg</td><td class="">職場</td><td class="">16体×10期</td><td class="">ペルソナの集合</td></tr>
+<tr><td class="">(d) トポロジ</td><td class="">net_off, net_ba, net_er, net_ws, net_ring</td><td class="">PD</td><td class="">職場</td><td class="">16体×10期</td><td class="">ネットワーク。平均次数 4、μ=1、r=0.5、会話 2通、開始上限 3・負荷上限 4</td></tr>
+<tr><td class="">(e) チャネル・記憶</td><td class="">ch_off, ch_ba0, ch_ba, ch_ba_mem</td><td class="">PD</td><td class="">チャネル付き職場</td><td class="">16体×10期</td><td class="">β（0 / 1）、返信モデル（always / reach）、記憶（window / decay、半減期 2、3200 字）</td></tr>
+</tbody></table></div>
+<p>全ランで 1条件1ラン、<code>seed=0</code>、チャットは (a) の参照条件を除き <code>chat_turns=0</code>。LLM のサンプリングには seed を与えていない。</p>
+<h3>3.3 指標とスクリプト</h3>
+<div class="cap">表 3-2　指標とスクリプト</div>
+<div class="table-scroll"><table><thead><tr><th class="">指標</th><th class="">定義</th><th class="">スクリプト</th></tr></thead><tbody>
+<tr><td class="">協力率</td><td class="">協力した人の割合（0〜1）。pgg は拠出額の持ち点に対する割合</td><td class=""><code>analyze_session.py</code></td></tr>
+<tr><td class="">条件付き協力</td><td class="">相手が前期に協力（A）／裏切り（B）した後の、自分の協力割合</td><td class="">同上</td></tr>
+<tr><td class="">先頭の選択肢の割合</td><td class="">提示された選択肢の先頭を選んだ決定の割合（位置バイアスの指標）</td><td class="">同上</td></tr>
+<tr><td class="">pgg</td><td class="">平均拠出と割合、decline（第1期 − 第10期）、end_game_drop（第9期 − 第10期）、trend_per_round、conditional_slope（個人内、他者の前期平均に対する今期の拠出の傾き）、nash_share（拠出0の決定の割合）</td><td class=""><code>analyze_pgg.py</code></td></tr>
+<tr><td class="">beauty</td><td class="">平均・中央値の推測、0 を選んだ人数、equilibrium_share（0 の推測の割合）</td><td class=""><code>analyze_games.py --game beauty</code></td></tr>
+<tr><td class="">trust</td><td class="">平均送金額（10点中）、返金割合、全額送金・送金0の人数</td><td class=""><code>analyze_games.py --game trust</code></td></tr>
+<tr><td class="">ultimatum</td><td class="">平均提案、受諾率、拒否された提案</td><td class=""><code>analyze_games.py --game ultimatum</code></td></tr>
+<tr><td class="">ネットワーク</td><td class="">辺の数 m、次数、クラスタ係数、直径、次数の同類選択性（assortativity）、接触率 λ の要約、負の二項の確認（contact_count_check: k_drawn の平均・分散を μ と μ+μ²/r=3.0 に対して）、エージェントごとの協力と次数・λ・会話数の Spearman</td><td class=""><code>analyze_network.py</code></td></tr>
+<tr><td class="">露出の表</td><td class="">behavioural_exposure（前期に裏切った会話相手がいたか）、talk_exposure（受け取った発言が名指しした選択肢）、edge_concordance（最終期に辺の両端が同じ選択をした割合を、1000回の置換と比べる）</td><td class="">同上</td></tr>
+<tr><td class="">会話の質</td><td class="">on_topic（ゲーム用語の正規表現に当たる割合。目安）、partner_reports（「my partner」を含む割合）、possible_confusion（自分のペアの結果と取り違えた可能性のある狭い表現）</td><td class="">同上</td></tr>
+<tr><td class="">ダイアド</td><td class="">A_ij = 0.5·T + 0.5·M（T: 話題の適合、M: 媒体の習慣。NOTES #55 より）、近隣の選択重み exp(β·z)、返信モデル reach。A の分位点、辺ごとの Spearman、A の三分位別の返信率、未返信数、実現返信率と平均 reach</td><td class="">同上</td></tr>
+<tr><td class="">記憶の層</td><td class="">重み w = 2^(−Δ/h)。原文（w≥0.5）、抜粋（≥0.25）、要点（≥0.1）、それ未満は集約（NOTES #55 より）。降格は予算超過のときだけ。平均文字数、上限到達回数、層の比率、remembered_exposure</td><td class="">同上</td></tr>
+</tbody></table></div>
+<p>結果の集約は <code>collect_results.py</code>（<code>results_manifest.json</code> を読み、LLM は呼ばない）が <code>results/results.json</code> と <code>results/results_rounds.csv</code> を作る。ダッシュボードは <code>dashboard.py</code>（1ラン）と <code>dashboard_compare.py</code>（条件比較）。この報告の数値と図は、この2ファイルだけから作った。</p>
+<div class="callout"><strong>注意</strong>　<strong>やっていないこと。</strong> 条件ごとに1ラン（seed 0）で、LLM のサンプリングにも seed を与えていないため、条件間の有意性検定は行っていない。pgg のネットワーク条件はまだ実行していない。<code>DYAD_HOOKS</code> は空（裏切り・評判のフックは未実装）。反復ラン（PD 9条件の seed 1、pgg のチャネル 4条件の seed 0、PD 9条件の seed 2、計 22ラン）を 2026-10-02 から実行中で、<strong>結果は未着</strong>。裏切り・評判の条件は設計中。</div>
+</section>
+<section id="results"><h2>4. 結果</h2>
+<p>図は第1〜10期の系列。各図の下に同じ数値の表がある（HTML 版は「数値表」を開く）。16体の実験では 1体 = 1/16 = 0.0625 で、0.06 程度の差は 1体の違いである（導出値）。</p>
+<h3>4(a) ペアチャットとモデル（NOTES #47〜#51）</h3>
+<div class="cap">表 A1　ペアチャットとモデル（8体×10期、一般人ペルソナ、PD）</div>
+<div class="table-scroll wide"><table><thead><tr><th class="">ラン</th><th class="">モデル</th><th class="">思考</th><th class="">チャット</th><th class="">協力率 第1期 → 第10期（全期平均）</th><th class="">条件付き協力（相手協力後 / 裏切り後）</th><th class="">先頭の選択肢</th><th class="">メッセージ数 / 話題 / 意図の履行</th></tr></thead><tbody>
+<tr><td class="">chat_12b</td><td class="">gemma4:12b</td><td class="">思考なし</td><td class="">あり（4通）</td><td class="">0.500 → 0.500（0.500）</td><td class="">1.000 / 0.000</td><td class="">80/80（1.000）</td><td class="">160 / 話題 1.000 / 意図の履行 80/80</td></tr>
+<tr><td class="">nochat_12b</td><td class="">gemma4:12b</td><td class="">思考なし</td><td class="">なし</td><td class="">0.500 → 0.500（0.500）</td><td class="">1.000 / 0.000</td><td class="">80/80（1.000）</td><td class="">—</td></tr>
+<tr><td class="">chat_26b</td><td class="">gemma4:26b</td><td class="">思考あり</td><td class="">あり（4通）</td><td class="">1.000 → 1.000（1.000）</td><td class="">1.000 / —</td><td class="">40/80（0.500）</td><td class="">160 / 話題 1.000 / 意図の履行 80/80</td></tr>
+<tr><td class="">nochat_26b</td><td class="">gemma4:26b</td><td class="">思考あり</td><td class="">なし</td><td class="">0.625 → 0.250（0.412）</td><td class="">0.806 / 0.073</td><td class="">67/80（0.838）</td><td class="">—</td></tr>
+<tr><td class="">（参考）sim_chat_v2_e4b</td><td class="">gemma4:e4b</td><td class="">—</td><td class="">あり（4通）</td><td class="">部分ラン: 第1期のみ 0.250</td><td class="">—</td><td class="">2/8（0.250）</td><td class="">—</td></tr>
+</tbody></table></div>
+<p>e4b の行は部分ランで、第1期の決定のみ（決定のある最大ラウンドは 3）。参考として載せ、比較には使わない。</p>
+<figure class="fig" id="fig-a1"><div class="ft">図 A1　協力率の推移（ペアチャットとモデル）</div><div class="viz" id="viz-a1"></div><noscript><p class="viz-note">グラフには JavaScript が必要です。下の数値表を見てください。</p></noscript><figcaption>12b は 4本のうち2本が全期 0.50 で完全に重なる（チャットあり・なし）。26b はチャットありが全期 1.00、チャットなしが 0.625 → 0.25。実線＝チャットあり、破線＝なし。8体×10期、各1ラン。</figcaption><details class="tbl"><summary>数値表</summary><div class="table-scroll wide"><table><thead><tr><th class="">系列</th><th class="num">1</th><th class="num">2</th><th class="num">3</th><th class="num">4</th><th class="num">5</th><th class="num">6</th><th class="num">7</th><th class="num">8</th><th class="num">9</th><th class="num">10</th></tr></thead><tbody><tr><td class="">12b チャットあり</td><td class="num">0.500</td><td class="num">0.500</td><td class="num">0.500</td><td class="num">0.500</td><td class="num">0.500</td><td class="num">0.500</td><td class="num">0.500</td><td class="num">0.500</td><td class="num">0.500</td><td class="num">0.500</td></tr><tr><td class="">12b チャットなし</td><td class="num">0.500</td><td class="num">0.500</td><td class="num">0.500</td><td class="num">0.500</td><td class="num">0.500</td><td class="num">0.500</td><td class="num">0.500</td><td class="num">0.500</td><td class="num">0.500</td><td class="num">0.500</td></tr><tr><td class="">26b チャットあり</td><td class="num">1.000</td><td class="num">1.000</td><td class="num">1.000</td><td class="num">1.000</td><td class="num">1.000</td><td class="num">1.000</td><td class="num">1.000</td><td class="num">1.000</td><td class="num">1.000</td><td class="num">1.000</td></tr><tr><td class="">26b チャットなし</td><td class="num">0.625</td><td class="num">0.500</td><td class="num">0.625</td><td class="num">0.500</td><td class="num">0.250</td><td class="num">0.500</td><td class="num">0.375</td><td class="num">0.250</td><td class="num">0.250</td><td class="num">0.250</td></tr></tbody></table></div></details></figure>
+<p><strong>読み取り。</strong> chat_12b と nochat_12b は、協力率が全期 0.50、条件付き協力も 1.000 / 0.000 で、完全に同じである。先頭の選択肢の割合は両方 80/80。協力か裏切りかが、ペアごとにランダムな提示順だけで決まっていたことになる（位置バイアスの証拠）。チャットで「合意」したように見えるのも、両者が先頭の選択肢を言っていただけと考えられる。</p>
+<p>思考ありの 26b では理由が選択と整合し、チャットの有無で行動がはっきり分かれた。nochat_26b の1期ごとの内訳（ペア数、4ペア）は次のとおり。</p>
+<div class="cap">表 A2　nochat_26b の期ごとの内訳（ペア数）</div>
+<div class="table-scroll wide"><table><thead><tr><th class="">期</th><th class="num">1</th><th class="num">2</th><th class="num">3</th><th class="num">4</th><th class="num">5</th><th class="num">6</th><th class="num">7</th><th class="num">8</th><th class="num">9</th><th class="num">10</th></tr></thead><tbody>
+<tr><td class="">相互協力（AA）</td><td class="num">2</td><td class="num">2</td><td class="num">2</td><td class="num">1</td><td class="num">1</td><td class="num">2</td><td class="num">1</td><td class="num">1</td><td class="num">1</td><td class="num">1</td></tr>
+<tr><td class="">相互裏切り（BB）</td><td class="num">1</td><td class="num">2</td><td class="num">1</td><td class="num">1</td><td class="num">3</td><td class="num">2</td><td class="num">2</td><td class="num">3</td><td class="num">3</td><td class="num">3</td></tr>
+<tr><td class="">分かれ（AB）</td><td class="num">1</td><td class="num">0</td><td class="num">1</td><td class="num">2</td><td class="num">0</td><td class="num">0</td><td class="num">1</td><td class="num">0</td><td class="num">0</td><td class="num">0</td></tr>
+<tr><td class="">平均利得</td><td class="num">23.75</td><td class="num">20.00</td><td class="num">23.75</td><td class="num">22.50</td><td class="num">15.00</td><td class="num">20.00</td><td class="num">18.75</td><td class="num">15.00</td><td class="num">15.00</td><td class="num">15.00</td></tr>
+</tbody></table></div>
+<p>チャットありの 26b の代表的な発言を1つ引く（<code>representative_messages.chat_26b</code>）。</p>
+<blockquote class="q"><p class="en" lang="en">There is a gentle, steady peace in finding harmony, much like the quiet rhythm of the seasons. I will choose △ as you suggested, so we may begin with a shared and beautiful start.</p><p class="sub">訳: 「穏やかで着実な平和が、調和の中にある。季節の静かなリズムのように。あなたの提案どおり △ を選ぶ。共有された美しい始まりにしよう。」</p><p class="meta">chat_26b、第1期、エージェント 1 → 0。△ が協力にあたるのは、このランで記号の対応を記録していないため推測（第1期の協力率が 1.00 であることからの推定）</p></blockquote>
+<p>補足（NOTES #49 より）: 12b を思考ありで動かすと 1回答 6547 トークン・656 秒で実用外だった。26b は 1回答 約730〜5250 トークン・30〜180 秒。26b では協力が2番目に提示されても 3/8 が協力した（12b は 0/8）。</p>
+<div class="callout"><strong>注意</strong>　チャットありの 26b は、協力が天井（1.00）で LLM の過剰協力と区別できない（NOTES #50）。1ラン・n=8。</div>
+<h3>4(b) ゲームの種類と理論（NOTES #52, #53）</h3>
+<div class="cap">表 B1　ゲームごとの理論・人間・LLM</div>
+<div class="table-scroll"><table><thead><tr><th class="">ゲーム</th><th class="">ゲーム理論の予測</th><th class="">人間の典型</th><th class="">LLM（gemma4:26b、思考あり）</th><th class="">理論への近さ</th></tr></thead><tbody>
+<tr><td class="">beauty</td><td class="">全員 0</td><td class="">第1期 平均≈35、0 へ向かって低下（NOTES #53 より）</td><td class="">平均推測 20.06 → 0.00。全員 0 は第7期から</td><td class="">近い（◎）</td></tr>
+<tr><td class="">PD（チャットなし）</td><td class="">全期 裏切り</td><td class="">協力が続き、終盤に低下</td><td class="">nochat_26b: 協力率 0.625 → 0.250</td><td class="">中間（○）</td></tr>
+<tr><td class="">pgg 一般人</td><td class="">全期 拠出0</td><td class="">40〜60% から減衰、最終期に低下</td><td class="">拠出割合 0.984 → 1.000、decline -0.31、nash_share 0.0</td><td class="">遠い（×）。人間の典型とも逆</td></tr>
+<tr><td class="">pgg 職場</td><td class="">全期 拠出0</td><td class="">同上</td><td class="">拠出割合 0.875 → 0.188、nash_share 0.537</td><td class="">近い（○）。理論と人間の両方に沿う</td></tr>
+<tr><td class="">trust</td><td class="">送らない・返さない</td><td class="">約半分を送り、ほぼ送った分が返る</td><td class="">送金 5.88 → 最大 9.12（第5〜9期）→ 7.88。返金割合 0.450 → 0.657</td><td class="">遠い（×）。人間より協調的</td></tr>
+<tr><td class="">ultimatum</td><td class="">最小の提案・必ず受諾</td><td class="">提案 40〜50%、低い提案は拒否されやすい</td><td class="">提案 10/20 の折半が毎期（最小 10・最大 10）、受諾率 1.00、拒否 0 件</td><td class="">人間の最頻値。拒否行動は観察できない</td></tr>
+</tbody></table></div>
+<p>「人間の典型」の列は <a href="README.ja.md">README.ja.md</a> §3 の表による一般的な知見で、ここで新たに測ったものではない。ultimatum は低い提案が出ないので、受け手側の拒否行動は、この条件では観察できない。</p>
+<figure class="fig" id="fig-b1"><div class="ft">図 B1　ゲーム別の推移（一般人ペルソナ、16体）</div><div class="multiples" id="viz-b1"></div><noscript><p class="viz-note">グラフには JavaScript が必要です。下の数値表を見てください。</p></noscript><figcaption>ゲームごとに尺度が違うので5つのパネルに分けた（1つの軸に混ぜない）。beauty の破線は均衡（0）。ultimatum の破線は折半（10）。1ラン・n=16。</figcaption><details class="tbl"><summary>数値表</summary><div class="table-scroll wide"><table><thead><tr><th class="">系列</th><th class="num">1</th><th class="num">2</th><th class="num">3</th><th class="num">4</th><th class="num">5</th><th class="num">6</th><th class="num">7</th><th class="num">8</th><th class="num">9</th><th class="num">10</th></tr></thead><tbody><tr><td class="">beauty：平均推測：平均推測</td><td class="num">20.06</td><td class="num">9.56</td><td class="num">4.06</td><td class="num">1.62</td><td class="num">0.62</td><td class="num">0.06</td><td class="num">0.00</td><td class="num">0.00</td><td class="num">0.00</td><td class="num">0.00</td></tr><tr><td class="">pgg：拠出割合：拠出割合</td><td class="num">0.984</td><td class="num">1.000</td><td class="num">1.000</td><td class="num">1.000</td><td class="num">1.000</td><td class="num">1.000</td><td class="num">1.000</td><td class="num">1.000</td><td class="num">1.000</td><td class="num">1.000</td></tr><tr><td class="">trust：平均送金：平均送金</td><td class="num">5.88</td><td class="num">6.62</td><td class="num">7.75</td><td class="num">8.62</td><td class="num">9.12</td><td class="num">9.12</td><td class="num">9.12</td><td class="num">9.12</td><td class="num">9.12</td><td class="num">7.88</td></tr><tr><td class="">trust：返金割合：返金割合</td><td class="num">0.450</td><td class="num">0.514</td><td class="num">0.557</td><td class="num">0.573</td><td class="num">0.596</td><td class="num">0.625</td><td class="num">0.592</td><td class="num">0.575</td><td class="num">0.596</td><td class="num">0.657</td></tr><tr><td class="">ultimatum：平均提案：平均提案</td><td class="num">10.00</td><td class="num">10.00</td><td class="num">10.00</td><td class="num">10.00</td><td class="num">10.00</td><td class="num">10.00</td><td class="num">10.00</td><td class="num">10.00</td><td class="num">10.00</td><td class="num">10.00</td></tr></tbody></table></div></details></figure>
+<div class="cap">表 B2　beauty と trust の期ごとの内訳</div>
+<div class="table-scroll wide"><table><thead><tr><th class="">期</th><th class="num">1</th><th class="num">2</th><th class="num">3</th><th class="num">4</th><th class="num">5</th><th class="num">6</th><th class="num">7</th><th class="num">8</th><th class="num">9</th><th class="num">10</th></tr></thead><tbody>
+<tr><td class="">beauty：0 を選んだ人数（16人中）</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">6</td><td class="num">15</td><td class="num">16</td><td class="num">16</td><td class="num">16</td><td class="num">16</td></tr>
+<tr><td class="">beauty：中央値</td><td class="num">22.00</td><td class="num">9.00</td><td class="num">4.00</td><td class="num">2.00</td><td class="num">1.00</td><td class="num">0.00</td><td class="num">0.00</td><td class="num">0.00</td><td class="num">0.00</td><td class="num">0.00</td></tr>
+<tr><td class="">trust：全額送金の人数</td><td class="num">2</td><td class="num">2</td><td class="num">3</td><td class="num">5</td><td class="num">7</td><td class="num">7</td><td class="num">7</td><td class="num">7</td><td class="num">7</td><td class="num">6</td></tr>
+<tr><td class="">trust：送金0の人数</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">1</td></tr>
+</tbody></table></div>
+<p>beauty の equilibrium_share は 0.531。trust では最終期（第10期）に送金0が 1人出るが、全額送金は 6人（第10期）で、後ろ向き帰納による急落は見えない。ultimatum の mean_offer_share は 0.5。</p>
+<p><strong>理由の説明は言い換えにとどめる</strong>（この3ランの発言は results.json に収録していない）。beauty は明示的な level-k 推論（「2段階の推論」「ナッシュ均衡に到達」）、pgg 一般人は「調和を最後まで守る」という作風が理由だった（NOTES #52, #53 より）。pgg の枠組みの切り分け（最終期のプロンプトを 16体に再質問）では、Twitter ペルソナ 16.25、「経済実験の参加者」11.25、システムプロンプトなし 13.75 だった（NOTES #52 より）。</p>
+<h3>4(c) ペルソナの集合（NOTES #53）</h3>
+<div class="cap">表 C1　PD（チャットなし）のペルソナ比較</div>
+<div class="table-scroll"><table><thead><tr><th class="">ペルソナ（ラン）</th><th class="">協力率 第1期 → 第10期（全期平均）</th><th class="">条件付き協力</th><th class="">先頭の選択肢</th><th class="">信念 事前（7件法）</th></tr></thead><tbody>
+<tr><td class="">一般人（nochat_26b、n=8、ペアラベル）</td><td class="">0.625 → 0.250（0.412）</td><td class="">0.806 / 0.073</td><td class="">67/80（0.838）</td><td class="">4.625</td></tr>
+<tr><td class="">職場（pd_workplace、n=16、ペアラベル）</td><td class="">0.562 → 0.312（0.419）</td><td class="">0.871 / 0.049</td><td class="">113/160（0.706）</td><td class="">3.938</td></tr>
+<tr><td class="">チャネル付き職場（ch_off、n=16、セッションラベル・会話なし）</td><td class="">0.625 → 0.188（0.319）</td><td class="">0.771 / 0.042</td><td class="">109/160（0.681）</td><td class="">3.938</td></tr>
+</tbody></table></div>
+<div class="cap">表 C2　公共財：一般人と職場のペルソナ（16体×10期）</div>
+<div class="table-scroll"><table><thead><tr><th class="">指標</th><th class="num">pgg 一般人</th><th class="num">pgg 職場</th></tr></thead><tbody>
+<tr><td class="">第1期の平均拠出（20点中）</td><td class="num">19.69</td><td class="num">17.5</td></tr>
+<tr><td class="">第10期の平均拠出</td><td class="num">20.0</td><td class="num">3.75</td></tr>
+<tr><td class="">拠出割合 第1期 → 第10期</td><td class="num">0.984 → 1.000</td><td class="num">0.875 → 0.188</td></tr>
+<tr><td class="">decline（第1期 − 第10期）</td><td class="num">-0.31</td><td class="num">13.75</td></tr>
+<tr><td class="">end_game_drop</td><td class="num">0.0</td><td class="num">1.25</td></tr>
+<tr><td class="">trend_per_round</td><td class="num">0.017</td><td class="num">-1.372</td></tr>
+<tr><td class="">conditional_slope（個人内）</td><td class="num">0.0</td><td class="num">0.636</td></tr>
+<tr><td class="">nash_share（拠出0の決定）</td><td class="num">0.0</td><td class="num">0.537</td></tr>
+<tr><td class="">信念 事前（7件法）</td><td class="num">6.75</td><td class="num">5.938</td></tr>
+</tbody></table></div>
+<figure class="fig" id="fig-c1"><div class="ft">図 C1　公共財の拠出割合：一般人 vs 職場ペルソナ</div><div class="viz" id="viz-c1"></div><noscript><p class="viz-note">グラフには JavaScript が必要です。下の数値表を見てください。</p></noscript><figcaption>一般人は第2期以降すべて 1.00 で固定。職場は 0.875 から 0.188 へ単調に近く減衰。16体×10期、各1ラン。</figcaption><details class="tbl"><summary>数値表</summary><div class="table-scroll wide"><table><thead><tr><th class="">系列</th><th class="num">1</th><th class="num">2</th><th class="num">3</th><th class="num">4</th><th class="num">5</th><th class="num">6</th><th class="num">7</th><th class="num">8</th><th class="num">9</th><th class="num">10</th></tr></thead><tbody><tr><td class="">一般人ペルソナ</td><td class="num">0.984</td><td class="num">1.000</td><td class="num">1.000</td><td class="num">1.000</td><td class="num">1.000</td><td class="num">1.000</td><td class="num">1.000</td><td class="num">1.000</td><td class="num">1.000</td><td class="num">1.000</td></tr><tr><td class="">職場ペルソナ</td><td class="num">0.875</td><td class="num">0.719</td><td class="num">0.562</td><td class="num">0.469</td><td class="num">0.406</td><td class="num">0.281</td><td class="num">0.312</td><td class="num">0.312</td><td class="num">0.250</td><td class="num">0.188</td></tr></tbody></table></div></details></figure>
+<figure class="fig" id="fig-c2"><div class="ft">図 C2　PD の協力率：ペルソナの集合の比較（会話なし）</div><div class="viz" id="viz-c2"></div><noscript><p class="viz-note">グラフには JavaScript が必要です。下の数値表を見てください。</p></noscript><figcaption>3本とも会話なしの PD。ch_off（グレーの破線）はチャネルの段落を足した職場ペルソナ。n と割り当て（ペア／セッション）が違うため、水準の比較は参考にとどめる。</figcaption><details class="tbl"><summary>数値表</summary><div class="table-scroll wide"><table><thead><tr><th class="">系列</th><th class="num">1</th><th class="num">2</th><th class="num">3</th><th class="num">4</th><th class="num">5</th><th class="num">6</th><th class="num">7</th><th class="num">8</th><th class="num">9</th><th class="num">10</th></tr></thead><tbody><tr><td class="">一般人（n=8）</td><td class="num">0.625</td><td class="num">0.500</td><td class="num">0.625</td><td class="num">0.500</td><td class="num">0.250</td><td class="num">0.500</td><td class="num">0.375</td><td class="num">0.250</td><td class="num">0.250</td><td class="num">0.250</td></tr><tr><td class="">職場（n=16）</td><td class="num">0.562</td><td class="num">0.500</td><td class="num">0.375</td><td class="num">0.438</td><td class="num">0.438</td><td class="num">0.375</td><td class="num">0.375</td><td class="num">0.375</td><td class="num">0.438</td><td class="num">0.312</td></tr><tr><td class="">ch_off（チャネル付き職場）</td><td class="num">0.625</td><td class="num">0.438</td><td class="num">0.312</td><td class="num">0.312</td><td class="num">0.250</td><td class="num">0.250</td><td class="num">0.312</td><td class="num">0.250</td><td class="num">0.250</td><td class="num">0.188</td></tr></tbody></table></div></details></figure>
+<div class="callout"><strong>注意</strong>　比較は同じペルソナの集合の中だけで行う（NOTES #56）。一般人は n=8、他は n=16 で、ペアラベル／セッションラベルの違いもある。PD ではペルソナによる差は大きくなく、pgg では大きい。</div>
+<h3>4(d) ネットワークのトポロジ（NOTES #54, #56）</h3>
+<p>職場ペルソナの 16体。各エージェントは、ゲームの相手以外の近隣と各期の前に1対1で会話する（1会話 2通）。net_off は会話なしの対照。</p>
+<div class="cap">表 D1a　グラフの構造（n=16）</div>
+<div class="table-scroll wide"><table><thead><tr><th class="">トポロジ</th><th class="num">辺の数 m</th><th class="num">平均次数</th><th class="num">最大次数</th><th class="num">クラスタ係数</th><th class="num">直径</th><th class="num">次数の同類選択性</th></tr></thead><tbody>
+<tr><td class="">BA</td><td class="num">28</td><td class="num">3.5</td><td class="num">7</td><td class="num">0.3994</td><td class="num">4</td><td class="num">-0.565</td></tr>
+<tr><td class="">ER</td><td class="num">32</td><td class="num">4.0</td><td class="num">6</td><td class="num">0.2646</td><td class="num">4</td><td class="num">-0.0214</td></tr>
+<tr><td class="">WS</td><td class="num">32</td><td class="num">4.0</td><td class="num">5</td><td class="num">0.4125</td><td class="num">4</td><td class="num">-0.1429</td></tr>
+<tr><td class="">ring</td><td class="num">32</td><td class="num">4.0</td><td class="num">4</td><td class="num">0.5</td><td class="num">4</td><td class="num">—</td></tr>
+</tbody></table></div>
+<p>BA の m=28、平均次数 3.5 は、他の 3つ（m=32、平均次数 4.0）より小さい。ring は全員が次数 4 なので、同類選択性は定義できない（—）。</p>
+<div class="cap">表 D1b　トポロジ別の行動と会話（職場ペルソナ、16体×10期、各1ラン）</div>
+<div class="table-scroll wide"><table><thead><tr><th class="">条件</th><th class="">メッセージ / 会話</th><th class="">協力率 第1期 → 第10期（全期平均）</th><th class="">条件付き協力</th><th class="">先頭の選択肢</th><th class="">on_topic</th><th class="">partner_reports</th><th class="">辺の一致 観測 / 置換平均 / p</th></tr></thead><tbody>
+<tr><td class="">対照（会話なし）</td><td class="">0 / 0</td><td class="">0.500 → 0.312（0.375）</td><td class="">0.927 / 0.011</td><td class="">146/160（0.912）</td><td class="">—</td><td class="">—</td><td class="">—</td></tr>
+<tr><td class="">BA</td><td class="">182 / 91</td><td class="">0.688 → 0.312（0.368）</td><td class="">0.685 / 0.122</td><td class="">123/160（0.769）</td><td class="">0.429</td><td class="">0.720</td><td class="">0.571 / 0.545 / 0.479</td></tr>
+<tr><td class="">ER</td><td class="">208 / 104</td><td class="">0.812 → 0.562（0.681）</td><td class="">0.920 / 0.091</td><td class="">107/160（0.669）</td><td class="">0.130</td><td class="">0.803</td><td class="">0.531 / 0.475 / 0.286</td></tr>
+<tr><td class="">WS</td><td class="">210 / 105</td><td class="">0.688 → 0.500（0.531）</td><td class="">0.948 / 0.015</td><td class="">109/160（0.681）</td><td class="">0.414</td><td class="">0.848</td><td class="">0.312 / 0.464 / 0.995</td></tr>
+<tr><td class="">ring</td><td class="">216 / 108</td><td class="">0.625 → 0.312（0.413）</td><td class="">0.885 / 0.024</td><td class="">110/160（0.688）</td><td class="">0.241</td><td class="">0.819</td><td class="">0.500 / 0.539 / 0.883</td></tr>
+</tbody></table></div>
+<p>possible_confusion はすべて 0.000。on_topic は正規表現による目安で、BA 0.429、ER 0.130、WS 0.414、ring 0.241 とばらつくが、ER の低さは話題が逸れたというより、その語を含まない書き方が多かったことを示す程度である。</p>
+<figure class="fig" id="fig-d1"><div class="ft">図 D1　協力率の推移（トポロジ別）</div><div class="viz" id="viz-d1"></div><noscript><p class="viz-note">グラフには JavaScript が必要です。下の数値表を見てください。</p></noscript><figcaption>対照（グレー破線）は会話なし。会話がある4条件は第1期が 0.625〜0.812 と対照（0.50）より高い。第10期は ER 0.562、WS 0.50、BA と ring は 0.312 で対照と同じ。各1ラン、n=16。</figcaption><details class="tbl"><summary>数値表</summary><div class="table-scroll wide"><table><thead><tr><th class="">系列</th><th class="num">1</th><th class="num">2</th><th class="num">3</th><th class="num">4</th><th class="num">5</th><th class="num">6</th><th class="num">7</th><th class="num">8</th><th class="num">9</th><th class="num">10</th></tr></thead><tbody><tr><td class="">対照（会話なし）</td><td class="num">0.500</td><td class="num">0.312</td><td class="num">0.375</td><td class="num">0.375</td><td class="num">0.375</td><td class="num">0.375</td><td class="num">0.375</td><td class="num">0.375</td><td class="num">0.375</td><td class="num">0.312</td></tr><tr><td class="">BA</td><td class="num">0.688</td><td class="num">0.375</td><td class="num">0.375</td><td class="num">0.375</td><td class="num">0.312</td><td class="num">0.312</td><td class="num">0.312</td><td class="num">0.312</td><td class="num">0.312</td><td class="num">0.312</td></tr><tr><td class="">ER</td><td class="num">0.812</td><td class="num">0.812</td><td class="num">0.688</td><td class="num">0.625</td><td class="num">0.625</td><td class="num">0.688</td><td class="num">0.688</td><td class="num">0.688</td><td class="num">0.625</td><td class="num">0.562</td></tr><tr><td class="">WS</td><td class="num">0.688</td><td class="num">0.562</td><td class="num">0.562</td><td class="num">0.500</td><td class="num">0.500</td><td class="num">0.500</td><td class="num">0.500</td><td class="num">0.500</td><td class="num">0.500</td><td class="num">0.500</td></tr><tr><td class="">ring</td><td class="num">0.625</td><td class="num">0.438</td><td class="num">0.375</td><td class="num">0.375</td><td class="num">0.438</td><td class="num">0.438</td><td class="num">0.375</td><td class="num">0.375</td><td class="num">0.375</td><td class="num">0.312</td></tr></tbody></table></div></details></figure>
+<figure class="fig" id="fig-d2"><div class="ft">図 D2　期ごとのメッセージ数（トポロジ別）</div><div class="viz" id="viz-d2"></div><noscript><p class="viz-note">グラフには JavaScript が必要です。下の数値表を見てください。</p></noscript><figcaption>4条件のメッセージ数は同じ期に増減する。接触の抽選（グラフと λ）が seed とトポロジだけで決まり、条件間で共有されているため。BA は辺が少ないぶん、ER・WS・ring と少し形が違う。</figcaption><details class="tbl"><summary>数値表</summary><div class="table-scroll wide"><table><thead><tr><th class="">系列</th><th class="num">1</th><th class="num">2</th><th class="num">3</th><th class="num">4</th><th class="num">5</th><th class="num">6</th><th class="num">7</th><th class="num">8</th><th class="num">9</th><th class="num">10</th></tr></thead><tbody><tr><td class="">BA</td><td class="num">20</td><td class="num">14</td><td class="num">18</td><td class="num">20</td><td class="num">20</td><td class="num">12</td><td class="num">12</td><td class="num">28</td><td class="num">22</td><td class="num">16</td></tr><tr><td class="">ER</td><td class="num">26</td><td class="num">14</td><td class="num">18</td><td class="num">26</td><td class="num">24</td><td class="num">12</td><td class="num">16</td><td class="num">30</td><td class="num">24</td><td class="num">18</td></tr><tr><td class="">WS</td><td class="num">24</td><td class="num">14</td><td class="num">20</td><td class="num">28</td><td class="num">22</td><td class="num">12</td><td class="num">16</td><td class="num">34</td><td class="num">26</td><td class="num">14</td></tr><tr><td class="">ring</td><td class="num">26</td><td class="num">14</td><td class="num">20</td><td class="num">26</td><td class="num">26</td><td class="num">12</td><td class="num">16</td><td class="num">34</td><td class="num">26</td><td class="num">16</td></tr></tbody></table></div></details></figure>
+<h3>接触率の確認（負の二項）</h3>
+<p>接触率 λ は Gamma(形状 r=0.5、平均 μ=1) から引き、1期に自分が始める会話数は k ~ Poisson(λ)（混合で負の二項分布、分散 μ+μ²/r = 3.0）。この16体のサンプルでは λ の平均 0.7214、中央値 0.2918、最大 3.1545、λ&lt;0.1 が 5/16体と右に裾が長い。ただし実際に引いた k（160 回）は平均 0.7875、分散 1.6527 で、理論の平均 1.0、分散 3.0 より小さい。16体の小標本であること、開始上限 3・負荷上限 4 で打ち切っていることが理由と考えられる。右に裾は長いが、理論ほど散らばっていない、というのが正直な見方である。</p>
+<h3>エージェントごとの Spearman と露出</h3>
+<div class="cap">表 D2a　エージェントごとの協力率との Spearman ρ（n=16）</div>
+<div class="table-scroll"><table><thead><tr><th class="">トポロジ</th><th class="">次数</th><th class="">λ</th><th class="">総会話数</th></tr></thead><tbody>
+<tr><td class="">BA</td><td class="">0.41（p=0.1147）</td><td class="">-0.253（p=0.3453）</td><td class="">-0.159（p=0.5568）</td></tr>
+<tr><td class="">ER</td><td class="">0.173（p=0.5229）</td><td class="">-0.175（p=0.516）</td><td class="">0.007（p=0.9809）</td></tr>
+<tr><td class="">WS</td><td class="">0.484（p=0.0577）</td><td class="">-0.062（p=0.8196）</td><td class="">-0.087（p=0.7495）</td></tr>
+<tr><td class="">ring</td><td class="">—</td><td class="">-0.169（p=0.5317）</td><td class="">-0.276（p=0.3013）</td></tr>
+</tbody></table></div>
+<p>いずれも有意ではない。WS の次数だけは p=0.0577 で、傾向にとどまる。多重比較の補正はしていない。</p>
+<div class="cap">表 D2b　behavioural_exposure（BA と ER）</div>
+<div class="table-scroll"><table><thead><tr><th class="">トポロジ</th><th class="">露出</th><th class="">自分が前期に協力：n / 今期協力</th><th class="">自分が前期に裏切り：n / 今期協力</th></tr></thead><tbody>
+<tr><td class="">BA</td><td class="">前期に裏切った会話相手がいた</td><td class="">26 / 0.962</td><td class="">52 / 0.000</td></tr>
+<tr><td class="">BA</td><td class="">会話はしたが裏切った相手はいない</td><td class="">12 / 1.000</td><td class="">10 / 0.000</td></tr>
+<tr><td class="">BA</td><td class="">会話なし</td><td class="">16 / 0.688</td><td class="">28 / 0.000</td></tr>
+<tr><td class="">ER</td><td class="">前期に裏切った会話相手がいた</td><td class="">38 / 0.974</td><td class="">12 / 0.083</td></tr>
+<tr><td class="">ER</td><td class="">会話はしたが裏切った相手はいない</td><td class="">26 / 0.846</td><td class="">19 / 0.105</td></tr>
+<tr><td class="">ER</td><td class="">会話なし</td><td class="">36 / 0.917</td><td class="">13 / 0.077</td></tr>
+</tbody></table></div>
+<p>BA で、前期に協力し、かつ裏切った会話相手がいた者の 0.962（26件中）が協力を続けた。会話なしの 0.688（16件）より高い。前期に裏切った者は、露出の有無にかかわらず協力に戻らなかった（0.000、BA）。ER でも前期に裏切った者の協力は 0.077〜0.105 にとどまる。また、BA で λ が最も高い（よく話す）3体は全期裏切った（NOTES #56 より）。</p>
+<h3>発言の例</h3>
+<blockquote class="q"><p class="en" lang="en">My partner chose ○ in round 1, resulting in 50 points. I'll continue with △ for round 2 as it is the most effective option regardless of their choice.</p><p class="sub">訳: 「相手は第1期に ○ を選び、私は 50 点だった。第2期も △ を続ける。相手が何を選んでも最も有効だからだ。」</p><p class="meta">net_ba、第2期、エージェント 0 → 6。記号の対応: 協力 ○、裏切り △（自分のペアの結果の報告）</p></blockquote>
+<blockquote class="q"><p class="en" lang="en">My partner is stuck in a predictable ○ loop, so I'm sticking with △ in round 4 to maximize my yield. It's a trivial pattern to exploit, really.</p><p class="sub">訳: 「相手は予測可能な ○ のループにはまっているので、第4期も △ を続けて取り分を最大にする。この型は、はっきり言って搾取しやすい。」</p><p class="meta">net_ba、第4期、エージェント 14 → 2。協力 ○、裏切り △（搾取を公言）</p></blockquote>
+<blockquote class="q"><p class="en" lang="en">I intend to start with ◇ to see if a cooperative pattern can be established. It’s the most logical way to target the 30-point baseline.</p><p class="sub">訳: 「協力的なパターンができるかを見るため、◇ から始めるつもりだ。30点の基準を狙う最も論理的な方法だ。」</p><p class="meta">net_er、第1期、エージェント 0 → 14。協力 ◇、裏切り △（意図の表明）</p></blockquote>
+<p>会話の中身は、自分のペアでの経験の報告と意図の表明が中心で、1体は相手からの搾取を公言した（NOTES #56 と一致）。旧指標 partner_confusion（BA 11%）は、第三者への正しい報告を数えていたため、partner_reports と狭い possible_confusion に置き換えた（NOTES #56 C より）。</p>
+<h3>4(e) チャネル適合ダイアドと記憶（NOTES #55, #56）</h3>
+<p>チャネル付き職場ペルソナ（35 チャネル、NOTES #55 より）の同じ 16体、BA、各1ラン。4条件は、近隣の選び方（β）、返信モデル、記憶だけが違う。</p>
+<div class="cap">表 E1　チャネル付き4条件</div>
+<div class="table-scroll wide"><table><thead><tr><th class="">ラン</th><th class="">β</th><th class="">返信モデル</th><th class="">記憶</th><th class="">協力率 第1期 → 第10期（全期平均）</th><th class="">条件付き協力</th><th class="">メッセージ / 会話</th><th class="">先頭の選択肢</th></tr></thead><tbody>
+<tr><td class="">ch_off（対照（会話なし））</td><td class="">—</td><td class="">—</td><td class="">window</td><td class="">0.625 → 0.188（0.319）</td><td class="">0.771 / 0.042</td><td class="">0</td><td class="">109/160（0.681）</td></tr>
+<tr><td class="">ch_ba0（相性なし）</td><td class="">0.0</td><td class="">always</td><td class="">window</td><td class="">0.812 → 0.562（0.644）</td><td class="">0.947 / 0.020</td><td class="">182 / 91 会話</td><td class="">113/160（0.706）</td></tr>
+<tr><td class="">ch_ba（相性あり）</td><td class="">1.0</td><td class="">reach</td><td class="">window</td><td class="">0.688 → 0.438（0.575）</td><td class="">0.859 / 0.136</td><td class="">166 / 試行 94 会話・応答 72</td><td class="">112/160（0.700）</td></tr>
+<tr><td class="">ch_ba_mem（相性あり＋忘却記憶）</td><td class="">1.0</td><td class="">reach</td><td class="">decay</td><td class="">0.750 → 0.625（0.656）</td><td class="">0.968 / 0.020</td><td class="">166 / 試行 94 会話・応答 72</td><td class="">123/160（0.769）</td></tr>
+</tbody></table></div>
+<figure class="fig" id="fig-e1"><div class="ft">図 E1　協力率の推移（チャネル付き4条件）</div><div class="viz" id="viz-e1"></div><noscript><p class="viz-note">グラフには JavaScript が必要です。下の数値表を見てください。</p></noscript><figcaption>対照（グレー破線）は会話なしで 0.625 → 0.188。第10期は、相性なし 0.562、相性あり 0.438、相性あり＋忘却記憶 0.625。差は 1〜2体分（1体 = 0.0625）で、1ランずつなので順位は確定しない。</figcaption><details class="tbl"><summary>数値表</summary><div class="table-scroll wide"><table><thead><tr><th class="">系列</th><th class="num">1</th><th class="num">2</th><th class="num">3</th><th class="num">4</th><th class="num">5</th><th class="num">6</th><th class="num">7</th><th class="num">8</th><th class="num">9</th><th class="num">10</th></tr></thead><tbody><tr><td class="">対照 ch_off（会話なし）</td><td class="num">0.625</td><td class="num">0.438</td><td class="num">0.312</td><td class="num">0.312</td><td class="num">0.250</td><td class="num">0.250</td><td class="num">0.312</td><td class="num">0.250</td><td class="num">0.250</td><td class="num">0.188</td></tr><tr><td class="">ch_ba0（相性なし）</td><td class="num">0.812</td><td class="num">0.625</td><td class="num">0.688</td><td class="num">0.625</td><td class="num">0.625</td><td class="num">0.625</td><td class="num">0.625</td><td class="num">0.625</td><td class="num">0.625</td><td class="num">0.562</td></tr><tr><td class="">ch_ba（相性あり）</td><td class="num">0.688</td><td class="num">0.625</td><td class="num">0.562</td><td class="num">0.625</td><td class="num">0.562</td><td class="num">0.562</td><td class="num">0.562</td><td class="num">0.562</td><td class="num">0.562</td><td class="num">0.438</td></tr><tr><td class="">ch_ba_mem（＋忘却記憶）</td><td class="num">0.750</td><td class="num">0.688</td><td class="num">0.750</td><td class="num">0.625</td><td class="num">0.625</td><td class="num">0.625</td><td class="num">0.625</td><td class="num">0.625</td><td class="num">0.625</td><td class="num">0.625</td></tr></tbody></table></div></details></figure>
+<h3>仕組みの確認</h3>
+<div class="cap">表 E2　相性・返信の確認</div>
+<div class="table-scroll"><table><thead><tr><th class="">確認項目</th><th class="">値</th></tr></thead><tbody>
+<tr><td class="">A の分布（全 120 ペア）: 最小 / 25% / 中央値 / 75% / 最大</td><td class="">0.372 / 0.54 / 0.629 / 0.699 / 0.853</td></tr>
+<tr><td class="">A の分布（28 辺）: 同上</td><td class="">0.425 / 0.617 / 0.663 / 0.695 / 0.853</td></tr>
+<tr><td class="">Spearman(A, 辺ごとの会話の試行数)  β=0 / β=1</td><td class="">0.305（p=0.1149） / 0.411（p=0.03）、n=28</td></tr>
+<tr><td class="">Spearman(A, 辺ごとの応答数)  β=1</td><td class="">0.378（p=0.0475）</td></tr>
+<tr><td class="">返信なし（unanswered）/ 会話の試行</td><td class="">22 / 94（実現返信率 0.766、平均 reach 0.7546）</td></tr>
+<tr><td class="">返信率: A の三分位 低 / 中 / 高</td><td class="">0.8235（17会話） / 0.7692（39会話） / 0.7368（38会話）</td></tr>
+<tr><td class="">（β=0・always）未返信 / 実現返信率 / 平均 reach</td><td class="">0 / 1.0 / 0.7555</td></tr>
+</tbody></table></div>
+<p>相性 A は、会話の相手に選ばれる頻度と結びついた（β=1 で ρ=0.411、p=0.03）。β=0 では 0.305（p=0.1149）。これは「そう設計した」結果を確かめたもので、仮説の検証ではない。返信率は A の三分位とは連動しない（0.8235 / 0.7692 / 0.7368）。返信は受け手の媒体の習慣で決まり、話題の相性とは独立に設計したからである（NOTES #56 と一致）。実現返信率 0.766 は平均 reach 0.7546 に近い。</p>
+<h3>記憶</h3>
+<div class="cap">表 E3　記憶ブロック（ch_ba_mem、半減期 2、予算 3200 字）</div>
+<div class="table-scroll wide"><table><thead><tr><th class=""></th><th class="num">プロンプト数</th><th class="num">平均文字数</th><th class="num">上限到達</th><th class="num">原文</th><th class="num">抜粋</th><th class="num">要点</th><th class="num">集約</th></tr></thead><tbody>
+<tr><td class="">決定プロンプト</td><td class="num">160</td><td class="num">1573.05</td><td class="num">25</td><td class="num">0.487</td><td class="num">0.186</td><td class="num">0.112</td><td class="num">0.216</td></tr>
+<tr><td class="">ネットワークチャット</td><td class="num">166</td><td class="num">1616.1386</td><td class="num">8</td><td class="num">0.416</td><td class="num">0.257</td><td class="num">0.164</td><td class="num">0.164</td></tr>
+</tbody></table></div>
+<div class="cap">表 E4　remembered_exposure（ch_ba_mem。◇ は裏切りの記号）</div>
+<div class="table-scroll"><table><thead><tr><th class="">記憶に裏切りの言及（◇）</th><th class="">自分が前期に協力：n / 今期協力</th><th class="">自分が前期に裏切り：n / 今期協力</th></tr></thead><tbody>
+<tr><td class="">あり</td><td class="">32 / 1.000</td><td class="">13 / 0.000</td></tr>
+<tr><td class="">なし</td><td class="">63 / 0.921</td><td class="">36 / 0.083</td></tr>
+</tbody></table></div>
+<p>決定プロンプトでは 160 回のうち 25 回が上限に達した。裏切りの言及を記憶していた者は、前期に協力していれば 1.000（n=32）で協力を続け、記憶がない者の 0.921（n=63）と大差ない。記憶の効果を示す根拠としては弱く、慎重に読む。</p>
+<div class="callout"><strong>注意</strong>　<strong>対応のある設計の注意。</strong> net_ba と ch_ba0 は、期ごとの会話数が完全に同じ（同じグラフ・同じ seed・β=0）。ch_ba と ch_ba_mem も同じ（誰が話したかが同じ）。つまり、この2組の差は「誰が話したか」ではなく、行動と発言の違いから生じている。会話数は両方とも1期あたりの応答のあった会話の数（CSV の <code>conversations</code>）で、ch_ba・ch_ba_mem の合計 72 は、試行 94 から未返信 22 を除いた数である。</div>
+<h3>発言の例（ch_ba、ch_ba_mem）</h3>
+<blockquote class="q"><p class="en" lang="en">I plan to play ○ in the first round. Based on the point distribution, it is the most logical choice for maximizing my individual score.</p><p class="sub">訳: 「第1期は ○ を選ぶつもりだ。点数の配分からして、それが最も論理的だ。」</p><p class="meta">ch_ba、第1期、エージェント 0 → 6。返信なしの会話の最初の発言。協力 □、裏切り ○</p></blockquote>
+<blockquote class="q"><p class="en" lang="en">My partner's logic is stuck in a □ loop, which is predictably inefficient. I'll be choosing ○ in round 4 to exploit that pattern and maximize my points.</p><p class="sub">訳: 「相手の論理は □ のループにはまっていて、予測しやすく非効率だ。第4期は ○ を選び、そのパターンを搾取して点数を最大にする。」</p><p class="meta">ch_ba、第4期、エージェント 14 → 2。協力 □、裏切り ○</p></blockquote>
+<blockquote class="q"><p class="en" lang="en">In Round 1, my partner and I both chose △, resulting in 30 points each. I intend to select △ again for Round 2 to see if we can maintain this stability.</p><p class="sub">訳: 「第1期は、私と相手がともに △ を選び、それぞれ30点だった。この安定を保てるかを見るため、第2期も △ を選ぶつもりだ。」</p><p class="meta">ch_ba_mem、第2期、エージェント 0 → 6。協力 △、裏切り ◇（自分のペアの結果の報告）</p></blockquote>
+<p>ch_ba の搾取の発言は、net_ba のエージェント 14 が第4期に同じ相手（エージェント 2）へ送った発言と、記号こそ違うがほぼ同じ趣旨である（どちらも会話 r4c2）。同じ人物の語り口がペルソナの違いを超えて出ている可能性があるが、1例にすぎない。</p>
+<p>分析の見逃しの例（NOTES #56 C より）: ch_ba の第2期に、他のペアの結果を自分のペアの結果と取り違えて「あなたの第1期の認識は誤り」と返した1件がある。現在の <code>possible_confusion</code> はこの種の例を拾うため狭い表現に絞ってあり、BA・ch_ba とも 0.0 だが、この1件は正規表現では拾えていない。</p>
+</section>
+<section id="discussion"><h2>5. 考察</h2>
+<h3>5.1 位置バイアスと思考の必要</h3>
+<p>qwen3 の文字 A、e4b の記号の見た目、12b の先頭 160/160 と、モデルが変わるたびに別の形で提示の仕方が行動を決めていた。思考ありの 26b でも先頭の選択肢の割合は残る。16体のランでは 0.669（net_er）〜0.912（net_off）で、対照の net_off が最も高い。位置の影響が残る分、協力率の水準と差は割り引いて読む必要がある。エージェントごとの並びのランダム化と、多数のセッションでの反復が対策になる。</p>
+<h3>5.2 ペルソナの枠組みは処置の一部</h3>
+<p>SNS の枠が後ろ向き帰納を抑える（NOTES #52）。職場ペルソナでは公共財が減衰した。さらに、チャネルの段落を足しただけで会話なしの対照が動いた: ch_off は 0.625 → 0.188、net_off は 0.50 → 0.312。ペルソナの文章は処置の一部であり、比較は同じペルソナの集合の中でしかできない。</p>
+<h3>5.3 推論型のゲームは人間より速く収束し、規範型のゲームは人間的だが均一</h3>
+<p>beauty は第1期 20.06、第7期以降 0 で、人間より速く均衡に着く（人間の第1期は約35、NOTES #53 より）。trust は返金割合が上昇し（0.45 → 0.657）、全額送金の人数が 2 → 7 に増える。ultimatum は全員が折半で、最小も最大も 10。人間的な傾向（公平・互恵）だが、個人差も拒否も出ない。均一さは LLM の特徴で、人間のデータの再現とは言えない。</p>
+<h3>5.4 会話は第1期を押し上げ、持続はトポロジ次第</h3>
+<p>第1期は、対照 0.50 に対し会話ありの4条件が 0.625〜0.812。第10期は ER 0.562、WS 0.50、BA と ring が 0.312（対照と同じ）。全期平均は ER 0.681、WS 0.531、ring 0.413、対照 0.375、BA 0.368。ER・WS で協力が残ったが、1ランずつで、1体 = 0.0625 の世界なので、順位を言える水準ではない。</p>
+<h3>5.5 BA ネットワーク</h3>
+<p>BA は次数の同類選択性が −0.565 と強い負で、最大次数 7（ハブ）がある。BA は条件付き協力のうち、相手が裏切った後の協力が 0.122 と、会話のある4つのネットワーク条件で最も高い（ER 0.091、ring 0.024、WS 0.015）。前期に協力し、前期に裏切った会話相手がいた者の 96%（26件）が協力を続けたのに対し、会話なしは 69%（16件）。前期に裏切った者は戻らなかった。会話には自分のペアの結果と意図の報告が多く、露骨な搾取の発言も含まれる。</p>
+<h3>5.6 記憶は協力を保つか</h3>
+<p>忘却つき記憶の条件は第10期 0.625、条件付き協力 0.968 / 0.020 で、チャネル付きの中では協力が最も保たれた。ただし ch_ba0（相性なし）も 0.562 で、差は 1体分に当たる。裏切りの言及を残した者の行動にも明確な違いは見えない。1ランなので、記憶が協力を支えると言う根拠にはならない。</p>
+<h3>5.7 妥当性への脅威</h3>
+<ul><li>n=8/16、1 seed、LLM のサンプリングは seed 固定でない（再現しても同じ値にならない）。</li><li>ceiling 効果（チャットありで 1.00、NOTES #50）。</li><li>ペルソナの文章の影響（5.2）。</li><li>指標の限界: on_topic は正規表現、partner_reports と possible_confusion は狭い表現、負の二項の確認は 16体の λ のサンプル（k_drawn の分散 1.6527 は理論の 3.0 より小さい）。</li><li>取り違えの例が正規表現で拾えない（§4(e)）。</li><li>#55 の修正前は職場ペルソナの重複名（16体中 Elena V. が2人、Alex R. が2人）が区別されていなかった。トポロジの5ランは修正前（NOTES #56 D より）。</li><li>信念調査の事後は、26b の PD ランと pgg_workplace で欠測（beliefs.post が null）。pgg_general では事後 6.625 がある。信念調査自体を行っていないランもある（beauty、trust、ultimatum）。</li><li>モデルは gemma4 系のみ。</li></ul>
+<h3>5.8 人間の知見との関係</h3>
+<p>ここで挙げるのは一般的に知られた知見だけである。公共財の拠出の減衰と条件付き協力者の存在（Fehr &amp; Gächter 2000、および Fischbacher・Gächter・Fehr の条件付き協力者の類型）、beauty contest で第1期に均衡より高い推測が出て 0 に近づくこと（Nagel 1995）、信頼ゲームで送金と返金が出ること（Berg et al. 1995）。この報告のデータは、これらと向きが合うゲーム（beauty、pgg 職場、trust）と、合わないゲーム（pgg 一般人）がある、というところまでしか言えない。</p>
+<h3>5.9 次にやること</h3>
+<ul><li>反復ラン（seed 1・2）と pgg のチャネル 4条件（実行中）。複数 seed をまとめた分析と、信頼区間。</li><li>裏切り・評判のフック（<code>DYAD_HOOKS</code>）。</li><li>48体への拡大。</li><li><code>pd_net_ba_chsel</code>、<code>pd_net_ba_chrep</code>（設定のみ用意済み）。</li><li>職場ペルソナでの trust・ultimatum・beauty。</li></ul>
+</section>
+<section id="appendix"><h2>6. 付録</h2>
+<h3>A. ラン一覧</h3>
+<div class="cap">表 F1　19 ラン（oTree 設定は settings.py との対応）</div>
+<div class="table-scroll wide"><table><thead><tr><th class="">ラン</th><th class="">フェーズ</th><th class="">ゲーム</th><th class="">ペルソナ</th><th class="">モデル</th><th class="num">n</th><th class="">ラベル単位／備考</th><th class="">セッションコード</th><th class="">oTree 設定</th><th class="">sim / export</th></tr></thead><tbody>
+<tr><td class="">chat_12b</td><td class="">pair_chat</td><td class="">pd</td><td class="">general</td><td class="">gemma4:12b（思考なし）</td><td class="num">8</td><td class="">pair／chat_turns=4</td><td class="">y6klb3vv</td><td class="">pd_debate_llm_chat</td><td class="">sim_chat_12b / export_chat_12b</td></tr>
+<tr><td class="">nochat_12b</td><td class="">pair_chat</td><td class="">pd</td><td class="">general</td><td class="">gemma4:12b（思考なし）</td><td class="num">8</td><td class="">pair</td><td class="">0aun0b62</td><td class="">pd_debate_llm_nochat</td><td class="">sim_nochat / export_nochat_12b</td></tr>
+<tr><td class="">chat_26b</td><td class="">pair_chat</td><td class="">pd</td><td class="">general</td><td class="">gemma4:26b（思考あり）</td><td class="num">8</td><td class="">pair／chat_turns=4</td><td class="">kggqazxx</td><td class="">pd_debate_llm_chat</td><td class="">sim_chat26 / export_chat_26b</td></tr>
+<tr><td class="">nochat_26b</td><td class="">pair_chat</td><td class="">pd</td><td class="">general</td><td class="">gemma4:26b（思考あり）</td><td class="num">8</td><td class="">pair</td><td class="">h9wzm5t0</td><td class="">pd_debate_llm_nochat</td><td class="">sim_nochat26 / export_nochat_26b</td></tr>
+<tr><td class="">pgg_general</td><td class="">games</td><td class="">pgg</td><td class="">general</td><td class="">gemma4:26b</td><td class="num">16</td><td class="">session</td><td class="">g4clc5ld</td><td class="">pgg_llm</td><td class="">sim_pgg26 / export_pgg_26b</td></tr>
+<tr><td class="">beauty</td><td class="">games</td><td class="">beauty</td><td class="">general</td><td class="">gemma4:26b</td><td class="num">16</td><td class="">session</td><td class="">52xtneus</td><td class="">beauty_llm</td><td class="">sim_beauty26 / export_beauty26</td></tr>
+<tr><td class="">trust</td><td class="">games</td><td class="">trust</td><td class="">general</td><td class="">gemma4:26b</td><td class="num">16</td><td class="">session</td><td class="">03b6pyz5</td><td class="">trust_llm</td><td class="">sim_trust26 / export_trust26</td></tr>
+<tr><td class="">ultimatum</td><td class="">games</td><td class="">ultimatum</td><td class="">general</td><td class="">gemma4:26b</td><td class="num">16</td><td class="">session</td><td class="">hfkj4xwg</td><td class="">ultimatum_llm</td><td class="">sim_ult26 / export_ult26</td></tr>
+<tr><td class="">pd_workplace</td><td class="">workplace</td><td class="">pd</td><td class="">workplace</td><td class="">gemma4:26b</td><td class="num">16</td><td class="">pair</td><td class="">47cyjhbb</td><td class="">pd_debate_llm_nochat</td><td class="">sim_pdwork26 / export_pdwork26</td></tr>
+<tr><td class="">pgg_workplace</td><td class="">workplace</td><td class="">pgg</td><td class="">workplace</td><td class="">gemma4:26b</td><td class="num">16</td><td class="">session</td><td class="">zbug7iht</td><td class="">pgg_llm</td><td class="">sim_pggwork26 / export_pggwork26</td></tr>
+<tr><td class="">net_off</td><td class="">network</td><td class="">pd</td><td class="">workplace</td><td class="">gemma4:26b</td><td class="num">16</td><td class="">session</td><td class="">4elmzl6f</td><td class="">pd_net_off</td><td class="">sim_netoff / export_netoff</td></tr>
+<tr><td class="">net_ba</td><td class="">network</td><td class="">pd</td><td class="">workplace</td><td class="">gemma4:26b</td><td class="num">16</td><td class="">session</td><td class="">pw02s8yd</td><td class="">pd_net_ba</td><td class="">sim_netba / export_netba</td></tr>
+<tr><td class="">net_er</td><td class="">network</td><td class="">pd</td><td class="">workplace</td><td class="">gemma4:26b</td><td class="num">16</td><td class="">session</td><td class="">xa46q94g</td><td class="">pd_net_er</td><td class="">sim_neter / export_neter</td></tr>
+<tr><td class="">net_ws</td><td class="">network</td><td class="">pd</td><td class="">workplace</td><td class="">gemma4:26b</td><td class="num">16</td><td class="">session</td><td class="">7f8yjxdj</td><td class="">pd_net_ws</td><td class="">sim_netws / export_netws</td></tr>
+<tr><td class="">net_ring</td><td class="">network</td><td class="">pd</td><td class="">workplace</td><td class="">gemma4:26b</td><td class="num">16</td><td class="">session</td><td class="">vva0ql1f</td><td class="">pd_net_ring</td><td class="">sim_netring / export_netring</td></tr>
+<tr><td class="">ch_off</td><td class="">channels</td><td class="">pd</td><td class="">channels</td><td class="">gemma4:26b</td><td class="num">16</td><td class="">session</td><td class="">ismiaam4</td><td class="">pd_net_off_ch</td><td class="">sim_choff / export_choff</td></tr>
+<tr><td class="">ch_ba0</td><td class="">channels</td><td class="">pd</td><td class="">channels</td><td class="">gemma4:26b</td><td class="num">16</td><td class="">session</td><td class="">9vu6dnee</td><td class="">pd_net_ba_ch0</td><td class="">sim_chba0 / export_chba0</td></tr>
+<tr><td class="">ch_ba</td><td class="">channels</td><td class="">pd</td><td class="">channels</td><td class="">gemma4:26b</td><td class="num">16</td><td class="">session</td><td class="">enuhuodq</td><td class="">pd_net_ba_ch</td><td class="">sim_chba / export_chba</td></tr>
+<tr><td class="">ch_ba_mem</td><td class="">channels</td><td class="">pd</td><td class="">channels</td><td class="">gemma4:26b</td><td class="num">16</td><td class="">session</td><td class="">i671cldd</td><td class="">pd_net_ba_ch_mem</td><td class="">sim_chbamem / export_chbamem</td></tr>
+</tbody></table></div>
+<p>oTree 設定の列は、results.json の条件と <code>settings.py</code> の設定値を突き合わせた対応で、results.json 自体には記録されていない。</p>
+<p>集約から除外したもの: bots exports、sim_chat_v1、sim_smokeba、sim_chat_v2_e4b (only as e4b_note)。</p>
+<h3>B. データと成果物の置き場所</h3>
+<ul><li>ラン記録: <code>~/workspace/research/mirofish_runs/runs/</code>（<code>sim_*</code> と <code>export_*</code>）</li><li>ダッシュボード: <code>~/workspace/research/mirofish_runs/dashboards/index.html</code>（<code>network_runs/</code>、<code>channel_runs/</code> に条件比較 <code>compare.html</code> と各ラン）</li><li>ペルソナのシミュレーション: <code>sim_general_s1_n48</code>、<code>sim_workplace_s1_n48</code>、<code>sim_workplace_ch_s1_n48</code>（<code>backend/uploads/simulations/</code>）</li><li>座席順 <code>agent_order</code>（先頭16体）: [3,4,6,14,1,7,8,17,5,9,10,13,0,2,11,12]（oTree の <code>MF_AGENT_IDS</code> に渡す）</li><li>集約: <a href="results/results.json">results/results.json</a>、<a href="results/results_rounds.csv">results/results_rounds.csv</a></li></ul>
+<h3>C. 再現</h3>
+<pre><code># 集約（LLM なし）
+backend/.venv/bin/python backend/scripts/experiment/collect_results.py \
+    [--manifest backend/scripts/experiment/results_manifest.json] [--out-dir docs/otree-integration/results]
+
+# 1ランの解析
+backend/.venv/bin/python backend/scripts/experiment/analyze_session.py --otree-csv &lt;export&gt;/pd_debate_custom.csv --sim-dir &lt;sim_dir&gt;
+backend/.venv/bin/python backend/scripts/experiment/analyze_network.py --otree-csv &lt;export&gt;/pd_debate_custom.csv --sim-dir &lt;sim_dir&gt;</code></pre>
+<p>スタックの起動は <a href="README.ja.md">README.ja.md</a> §9（<code>FLASK_DEBUG=false</code> が必須、ラン中に <code>backend/</code> を編集しない）。新しい作業は、README.ja.md の「技術的な変更（2026-09-29〜10-02）」に一覧がある。</p>
+</section>
+<footer>oTree × MiroFish-Offline 結果報告（第2報）・2026-10-02・グラフは Vega-Lite（CDN）。CDN が使えなくても各図の「数値表」で同じ数値が読める。</footer>
+</div>
+<script>
+const CHARTS = [{"id": "a1", "grid": false, "panels": [{"title": "協力率", "ytitle": "協力率", "domain": [0, 1], "rule": null, "pct": false, "series": [{"name": "12b チャットあり", "color": "c1", "dash": false, "values": [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]}, {"name": "12b チャットなし", "color": "c1", "dash": true, "values": [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]}, {"name": "26b チャットあり", "color": "c2", "dash": false, "values": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]}, {"name": "26b チャットなし", "color": "c2", "dash": true, "values": [0.625, 0.5, 0.625, 0.5, 0.25, 0.5, 0.375, 0.25, 0.25, 0.25]}]}]}, {"id": "b1", "grid": true, "panels": [{"title": "beauty：平均推測", "ytitle": "平均推測（0〜100）", "domain": [0, 100], "rule": [0, "均衡 0"], "pct": false, "series": [{"name": "平均推測", "color": "c1", "dash": false, "values": [20.06, 9.56, 4.06, 1.62, 0.62, 0.06, 0.0, 0.0, 0.0, 0.0]}]}, {"title": "pgg：拠出割合", "ytitle": "持ち点に対する割合", "domain": [0, 1], "rule": null, "pct": false, "series": [{"name": "拠出割合", "color": "c2", "dash": false, "values": [0.984, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]}]}, {"title": "trust：平均送金", "ytitle": "送金（10点中）", "domain": [0, 10], "rule": null, "pct": false, "series": [{"name": "平均送金", "color": "c3", "dash": false, "values": [5.88, 6.62, 7.75, 8.62, 9.12, 9.12, 9.12, 9.12, 9.12, 7.88]}]}, {"title": "trust：返金割合", "ytitle": "返金割合", "domain": [0, 1], "rule": null, "pct": false, "series": [{"name": "返金割合", "color": "c3", "dash": false, "values": [0.45, 0.514, 0.557, 0.573, 0.596, 0.625, 0.592, 0.575, 0.596, 0.657]}]}, {"title": "ultimatum：平均提案", "ytitle": "提案（20点中）", "domain": [0, 20], "rule": [10, "折半 10"], "pct": false, "series": [{"name": "平均提案", "color": "c5", "dash": false, "values": [10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0]}]}]}, {"id": "c1", "grid": false, "panels": [{"title": "pgg 拠出割合", "ytitle": "持ち点に対する割合", "domain": [0, 1], "rule": null, "pct": false, "series": [{"name": "一般人ペルソナ", "color": "c1", "dash": false, "values": [0.984, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]}, {"name": "職場ペルソナ", "color": "c2", "dash": false, "values": [0.875, 0.719, 0.562, 0.469, 0.406, 0.281, 0.312, 0.312, 0.25, 0.188]}]}]}, {"id": "c2", "grid": false, "panels": [{"title": "PD 協力率", "ytitle": "協力率", "domain": [0, 1], "rule": null, "pct": false, "series": [{"name": "一般人（n=8）", "color": "c1", "dash": false, "values": [0.625, 0.5, 0.625, 0.5, 0.25, 0.5, 0.375, 0.25, 0.25, 0.25]}, {"name": "職場（n=16）", "color": "c2", "dash": false, "values": [0.562, 0.5, 0.375, 0.438, 0.438, 0.375, 0.375, 0.375, 0.438, 0.312]}, {"name": "ch_off（チャネル付き職場）", "color": "ctrl", "dash": true, "values": [0.625, 0.438, 0.312, 0.312, 0.25, 0.25, 0.312, 0.25, 0.25, 0.188]}]}]}, {"id": "d1", "grid": false, "panels": [{"title": "協力率", "ytitle": "協力率", "domain": [0, 1], "rule": null, "pct": false, "series": [{"name": "対照（会話なし）", "color": "ctrl", "dash": true, "values": [0.5, 0.312, 0.375, 0.375, 0.375, 0.375, 0.375, 0.375, 0.375, 0.312]}, {"name": "BA", "color": "c1", "dash": false, "values": [0.688, 0.375, 0.375, 0.375, 0.312, 0.312, 0.312, 0.312, 0.312, 0.312]}, {"name": "ER", "color": "c2", "dash": false, "values": [0.812, 0.812, 0.688, 0.625, 0.625, 0.688, 0.688, 0.688, 0.625, 0.562]}, {"name": "WS", "color": "c3", "dash": false, "values": [0.688, 0.562, 0.562, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]}, {"name": "ring", "color": "c5", "dash": false, "values": [0.625, 0.438, 0.375, 0.375, 0.438, 0.438, 0.375, 0.375, 0.375, 0.312]}]}]}, {"id": "d2", "grid": false, "panels": [{"title": "メッセージ数", "ytitle": "メッセージ数", "domain": [0, 40], "rule": null, "pct": false, "series": [{"name": "BA", "color": "c1", "dash": false, "values": [20.0, 14.0, 18.0, 20.0, 20.0, 12.0, 12.0, 28.0, 22.0, 16.0]}, {"name": "ER", "color": "c2", "dash": false, "values": [26.0, 14.0, 18.0, 26.0, 24.0, 12.0, 16.0, 30.0, 24.0, 18.0]}, {"name": "WS", "color": "c3", "dash": false, "values": [24.0, 14.0, 20.0, 28.0, 22.0, 12.0, 16.0, 34.0, 26.0, 14.0]}, {"name": "ring", "color": "c5", "dash": false, "values": [26.0, 14.0, 20.0, 26.0, 26.0, 12.0, 16.0, 34.0, 26.0, 16.0]}]}]}, {"id": "e1", "grid": false, "panels": [{"title": "協力率", "ytitle": "協力率", "domain": [0, 1], "rule": null, "pct": false, "series": [{"name": "対照 ch_off（会話なし）", "color": "ctrl", "dash": true, "values": [0.625, 0.438, 0.312, 0.312, 0.25, 0.25, 0.312, 0.25, 0.25, 0.188]}, {"name": "ch_ba0（相性なし）", "color": "c2", "dash": false, "values": [0.812, 0.625, 0.688, 0.625, 0.625, 0.625, 0.625, 0.625, 0.625, 0.562]}, {"name": "ch_ba（相性あり）", "color": "c1", "dash": false, "values": [0.688, 0.625, 0.562, 0.625, 0.562, 0.562, 0.562, 0.562, 0.562, 0.438]}, {"name": "ch_ba_mem（＋忘却記憶）", "color": "c3", "dash": false, "values": [0.75, 0.688, 0.75, 0.625, 0.625, 0.625, 0.625, 0.625, 0.625, 0.625]}]}]}];
+const CDN_OK = typeof vegaEmbed !== 'undefined';
+function cv(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function colour(t){ return t === 'ctrl' ? cv('--ctrl') : cv('--' + t); }
+function spec(p, w){
+  const names = p.series.map(s => s.name), narrow = w < 520;
+  const values = [];
+  p.series.forEach(s => s.values.forEach((v, i) => values.push({s: s.name, round: i + 1, v: v})));
+  const multi = p.series.length > 1;
+  const enc = {
+    x: {field: 'round', type: 'quantitative', scale: {domain: [1, 10], nice: false}, axis: {values: [1,2,3,4,5,6,7,8,9,10], format: 'd', title: 'ラウンド', grid: false}},
+    y: {field: 'v', type: 'quantitative', scale: {domain: p.domain}, axis: {title: p.ytitle, tickCount: 5}},
+    tooltip: [{field: 's', title: '系列'}, {field: 'round', title: 'ラウンド'}, {field: 'v', title: p.ytitle}]
+  };
+  if (multi) {
+    enc.color = {field: 's', type: 'nominal', scale: {domain: names, range: p.series.map(s => colour(s.color))},
+                 legend: {orient: 'bottom', title: null, direction: 'horizontal', columns: narrow ? 1 : 2, symbolType: 'stroke', symbolStrokeWidth: 2}};
+    enc.strokeDash = {field: 's', type: 'nominal', scale: {domain: names, range: p.series.map(s => s.dash ? [5,4] : [1,0])}, legend: {orient: 'bottom', title: null, direction: 'horizontal', columns: narrow ? 1 : 2}};
+  }
+  const mark = {type: 'line', strokeWidth: 2, point: {filled: true, size: 36}, tooltip: true};
+  if (!multi) { mark.color = colour(p.series[0].color); mark.point.color = mark.color; }
+  const layers = [{mark: mark, encoding: enc}];
+  if (p.rule) {
+    layers.push({mark: {type: 'rule', strokeDash: [2,3], color: cv('--text-muted')}, encoding: {y: {datum: p.rule[0]}}});
+    layers.push({mark: {type: 'text', align: 'left', dx: 4, dy: -6, fontSize: 11, color: cv('--text-secondary')}, encoding: {x: {datum: 1}, y: {datum: p.rule[0]}, text: {value: p.rule[1]}}});
+  }
+  const tc = cv('--text-secondary'), mu = cv('--text-muted');
+  return {
+    $schema: 'https://vega.github.io/schema/vega-lite/v6.json', width: 'container', height: narrow ? 200 : 240,
+    data: {values: values}, layer: layers, background: 'transparent',
+    config: {view: {stroke: null}, font: 'system-ui, sans-serif',
+      axis: {labelColor: mu, titleColor: tc, gridColor: cv('--grid'), domainColor: cv('--axis'), tickColor: cv('--axis'), labelFontSize: 11, titleFontSize: 12},
+      legend: {labelColor: tc, labelFontSize: 12, symbolSize: 120}}
+  };
+}
+function renderAll(){
+  CHARTS.forEach(c => {
+    const host = document.getElementById('viz-' + c.id); if (!host) return;
+    if (!CDN_OK) { host.innerHTML = '<p class="viz-note">グラフを読み込めませんでした（オフラインの可能性）。下の「数値表」に同じ数値があります。</p>'; return; }
+    host.innerHTML = '';
+    c.panels.forEach(p => {
+      let el = host;
+      if (c.grid) { const w = document.createElement('div'); w.className = 'panel'; w.innerHTML = '<div class="t"></div><div class="viz"></div>'; w.firstChild.textContent = p.title; host.appendChild(w); el = w.lastChild; }
+      const width = el.clientWidth || host.clientWidth || 360;
+      vegaEmbed(el, spec(p, width), {actions: false, renderer: 'svg'}).catch(e => { el.innerHTML = '<p class="viz-note">グラフの描画に失敗しました。数値表を見てください。</p>'; });
+    });
+  });
+}
+window.addEventListener('DOMContentLoaded', renderAll);
+try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', renderAll); } catch (e) {}
+try { new MutationObserver(renderAll).observe(document.documentElement, {attributes: true, attributeFilter: ['data-theme']}); } catch (e) {}
+</script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 # oTree × MiroFish-Offline — 技術仕様
 
-**English: [README.md](README.md)** ・ 実装と結果のレポート: [REPORT.md](REPORT.md) ／ [report.html](report.html) ・ 観察ログ: [NOTES.md](NOTES.md) ・ 音声版: [この仕様](audio/readme_ja.mp3)、[レポート](audio/report_ja.mp3)（読み上げ原稿は [narration/](narration/)）
+**English: [README.md](README.md)** ・ 実装と結果のレポート: [REPORT.md](REPORT.md) ／ [report.html](report.html)、第2報 [REPORT_2026-10.md](REPORT_2026-10.md) ／ [report_2026-10.html](report_2026-10.html) ・ 観察ログ: [NOTES.md](NOTES.md) ・ 音声版: [この仕様](audio/readme_ja.mp3)、[レポート](audio/report_ja.mp3)（読み上げ原稿は [narration/](narration/)）
 
 MiroFish の LLM エージェントに oTree の反復囚人のジレンマをプレイさせる。ゲームの期と期の間に、エージェントは模擬 SNS（OASIS）で議論し、言説と行動が互いに影響し合う。
 
@@ -223,3 +223,70 @@ oTree クライアントの環境変数: `MF_BRIDGE_URL`（未設定なら固定
 - ラン中に `backend/` のコードやプロンプトのテンプレートを編集しない
 - step-server は起動時に `<sim_dir>/twitter_simulation.db` を消して作り直す。実験はシミュレーションディレクトリのコピーで行う
 - oTree の bot 実行は直列なので、並行アクセス時の安全性は負荷試験していない
+
+## 11. 技術的な変更（2026-09-29〜10-02）
+
+MiroFish-Offline の PR #3・#4 のマージ後、ブランチ `feat/network-chat-dashboard-channels` で入った変更の一覧。詳細は既存の節（§3 ペア内チャットとゲーム、§5 設定、チャネル適合ダイアドと記憶）にあり、ここでは**変更の索引と、まだどこにも書いていない設定**だけを置く。経緯は [NOTES.md](NOTES.md) #47〜#56、結果は [REPORT_2026-10.md](REPORT_2026-10.md) ／ [report_2026-10.html](report_2026-10.html)。
+
+| 構成要素 | 追加・変更 | 要点（既定値） | 参照 |
+|---|---|---|---|
+| ペア内チャット | `chat_turns`（既定 0）、`label_unit=pair`、`prompts/game_chat.j2`。**参照用のみ**（本実験は `chat_turns=0`） | `chat_memory_rounds=3`、`chat_max_chars=400`。oTree 設定 `pd_debate_llm_chat` / `_chat_debate` / `_nochat` | §3、NOTES #47, #51 |
+| プロンプト v2 | 決定・チャットのプロンプトに「SNS の投稿ではない」「点数は実際の報酬」「記号に意味はない」「選択肢と理由を言う」を追加 | `prompts/_game_header.j2`、`_game_footer.j2`、`game_*.j2`（ゲーム別）、`comprehension_*.j2`。ラン中はテンプレートを編集しない | NOTES #48 |
+| モデルと環境 | 主力モデルを gemma4:26b（MoE、思考あり）に | `.env`: `LLM_MODEL_NAME=gemma4:26b`、`MODEL_TIMEOUT=600`。`LLM_REASONING_EFFORT=none` で思考を切れるが、12b は思考なしだと先頭の選択肢を選ぶだけ（NOTES #49）なので 12b 用の設定にとどめる | `backend/app/config.py`、NOTES #49 |
+| ゲーム登録表 | `backend/app/services/games.py`: `pgg`、`beauty`、`trust`、`ultimatum`。後手のあるゲームは `/stage_complete` | `game_params` で既定値を上書き（pgg: 持ち点 20・倍率 1.6・4人、beauty: p=2/3・0〜100・賞金 20、trust: 10・3倍、ultimatum: 20） | §3 |
+| 職場ペルソナ | `make_workplace_sim.py`（48 人）、`personas_meta.json` の `agent_order` | oTree の環境変数 `MF_AGENT_IDS`（JSON 配列）で座席を指定。`agent_order` 先頭16体: `[3,4,6,14,1,7,8,17,5,9,10,13,0,2,11,12]` | §3、NOTES #53 |
+| ペルソナのチャネル | `add_channels.py`（LLM なし、約2秒）、`workplace_channels.json`（分類表） | 全チャネルに無視/流し読み/読む/対応する、全媒体に習慣を割り当て、`channels.json` に記録。`--src`、`--out`（新規ディレクトリ）、`--taxonomy`、`--seed`、`--max-chars 420`、`--verify-only` | NOTES #53, #55 |
+| ネットワーク会話 | `net_*` 設定（下表）、`app/services/network_chat.py`、`prompts/game_network_chat.j2` | 相手以外の近隣と1対1。ゲームの相手・pgg の組員への辺は除外 | NOTES #54 |
+| チャネル適合ダイアド | `net_channels`、`net_channel_beta`、`net_reply_model`、`dyads.json` / `dyads.jsonl`、`DYAD_HOOKS` | β 既定 0、`always`。`DYAD_HOOKS` は空 | §5（チャネル適合ダイアド…）、NOTES #55 |
+| 記憶 | `net_memory_mode`、`net_memory_half_life`、`net_memory_budget_chars`、`memory_shown.jsonl`、`prompts/_memory.j2` | `window`、2.0、3200 | §5、NOTES #55 |
+| 解析・ダッシュボード | `analyze_pgg.py`、`analyze_games.py`、`analyze_network.py`、`collect_results.py`、`dashboard.py`、`dashboard_compare.py` | 下記「解析」 | NOTES #52〜#56 |
+| oTree 側 | `MF_BRIDGE_SEED`（`bridge_seed`）、`network_transcript` 列、`pd_net_*` ほかの設定 | [MiroFish-oTree の README](https://github.com/petadimensionlab/MiroFish-oTree) | 同左 |
+| テスト | `backend/tests/` | 下記「テスト」 | NOTES #54, #55 |
+
+### ネットワーク会話の設定（`bridge_net_<名前>`、NOTES #54）
+
+§5 のダイアド・記憶の表にない、基本の設定。既定では `net_topology=none`（会話なし、導入前と**バイト一致**）。
+
+| 設定 | 既定 | 意味 |
+|---|---|---|
+| `net_topology` | `none` | `none`、`er`、`ba`、`ws`、`ring`。PD と pgg のみ |
+| `net_mean_degree` | `4.0` | er は辺数 round(N·k/2) 固定、ba は m=max(1, round(k/2))、ws・ring は偶数 k（2 以上） |
+| `net_ws_p` | `0.1` | ws の張り替え確率 |
+| `net_seed` | `-1` | -1 なら `seed`。グラフと λ はセッションコードに依存しない（条件間で同じ） |
+| `net_exclude_partners` | `true` | ゲームの相手・pgg の組員との辺を除く（NOTES #51） |
+| `net_contact_mean` ／ `net_contact_dispersion` | `1.0` ／ `0.5` | μ ／ r。λ_i ~ Gamma(r, μ)、開始数 k_i ~ Poisson(λ_i)（負の二項）。r≤0 は λ=μ |
+| `net_lambda_assign` | `random` | `degree` は大きい λ を次数の高い人に |
+| `net_max_initiate` ／ `net_max_load` | `3` ／ `4` | 1期に始める会話数の上限 ／ 始める＋受ける数の上限 |
+| `net_turns` | `2` | 1会話の通数（ウェーブ単位で進める） |
+| `net_memory_rounds` ／ `net_max_convs_in_prompt` | `2` ／ `8` | `window` 記憶で決定プロンプトに入れる過去の期数 ／ 会話数 |
+| `net_identity` | `profile` | `anon` は「Participant 7」のように名前を伏せる |
+| `label_order_per_agent` | `false` | 記号の割り当てはセッション共通のまま、選択肢を並べる順だけエージェントごとにランダム（位置バイアス対策、NOTES #49）。ネットワーク・チャネルのランでは対照を含め `true` |
+
+出力（`<sim_dir>/game/<session>/`）: `network.json`（グラフ・λ・レイアウト。チャネル有効時は `channels` / `edge_attrs` / `channel_engagement`）、`network_contacts.jsonl`（期ごとの k_drawn / k_realized と会話。medium / reply_draw / replied）、`network_chat.jsonl`（全メッセージ試行とプロンプト）、`dyads.json` / `dyads.jsonl`、`memory_shown.jsonl`、`bridge_log.jsonl` の `network_built` / `network_phase` / `network_failed`。oTree の CSV には `network_transcript` 列（pd_debate）。
+
+### 解析（`backend/scripts/experiment/`）
+
+| スクリプト | 内容 |
+|---|---|
+| `analyze_session.py` | PD の1セッション（協力率、条件付き協力、先頭の選択肢の割合、ペアチャット） |
+| `analyze_pgg.py` | 公共財: decline、end_game_drop、trend_per_round、個人内の conditional_slope、nash_share |
+| `analyze_games.py --game beauty\|trust\|ultimatum` | 理論値との比較 |
+| `analyze_network.py --otree-csv … --sim-dir … [--session] [--json]` | ネットワーク統計、Spearman、負の二項の確認、露出の表、辺の一致（置換 1000 回）、会話の質、dyads 節、memory 節 |
+| `collect_results.py [--manifest results_manifest.json] [--out-dir docs/otree-integration/results]` | 上の解析をライブラリとして呼び、`results/results.json` と `results_rounds.csv` を作る。LLM・サーバー不要 |
+| `dashboard.py --otree-csv … [--sim-dir] [--session] [--baseline-csv] [--out] [--title]` | 1ランの静的 HTML（Altair / Vega-Lite。vega・vega-lite・vega-embed は jsdelivr から読み込む） |
+| `dashboard_compare.py --run LABEL=CSV[:SIMDIR][@SESSION] … [--out] [--title]` | 複数条件の比較ページ |
+| `preview_channel_contacts.py` | 相性と接触の事前確認（LLM なし） |
+
+### oTree 側の追加（要約）
+
+`MF_BRIDGE_SEED`（既定 0）は oTree のセッション設定 `bridge_seed` に入り、bridge の `seed`（ラベル、グラフ、接触率、接触の抽選）になる。LLM 自体のサンプリングには seed がないので、同じ seed でも結果は一致しない（反復ラン用）。詳細は MiroFish-oTree の README。
+
+### テスト
+
+LLM もサーバーも使わない（偽クライアント）。
+
+```sh
+cd backend && .venv/bin/python -m pytest tests -q
+```
+
+`test_network_chat.py`（ネットワークの接触・プロンプト。off のとき導入前と一致するゴールデン `golden_*.json`）、`test_channel_dyads.py`、`test_memory.py`、`test_add_channels.py`、`test_dashboard.py`、`test_dashboard_compare.py`。実ランのシミュレーションディレクトリが無い環境では、それを使うテストはスキップされる（NOTES #55 の時点で全 115 件、うち 9 件がスキップ）。
