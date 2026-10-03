@@ -8,6 +8,8 @@ Reads
   - .../chat.jsonl (pair chat), network_chat.jsonl, network.json,
     network_contacts.jsonl (network runs; all optional)
   - dyads.json, memory_shown.jsonl (channel dyads / decaying memory, NOTES.md #55; optional)
+  - the logs analyze_betrayal.py recomputes betrayal events from (NOTES.md #57; a section
+    "Revealed choices and consistency" appears when the run has statements or game events)
 and writes ONE self-contained HTML file (vega / vega-lite / vega-embed are loaded
 from jsdelivr, so viewing needs internet). Prompts and raw LLM responses are never
 embedded; only parsed messages (truncated), short decision reasons and numbers.
@@ -37,6 +39,8 @@ import altair as alt
 import numpy as np
 import pandas as pd
 from altair.vegalite import v6 as _v6
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # analyze_betrayal (NOTES.md #57)
 
 # colour-blind-safe pair (Okabe-Ito blue / vermillion), neutral grey for missing
 C_COOP = "#0072B2"
@@ -444,11 +448,58 @@ def load_memory(run):
     for r in rows:
         chars[(int(r["agent_id"]), int(r["round_number"]))] = int(r["chars"])
         for i in r["items"]:
+            if i.get("kind") == "note":  # revealed choices (#57) are no conversation
+                continue
             items.append(dict(agent_id=int(r["agent_id"]), decision_round=int(r["round_number"]),
                               conv_round=int(i["round"]), tier=i["tier"], weight=float(i["weight"]),
                               other=i["other"], delta=int(i["delta"])))
     return dict(items=pd.DataFrame(items, columns=["agent_id", "decision_round", "conv_round", "tier",
                                                    "weight", "other", "delta"]), chars=chars)
+
+
+def load_betrayal(run, net):
+    """Statements / game events per round, per-agent consistency and the share of initiations to
+    neighbours with something bad revealed (analyze_betrayal.py); None when the run has none."""
+    if not run["gdir"]:
+        return None
+    try:
+        import analyze_betrayal as AB
+        sess = AB.read_session(run["gdir"])
+        off = AB.events_from_logs(run["gdir"], sess)
+        convs = AB.conversations(sess)
+        stat = AB.statements(sess, off, convs)
+    except Exception:  # noqa: BLE001 -- no outcomes / labels / chat: nothing to show
+        return None
+    game_rows = []
+    for t in off["rounds"]:
+        for e in off["events"][t]:
+            if e["type"] == "game":
+                game_rows.append(dict(round_number=t, kind=e["kind"]))
+    if not stat["statements"] and not game_rows:
+        return None
+    srows = []
+    for r in stat["by_round"]:
+        for k, v in (("kept", r["kept"]), ("broken", r["broken"]), ("ambiguous", r["ambiguous"] + r["hedged"])):
+            srows.append(dict(round_number=r["round"], kind=k, n=v))
+    grows = pd.DataFrame(game_rows, columns=["round_number", "kind"])
+    grows = grows.groupby(["round_number", "kind"]).size().reset_index(name="n") if len(grows) else \
+        pd.DataFrame(columns=["round_number", "kind", "n"])
+    deg = {int(n["agent_id"]): int(n.get("degree", 0)) for n in ((net or {}).get("raw") or {}).get("nodes", [])}
+    ag = pd.DataFrame(AB.consistency_by_round(sess, off), columns=["agent_id", "round", "stated", "consistency", "coop"])
+    ag = ag.rename(columns={"round": "round_number"})
+    if len(ag) and deg:
+        order = sorted(deg, key=lambda a: (deg[a], a))
+        third = {a: ["low degree", "middle degree", "high degree"][min(2, 3 * i // len(order))] for i, a in enumerate(order)}
+        ag["degree_tercile"] = ag["agent_id"].map(third).fillna("n/a")
+    else:
+        ag["degree_tercile"] = "n/a"
+    ish = pd.DataFrame(AB.initiation_shares(sess, off, convs),
+                       columns=["round", "initiations", "observed", "expected_base", "expected_with_reputation"])
+    ish = ish.rename(columns={"round": "round_number"})
+    return dict(statements=pd.DataFrame(srows, columns=["round_number", "kind", "n"]), game=grows, agents=ag,
+                shares=ish, reveal=sess["settings"].get("net_reveal_choices", "none"),
+                rho=(sess["settings"].get("net_reputation_word_weight", 0.0) or 0.0)
+                + (sess["settings"].get("net_reputation_choice_weight", 0.0) or 0.0))
 
 
 def build_rounds(run, dec, msgs, baseline_csv):
@@ -516,7 +567,7 @@ def _decision_color(game):
                                                      gradientLength=120, labelColor=C_INK, titleColor=C_INK)))
 
 
-def make_charts(run, dec, msgs, rounds, base, grp, net, agents, label_of, endow, memory=None):
+def make_charts(run, dec, msgs, rounds, base, grp, net, agents, label_of, endow, memory=None, betrayal=None):
     game = run["game"]
     rlist = sorted(dec["round_number"].unique().tolist())
     nr = len(rlist)
@@ -754,10 +805,81 @@ def make_charts(run, dec, msgs, rounds, base, grp, net, agents, label_of, endow,
             title=_title("Memory in decision prompts", "click a heatmap cell to select an agent; one dot per remembered conversation"))
         charts.append(mchart)
 
+    if betrayal is not None:
+        charts.append(_betrayal_charts(betrayal, rlist, agent))
+
     final = alt.vconcat(*charts, spacing=28).resolve_scale(color="independent", size="independent", shape="independent").add_params(q)
     final = final.configure_view(stroke=None).configure(background="#ffffff", font="system-ui, sans-serif").configure_axis(
         labelFontSize=10, titleFontSize=11)
     return final
+
+
+def _betrayal_charts(bt, rlist, agent):
+    """Section "Revealed choices and consistency" (NOTES.md #57): words and deeds per round,
+    per-agent consistency, and who the conversations went to."""
+    ink = dict(labelColor=C_INK, titleColor=C_INK)
+    half = BASE_W // 2 - 10
+    kinds = ["kept", "broken", "ambiguous"]
+    stat = alt.Chart(bt["statements"]).mark_bar(stroke="white", strokeWidth=2).encode(
+        x=alt.X("round_number:O", title="round", axis=alt.Axis(labelAngle=0, **ink)),
+        y=alt.Y("n:Q", title="statements", axis=alt.Axis(tickMinStep=1, **ink)),
+        color=alt.Color("kind:N", scale=alt.Scale(domain=kinds, range=[C_COOP, C_DEFECT, C_GREY]),
+                        legend=alt.Legend(title=None, orient="top", labelColor=C_INK)),
+        order=alt.Order("kind:N", sort="descending"),
+        tooltip=[alt.Tooltip("round_number:Q", title="round"), alt.Tooltip("kind:N"), alt.Tooltip("n:Q")]).properties(
+        width=half, height=150, title=_title("Announced choice against actual choice",
+                                             "statements per round; broken = chose something else"))
+    gk = ["break", "repeat", "first", "drop"]
+    game = alt.Chart(bt["game"]).mark_bar(stroke="white", strokeWidth=2).encode(
+        x=alt.X("round_number:O", title="round", axis=alt.Axis(labelAngle=0, **ink)),
+        y=alt.Y("n:Q", title="exploited (victims)", axis=alt.Axis(tickMinStep=1, **ink)),
+        color=alt.Color("kind:N", scale=alt.Scale(domain=gk, range=[C_DEFECT, "#E69F00", "#56B4E9", C_BOTH]),
+                        legend=alt.Legend(title=None, orient="top", labelColor=C_INK)),
+        tooltip=[alt.Tooltip("round_number:Q", title="round"), alt.Tooltip("kind:N"), alt.Tooltip("n:Q")]).properties(
+        width=half, height=150, title=_title("Partner or group exploited a cooperator",
+                                             "break = after mutual cooperation; repeat = again; first = new"))
+    out = [alt.hconcat(stat, game, spacing=30).resolve_scale(color="independent")]
+    ag = bt["agents"].dropna(subset=["coop"])
+    if len(ag):
+        terc = ["low degree", "middle degree", "high degree", "n/a"]
+        col = alt.Color("degree_tercile:N", scale=alt.Scale(domain=terc, range=["#9ecae1", "#4292c6", "#08519c", C_GREY]),
+                        legend=alt.Legend(title=None, orient="top", labelColor=C_INK))
+        base = alt.Chart(ag)
+
+        def lines(field, title, sub):
+            return base.mark_line(strokeWidth=1.5, opacity=0.7).encode(
+                x=alt.X("round_number:Q", scale=_x_scale(rlist), axis=_x_axis(rlist)),
+                y=alt.Y(f"{field}:Q", scale=alt.Scale(domain=[0, 1]), title=None, axis=alt.Axis(format="%", labelColor=C_INK)),
+                color=col, detail="agent_id:N",
+                tooltip=[alt.Tooltip("agent_id:Q", title="agent"), alt.Tooltip("round_number:Q", title="round"),
+                         alt.Tooltip(f"{field}:Q", format=".0%"), alt.Tooltip("stated:Q", title="statements so far")]
+            ).properties(width=half, height=150, title=_title(title, sub))
+        out.append(alt.hconcat(
+            lines("consistency", "Consistency of each agent", "Beta score of kept words (1 + kept) / (2 + stated); 50% = nothing said"),
+            lines("coop", "Cooperative share so far", "per agent, coloured by degree tercile"), spacing=30
+        ).resolve_scale(color="independent"))
+    sh = bt["shares"]
+    if len(sh):
+        long = sh.melt(id_vars=["round_number", "initiations"], value_vars=["observed", "expected_base", "expected_with_reputation"],
+                       var_name="series", value_name="share")
+        if not bt["rho"]:
+            long = long[long["series"] != "expected_with_reputation"]
+        doms = ["observed", "expected_base", "expected_with_reputation"]
+        sh_chart = alt.Chart(long).mark_line(strokeWidth=2, point=alt.OverlayMarkDef(filled=True, size=40)).encode(
+            x=alt.X("round_number:Q", scale=_x_scale(rlist), axis=_x_axis(rlist)),
+            y=alt.Y("share:Q", scale=alt.Scale(domain=[0, 1]), title=None, axis=alt.Axis(format="%", labelColor=C_INK)),
+            color=alt.Color("series:N", scale=alt.Scale(domain=doms, range=[C_DEFECT, "#555555", C_COOP]),
+                            legend=alt.Legend(title=None, orient="top", labelColor=C_INK)),
+            strokeDash=alt.StrokeDash("series:N", scale=alt.Scale(domain=doms, range=[[1, 0], [5, 4], [2, 2]]), legend=None),
+            tooltip=[alt.Tooltip("round_number:Q", title="round"), alt.Tooltip("series:N"),
+                     alt.Tooltip("share:Q", format=".0%"), alt.Tooltip("initiations:Q")]).properties(
+            width=BASE_W, height=150, title=_title(
+                "Conversations started with a neighbour something bad was revealed about",
+                "observed share against the share expected from the base contact weights"
+                + (" and from the reputation weights" if bt["rho"] else "")))
+        out.append(sh_chart)
+    return alt.vconcat(*out, spacing=24, title=_title("Revealed choices and consistency",
+                                                      f"net_reveal_choices: {bt['reveal']}; with no reveal nobody was told, the same facts are a placebo"))
 
 
 # ----------------------------------------------------------------------------- HTML
@@ -920,7 +1042,8 @@ def build(args):
     alt.data_transformers.disable_max_rows()
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", message="Automatically deduplicated")
-        chart = make_charts(run, dec, msgs, rounds, base, grp, net, agents, label_of, endow, memory)
+        betrayal = load_betrayal(run, net)
+        chart = make_charts(run, dec, msgs, rounds, base, grp, net, agents, label_of, endow, memory, betrayal)
     spec = chart.to_dict(validate=True)
     title = args.title or f"{run['game'].upper()} session {run['session']}"
     page = build_html(title, run, dec, msgs, rounds, net, spec, names, agents)

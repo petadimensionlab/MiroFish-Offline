@@ -212,6 +212,7 @@ def render_network_chat_prompt(
     no_think: bool = False,
     memory: Optional[str] = None,
     medium_phrase: str = '',
+    reveal: Optional[str] = None,
 ) -> str:
     """One message of a one-to-one conversation with a non-partner (NOTES.md #54).
 
@@ -225,6 +226,8 @@ def render_network_chat_prompt(
         current: this conversation so far, [{"who", "text"}]; empty = speak first
         memory: rendered memory block in place of `earlier` (#55)
         medium_phrase: e.g. " by email", appended to "You are now talking with X" (#55)
+        reveal: None, 'talked' or 'pair' (net_reveal_choices, #57): says that after the
+            round both are told what the other chose
     """
     return _env.get_template('game_network_chat.j2').render(
         **rules_ctx,
@@ -238,6 +241,7 @@ def render_network_chat_prompt(
         no_think=no_think,
         memory=memory or None,
         medium_phrase=medium_phrase,
+        reveal=reveal or None,
     )
 
 

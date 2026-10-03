@@ -21,6 +21,16 @@ go, oldest last conversation first. This round's conversations are never
 demoted. Everything is deterministic (no random forgetting). What is said is
 never interpreted: gists and aggregates only record which option symbols
 (PD) or amounts (pgg) each side named, in neutral words ("mentioned").
+
+Revealed choices (NOTES.md #57): a MemoryItem of kind 'note' is a fact the
+agent was told after a round, what the person it talked with chose (and, when
+the reveal is 'pair', what that person's partner or group chose). Notes are
+no conversation: they stay out of the detail, gist and conversation aggregate
+lines and have their own section, rendered last and only if there are notes:
+one line per note down to the gist tier, one line per person (counts of what
+they chose) below it. They age and demote like conversations (their salience
+is the hook's), and their aggregate lines are dropped under budget pressure
+with the key ('note', person), oldest first.
 """
 
 import re
@@ -117,7 +127,8 @@ class _Entry:
 def build_memory(owner: int, dyads: DyadLedger, round_number: int, half_life: float, budget: int,
                  names: Dict[int, Dict[str, str]], game_ctx: Optional[Dict[str, Any]] = None,
                  exclude_conv: Optional[str] = None, use_display: bool = True,
-                 live_items: Optional[Dict[int, List[MemoryItem]]] = None
+                 live_items: Optional[Dict[int, List[MemoryItem]]] = None,
+                 reveal: Optional[str] = None
                  ) -> Tuple[str, Dict[str, Any]]:
     """The memory block for owner's prompt at round_number.
 
@@ -128,6 +139,8 @@ def build_memory(owner: int, dyads: DyadLedger, round_number: int, half_life: fl
             (decision prompts) or short (chat prompts), as in window mode
         live_items: {other: [MemoryItem]} of this round's conversations not
             yet in the ledger (the network phase records it at its end)
+        reveal: None, 'talked' or 'pair' (net_reveal_choices, #57): the notes section of a
+            decision prompt starts with a line saying what agents are told after each round
 
     Returns:
         (block text, '' when there is nothing to show; shown = log record
@@ -173,8 +186,6 @@ def build_memory(owner: int, dyads: DyadLedger, round_number: int, half_life: fl
         it = e.item
         if it.summary:
             return f"- Round {it.round_number}, with {short}: {it.summary}\n"
-        if it.kind == 'note':
-            return f"- Round {it.round_number}, with {short}: {it.summary or ''}\n"
         if not it.replied:
             return f"- Round {it.round_number}, you wrote to {short}; no reply.\n"
         starter = 'you started' if it.started_by == owner else f"{short} started"
@@ -184,8 +195,48 @@ def build_memory(owner: int, dyads: DyadLedger, round_number: int, half_life: fl
             else "you mentioned nothing specific"
         return f"- Round {it.round_number}, with {short} ({starter}): {other_part}; {own_part}.\n"
 
-    def aggregates(pool: List[_Entry]) -> List[Tuple[int, int, str, Dict[str, Any]]]:
-        """[(last_round, other, line, log)] one per person."""
+    def note_line(e: _Entry) -> str:
+        """A note down to the gist tier: what one person was shown to have chosen."""
+        short = nm(e.other)['short']
+        x = e.item.ext
+        if 'amount' in x:
+            line = f"- After round {e.item.round_number}, {short} put in {x['amount']}"
+            if x.get('group_amounts'):
+                line += f"; the others in {short}'s group put in {_syms([str(a) for a in x['group_amounts']])}"
+            return line + ".\n"
+        line = f"- After round {e.item.round_number}, {short} chose {x['other_choice_shown']}"
+        if x.get('other_partner_choice_shown'):
+            line += f"; {short}'s partner chose {x['other_partner_choice_shown']}"
+        return line + ".\n"
+
+    def note_aggregates(pool: List[_Entry]) -> List[Tuple[int, Any, str, Dict[str, Any]]]:
+        """[(last_round, ('note', other), line, log)] one per person, over their notes below the gist tier."""
+        by: Dict[int, List[_Entry]] = {}
+        for e in pool:
+            if e.item.kind == 'note':
+                by.setdefault(e.other, []).append(e)
+        out = []
+        for other, es in by.items():
+            short = nm(other)['short']
+            es = sorted(es, key=lambda e: _order(e.item))
+            rounds = [e.item.round_number for e in es]
+            if 'amount' in es[0].item.ext:
+                what = "put in " + _syms([str(e.item.ext['amount']) for e in es])
+            else:
+                counts: Dict[str, int] = {}
+                for e in es:
+                    sym = e.item.ext['other_choice_shown']
+                    counts[sym] = counts.get(sym, 0) + 1
+                what = "chose " + ', '.join(f"{sym} {_times(c)}" for sym, c in sorted(
+                    counts.items(), key=lambda x: (-x[1], x[0])))
+            out.append((max(rounds), ('note', other), f"- {short}, after {_rounds(rounds)}: {what}.\n",
+                        dict(other=short, n_convs=len(es), rounds=[min(rounds), max(rounds)], dropped=False,
+                             kind='note')))
+        return out
+
+    def aggregates(pool: List[_Entry]) -> List[Tuple[int, Any, str, Dict[str, Any]]]:
+        """[(last_round, key, line, log)] one per person; key is the person (conversations) or
+        ('note', person) (revealed choices)."""
         by: Dict[int, List[_Entry]] = {}
         for e in pool:
             if e.item.kind != 'note':
@@ -211,33 +262,54 @@ def build_memory(owner: int, dyads: DyadLedger, round_number: int, half_life: fl
                 parts.append(f'last said: "{_clip(said[-1], QUOTE_CHARS)}"')
             out.append((max(rounds), other, f"- {short}: " + '; '.join(parts) + "\n",
                         dict(other=short, n_convs=n, rounds=[min(rounds), max(rounds)], dropped=False)))
-        return sorted(out, key=lambda x: (x[0], x[1]))
+        return out
 
-    def render(dropped: set) -> Tuple[str, List[Tuple[int, int, str, Dict[str, Any]]]]:
+    def order_key(a: Tuple[int, Any, str, Dict[str, Any]]) -> Tuple[int, int, int]:
+        return (a[0], 0, a[1]) if isinstance(a[1], int) else (a[0], 1, a[1][1])
+
+    def render(dropped: set) -> Tuple[str, List[Tuple[int, Any, str, Dict[str, Any]]]]:
         parts = []
         for e in entries:
-            if e.tier <= 1:
+            if e.tier <= 1 and e.item.kind != 'note':
                 text = detail(e)
                 e.chars = len(text)
                 parts.append(text)
         older = []
         for e in entries:
-            if e.tier == 2:
+            if e.tier == 2 and e.item.kind != 'note':
                 line = gist(e)
                 e.chars = len(line)
                 older.append(line)
+        told = []
+        for e in entries:
+            if e.tier <= 2 and e.item.kind == 'note':
+                line = note_line(e)
+                e.chars = len(line)
+                told.append(line)
         for e in entries:
             if e.tier >= 3:
                 e.chars = 0
-        aggs = aggregates([e for e in entries if e.tier >= 3])
+        aggs = sorted(aggregates([e for e in entries if e.tier >= 3])
+                      + note_aggregates([e for e in entries if e.tier >= 3]), key=order_key)
         kept = [a for a in aggs if a[1] not in dropped]
         for a in aggs:
             a[3]['dropped'] = a[1] in dropped
         text = ''.join(parts)
         if older:
             text += 'Older conversations, as you remember them:\n' + ''.join(older)
-        if kept:
-            text += 'What you remember about people you talked with earlier:\n' + ''.join(a[2] for a in kept)
+        kept_conv = [a for a in kept if isinstance(a[1], int)]
+        if kept_conv:
+            text += 'What you remember about people you talked with earlier:\n' + ''.join(a[2] for a in kept_conv)
+        kept_notes = [a[2] for a in kept if not isinstance(a[1], int)]
+        if told or kept_notes:
+            if reveal:
+                if 'amount' in next((e.item.ext for e in entries if e.item.kind == 'note'), {}):
+                    text += ("After each round, you and each person you talked with before it were told how much the other person "
+                             "contributed" + (" and how much the others in their group contributed" if reveal == 'pair' else '') + ".\n")
+                else:
+                    text += ("After each round, you and each person you talked with before it were told which option the other person chose"
+                             + (" and which option their partner chose" if reveal == 'pair' else '') + ".\n")
+            text += 'What you were told after earlier rounds:\n' + ''.join(told) + ''.join(kept_notes)
         return text, aggs
 
     dropped: set = set()
@@ -262,7 +334,8 @@ def build_memory(owner: int, dyads: DyadLedger, round_number: int, half_life: fl
                     delta=e.delta, weight=round(e.w, 4), salience=e.sal,
                     tier=MEMORY_TIERS[e.tier][0], chars=e.chars,
                     mentions_other=list(e.item.mentions_other),
-                    **({'texts': e.texts} if e.tier <= 1 else {}))
+                    **({'kind': 'note'} if e.item.kind == 'note' else {}),
+                    **({'texts': e.texts} if e.tier <= 1 and e.item.kind != 'note' else {}))
                for e in entries],
         aggregates=[a[3] for a in aggs])
     return text, shown

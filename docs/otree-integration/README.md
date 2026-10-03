@@ -225,3 +225,26 @@ cd backend && .venv/bin/python -m pytest tests -q
 ```
 
 `test_network_chat.py` (contacts and prompts; with the network off they must match the golden files `golden_*.json`), `test_channel_dyads.py`, `test_memory.py`, `test_add_channels.py`, `test_dashboard.py`, `test_dashboard_compare.py`. Tests that need a real simulation directory are skipped when it is absent (115 tests at NOTES #55, 9 skipped).
+
+
+## 12. Technical changes (2026-10-02 to 10-03)
+
+Branch `feat/dyad-betrayal-reputation` adds betrayal, revealed choices and reputation to the dyads. **Everything is off by default**; with the defaults every prompt and log is byte-identical to before (`backend/tests/golden_dyads_run.json`). Design, event definitions and how to run: [betrayal_reputation.md](betrayal_reputation.md); history: [NOTES.md](NOTES.md) #57 to #59; results: [REPORT_2026-10-03.md](REPORT_2026-10-03.md) / [report_2026-10-03.html](report_2026-10-03.html) (Japanese).
+
+| Setting (`bridge_<name>`) | Default | Meaning |
+|---|---|---|
+| `net_dyad_hooks` | `""` | `betrayal`, `reputation` (comma list). `betrayal` writes word events (announced vs actual choice) and game events (PD exploits, pgg against the announced amount) to `dyads.jsonl` each round |
+| `net_reveal_choices` | `none` | `talked`: what each person you talked with chose is put in your memory for the next round ("What you were told after earlier rounds"). `pair`: also what their game partner chose (pgg: their group's contributions). Announced at the start of the conversation. Needs `net_memory_mode=decay` |
+| `net_betrayal_salience` | `1.0` | Memory weight s of the notes and conversations that show a mismatch (broken word, exploit) |
+| `net_reputation_word_weight` / `net_reputation_choice_weight` | `0.0` / `0.0` | rho_w / rho_c. Neighbour choice weight times exp(rho_w(2W-1)+rho_c(2B-1)); W = share of kept words, B = share of revealed choices that were cooperative (Beta posterior means), both from what the chooser was told |
+
+| New file | Role |
+|---|---|
+| `backend/app/services/betrayal.py` | Rules (pure, stdlib only): `stated_intention`, `word_events`, `game_events_pd` / `_pgg`, `beta_score`, `contact_multiplier` |
+| `backend/app/services/dyad_hooks.py` | `DYAD_HOOKS['betrayal']`, `['reputation']`, run under the bridge lock in `round_complete` |
+| `backend/scripts/experiment/analyze_betrayal.py` | Recomputes every event from the logs (no LLM): kept words, exploits, spillover, partner selection (selection / initiation_shares), honesty of self-reports, gossip (third-party mentions); checks online == offline. In runs without reveal the "would-have-been-told" facts are placebos |
+| `backend/tests/test_betrayal.py` | Rules, hooks, byte identity with defaults (189 tests in total) |
+
+oTree configs: `pd_net_ba_ch_mem_rev` (`pair`, s=2), `pd_net_ba_ch_mem_rev_talked`, `pd_net_ba_ch_mem_rep` (+ rho_w=rho_c=2), `pgg_net_ba_ch_mem_rev` / `_rep`. Replications use `MF_BRIDGE_SEED=<seed>` and `MF_AGENT_IDS`.
+
+**Operational note**: LLM sampling has no seed, so round-1 cooperation differs by about 0.2 under identical settings and the difference persists (Spearman rho=0.84 between round 1 and rounds 6-10 over 33 runs, NOTES #59). Compare conditions over several seeds, with round 1 as a covariate or on the change after round 1.
