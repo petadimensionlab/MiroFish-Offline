@@ -291,6 +291,27 @@ python scripts/verify_outputs.py --simulation-id sim_xxxx
 
 ---
 
+## ネットワーク・コミュニケーション実験（oTree × bridge）
+
+囚人のジレンマ・公共財ゲームで、**ゲームの相手とは話さず**、社会グラフ上の近隣と1対1で話す条件です
+（詳細は [`docs/otree-integration/NOTES.md`](docs/otree-integration/NOTES.md) #54）。
+エージェントごとの接触率 λ（ガンマ分布）で会話数がばらつき、少数のよく話す人と多数の寡黙な人ができます。
+
+```bash
+# oTree セッション設定（16体）: pd_net_off（対照）, pd_net_er / ba / ws / ring, pgg_net_off, pgg_net_ba, pgg_net_er
+# bridge の主な設定: net_topology, net_mean_degree, net_contact_mean (μ), net_contact_dispersion (r),
+#   net_max_initiate, net_max_load, net_turns, net_memory_rounds, net_identity, label_order_per_agent
+cd backend
+.venv/bin/python -m pytest tests/test_network_chat.py -q          # 偽クライアントのテスト（LLM なし）
+.venv/bin/python scripts/experiment/analyze_network.py \
+    --otree-csv export/pd_debate_custom.csv --sim-dir <sim_dir> [--json]
+```
+
+出力は `<sim_dir>/game/<session>/` の `network.json`（グラフ・λ・レイアウト）、`network_contacts.jsonl`、
+`network_chat.jsonl` です。N=16・μ=1・r=0.5 で 10 期 2〜3 時間が目安です。
+
+---
+
 ## 運用ルール
 
 運用ガードレール・既知の障害モード・必須設定は [`AGENTS.md`](AGENTS.md) にあります

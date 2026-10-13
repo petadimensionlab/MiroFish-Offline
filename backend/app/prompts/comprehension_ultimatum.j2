@@ -1,0 +1,11 @@
+Reply directly to me with text without calling any tools.
+
+{% include 'game_ultimatum_rules.j2' %}
+
+Before starting, answer two questions about these rules.
+Question 1: If the first person proposes 5 points for the second person and the second person accepts, how many points do you get in that round?
+Question 2: If the first person proposes 5 points for the second person and the second person rejects, how many points do you get in that round?
+
+Reply with only a JSON object: {"q1": number, "q2": number}
+{% if no_think %}/no_think
+{% endif %}

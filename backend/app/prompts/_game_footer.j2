@@ -1,0 +1,8 @@
+{% if include_feed %}
+These are the social media posts you currently see:
+{{ feed_placeholder }}
+{% endif %}
+Before you answer, think about the points you can get in this round and in the rounds still to come.
+{% if strict %}
+Your previous answer could not be read. Answer with the JSON object only, no other text.
+{% endif %}

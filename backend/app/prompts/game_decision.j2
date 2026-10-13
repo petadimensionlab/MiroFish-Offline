@@ -1,6 +1,8 @@
-Based on your persona, all your past memories and the posts below, reply directly to me with text without calling any tools.
+Based on your persona{% if include_feed %}, all your past memories and the posts below{% else %} and all your past memories{% endif %}, reply directly to me with text without calling any tools.
 
-You are taking part in a decision task with one other person. It is always the same person, every round. In each round you both choose {{ options[0] }} or {{ options[1] }} at the same time, without seeing the other's choice.
+This is not a social media post. Answer as the real person described in your persona would, privately and honestly.
+
+You are taking part in a decision task with one other person. It is always the same person, every round. In each round you both choose {{ options[0] }} or {{ options[1] }} at the same time, without seeing the other's choice. The points you earn in all rounds are added up and paid to you as real money at the end, so every point matters to you; the same is true for the other person. The option names {{ options[0] }} and {{ options[1] }} are arbitrary symbols with no meaning of their own.
 
 Points per round, for each option you can choose:
 {% for b in blocks %}
@@ -14,10 +16,23 @@ What happened so far:
 {% endfor %}{% else %}
 This is the first round.
 {% endif %}
+{% if chat %}
+Your private chat with the other person (only the two of you can see it; nothing said is binding):
+{% for c in chat %}Before round {{ c.round_number }}{% if c.round_number == round_number %} (this round){% endif %}:
+{% for m in c.messages %}- {{ m.who }}: {{ m.text }}
+{% endfor %}{% endfor %}{% endif %}{% if network_chat %}
+Conversations you had with other participants (each of them plays with their own partner, not with you or the other person you play with; nothing said is binding, and their choices do not change your points):
+{% for c in network_chat %}Before round {{ c.round_number }}{% if c.round_number == round_number %} (this round){% endif %}, with {{ c.other_display }}:
+{% for m in c.messages %}- {{ m.who }}: {{ m.text }}
+{% endfor %}{% if c.get('unanswered') %}- ({{ c.other }} did not reply)
+{% endif %}{% endfor %}{% endif %}{% if memory %}
+Conversations you had with other participants (each of them plays with their own partner, not with you or the other person you play with; nothing said is binding, and their choices do not change your points):
+{% include '_memory.j2' %}{% endif %}
 {% if include_feed %}
 These are the social media posts you currently see:
 {{ feed_placeholder }}
 {% endif %}
+Before you answer, think about the points each option can give you in this round and in the rounds still to come{% if chat %}, and about what the two of you said in the chat{% endif %}.
 {% if strict %}
 Your previous answer could not be read. Answer with the JSON object only, no other text.
 {% endif %}

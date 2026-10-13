@@ -1,0 +1,4480 @@
+{
+ "description": "Archived oTree x MiroFish runs; produced by collect_results.py from results_manifest.json",
+ "data_root": "/Users/nakaoka/workspace/research/mirofish_runs/runs",
+ "n_runs": 19,
+ "runs": [
+  {
+   "id": "chat_12b",
+   "phase": "pair_chat",
+   "game": "pd",
+   "label": "gemma4:12b, no thinking, pair chat 4 turns",
+   "model": "gemma4:12b",
+   "thinking": false,
+   "persona_set": "general",
+   "persona_meta": {
+    "seed": 1,
+    "pool_n": 48,
+    "generator_model": "gemma4:e4b",
+    "group": null,
+    "channels_file": null
+   },
+   "n_agents": 8,
+   "rounds": 10,
+   "condition": {
+    "chat_turns": 4,
+    "no_think": "auto",
+    "label_scheme": "symbols",
+    "label_unit": "pair",
+    "label_randomize": true,
+    "beta": null,
+    "reply_model": null,
+    "memory_mode": null,
+    "seed": 0,
+    "net_seed": null,
+    "policy": "llm"
+   },
+   "session": "y6klb3vv",
+   "export": "export_chat_12b",
+   "sim": "sim_chat_12b",
+   "export_csv_sha256_16": "2febf9fc6b5d1806",
+   "comprehension": {
+    "correct": 8,
+    "n": 8
+   },
+   "missing_decisions": 0,
+   "series": {
+    "cooperation_rate": [
+     0.5,
+     0.5,
+     0.5,
+     0.5,
+     0.5,
+     0.5,
+     0.5,
+     0.5,
+     0.5,
+     0.5
+    ]
+   },
+   "headline": {
+    "cooperation_rate": {
+     "first": 0.5,
+     "last": 0.5,
+     "mean": 0.5
+    }
+   },
+   "conditional_cooperation": {
+    "after_partner_A": 1.0,
+    "after_partner_B": 0.0
+   },
+   "round_detail": [
+    {
+     "round": 1,
+     "mutual_cooperation": 2,
+     "mutual_defection": 2,
+     "split": 0,
+     "mean_payoff": 20.0
+    },
+    {
+     "round": 2,
+     "mutual_cooperation": 2,
+     "mutual_defection": 2,
+     "split": 0,
+     "mean_payoff": 20.0
+    },
+    {
+     "round": 3,
+     "mutual_cooperation": 2,
+     "mutual_defection": 2,
+     "split": 0,
+     "mean_payoff": 20.0
+    },
+    {
+     "round": 4,
+     "mutual_cooperation": 2,
+     "mutual_defection": 2,
+     "split": 0,
+     "mean_payoff": 20.0
+    },
+    {
+     "round": 5,
+     "mutual_cooperation": 2,
+     "mutual_defection": 2,
+     "split": 0,
+     "mean_payoff": 20.0
+    },
+    {
+     "round": 6,
+     "mutual_cooperation": 2,
+     "mutual_defection": 2,
+     "split": 0,
+     "mean_payoff": 20.0
+    },
+    {
+     "round": 7,
+     "mutual_cooperation": 2,
+     "mutual_defection": 2,
+     "split": 0,
+     "mean_payoff": 20.0
+    },
+    {
+     "round": 8,
+     "mutual_cooperation": 2,
+     "mutual_defection": 2,
+     "split": 0,
+     "mean_payoff": 20.0
+    },
+    {
+     "round": 9,
+     "mutual_cooperation": 2,
+     "mutual_defection": 2,
+     "split": 0,
+     "mean_payoff": 20.0
+    },
+    {
+     "round": 10,
+     "mutual_cooperation": 2,
+     "mutual_defection": 2,
+     "split": 0,
+     "mean_payoff": 20.0
+    }
+   ],
+   "first_listed_choice": {
+    "n": 80,
+    "first_listed": 80,
+    "share": 1.0
+   },
+   "beliefs": {
+    "pre": 3.375,
+    "post": 3.375
+   },
+   "decision_sources": {
+    "llm:gemma4:12b": 80
+   },
+   "pair_chat": {
+    "messages": 160,
+    "failed": 0,
+    "mean_chars": 224.3,
+    "on_topic_share": 1.0,
+    "stated_intentions": 80,
+    "stated_cooperate_share": 0.5,
+    "intention_kept": 80,
+    "intention_broken": 0
+   },
+   "messages": {
+    "total": 160,
+    "failed": 0
+   }
+  },
+  {
+   "id": "nochat_12b",
+   "phase": "pair_chat",
+   "game": "pd",
+   "label": "gemma4:12b, no thinking, no chat",
+   "model": "gemma4:12b",
+   "thinking": false,
+   "persona_set": "general",
+   "persona_meta": {
+    "seed": 1,
+    "pool_n": 48,
+    "generator_model": "gemma4:e4b",
+    "group": null,
+    "channels_file": null
+   },
+   "n_agents": 8,
+   "rounds": 10,
+   "condition": {
+    "chat_turns": 0,
+    "no_think": "auto",
+    "label_scheme": "symbols",
+    "label_unit": "pair",
+    "label_randomize": true,
+    "beta": null,
+    "reply_model": null,
+    "memory_mode": null,
+    "seed": 0,
+    "net_seed": null,
+    "policy": "llm"
+   },
+   "session": "0aun0b62",
+   "export": "export_nochat_12b",
+   "sim": "sim_nochat",
+   "export_csv_sha256_16": "8b2d88a206686520",
+   "comprehension": {
+    "correct": 8,
+    "n": 8
+   },
+   "missing_decisions": 0,
+   "series": {
+    "cooperation_rate": [
+     0.5,
+     0.5,
+     0.5,
+     0.5,
+     0.5,
+     0.5,
+     0.5,
+     0.5,
+     0.5,
+     0.5
+    ]
+   },
+   "headline": {
+    "cooperation_rate": {
+     "first": 0.5,
+     "last": 0.5,
+     "mean": 0.5
+    }
+   },
+   "conditional_cooperation": {
+    "after_partner_A": 1.0,
+    "after_partner_B": 0.0
+   },
+   "round_detail": [
+    {
+     "round": 1,
+     "mutual_cooperation": 2,
+     "mutual_defection": 2,
+     "split": 0,
+     "mean_payoff": 20.0
+    },
+    {
+     "round": 2,
+     "mutual_cooperation": 2,
+     "mutual_defection": 2,
+     "split": 0,
+     "mean_payoff": 20.0
+    },
+    {
+     "round": 3,
+     "mutual_cooperation": 2,
+     "mutual_defection": 2,
+     "split": 0,
+     "mean_payoff": 20.0
+    },
+    {
+     "round": 4,
+     "mutual_cooperation": 2,
+     "mutual_defection": 2,
+     "split": 0,
+     "mean_payoff": 20.0
+    },
+    {
+     "round": 5,
+     "mutual_cooperation": 2,
+     "mutual_defection": 2,
+     "split": 0,
+     "mean_payoff": 20.0
+    },
+    {
+     "round": 6,
+     "mutual_cooperation": 2,
+     "mutual_defection": 2,
+     "split": 0,
+     "mean_payoff": 20.0
+    },
+    {
+     "round": 7,
+     "mutual_cooperation": 2,
+     "mutual_defection": 2,
+     "split": 0,
+     "mean_payoff": 20.0
+    },
+    {
+     "round": 8,
+     "mutual_cooperation": 2,
+     "mutual_defection": 2,
+     "split": 0,
+     "mean_payoff": 20.0
+    },
+    {
+     "round": 9,
+     "mutual_cooperation": 2,
+     "mutual_defection": 2,
+     "split": 0,
+     "mean_payoff": 20.0
+    },
+    {
+     "round": 10,
+     "mutual_cooperation": 2,
+     "mutual_defection": 2,
+     "split": 0,
+     "mean_payoff": 20.0
+    }
+   ],
+   "first_listed_choice": {
+    "n": 80,
+    "first_listed": 80,
+    "share": 1.0
+   },
+   "beliefs": {
+    "pre": 3.375,
+    "post": 3.5
+   },
+   "decision_sources": {
+    "llm:gemma4:12b": 80
+   },
+   "messages": {
+    "total": 0,
+    "failed": 0
+   }
+  },
+  {
+   "id": "chat_26b",
+   "phase": "pair_chat",
+   "game": "pd",
+   "label": "gemma4:26b, thinking, pair chat 4 turns",
+   "model": "gemma4:26b",
+   "thinking": true,
+   "persona_set": "general",
+   "persona_meta": {
+    "seed": 1,
+    "pool_n": 48,
+    "generator_model": "gemma4:e4b",
+    "group": null,
+    "channels_file": null
+   },
+   "n_agents": 8,
+   "rounds": 10,
+   "condition": {
+    "chat_turns": 4,
+    "no_think": "auto",
+    "label_scheme": "symbols",
+    "label_unit": "pair",
+    "label_randomize": true,
+    "beta": null,
+    "reply_model": null,
+    "memory_mode": null,
+    "seed": 0,
+    "net_seed": null,
+    "policy": "llm"
+   },
+   "session": "kggqazxx",
+   "export": "export_chat_26b",
+   "sim": "sim_chat26",
+   "export_csv_sha256_16": "1c2448fc9fa45eab",
+   "comprehension": {
+    "correct": 8,
+    "n": 8
+   },
+   "missing_decisions": 0,
+   "series": {
+    "cooperation_rate": [
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ]
+   },
+   "headline": {
+    "cooperation_rate": {
+     "first": 1.0,
+     "last": 1.0,
+     "mean": 1.0
+    }
+   },
+   "conditional_cooperation": {
+    "after_partner_A": 1.0,
+    "after_partner_B": null
+   },
+   "round_detail": [
+    {
+     "round": 1,
+     "mutual_cooperation": 4,
+     "mutual_defection": 0,
+     "split": 0,
+     "mean_payoff": 30.0
+    },
+    {
+     "round": 2,
+     "mutual_cooperation": 4,
+     "mutual_defection": 0,
+     "split": 0,
+     "mean_payoff": 30.0
+    },
+    {
+     "round": 3,
+     "mutual_cooperation": 4,
+     "mutual_defection": 0,
+     "split": 0,
+     "mean_payoff": 30.0
+    },
+    {
+     "round": 4,
+     "mutual_cooperation": 4,
+     "mutual_defection": 0,
+     "split": 0,
+     "mean_payoff": 30.0
+    },
+    {
+     "round": 5,
+     "mutual_cooperation": 4,
+     "mutual_defection": 0,
+     "split": 0,
+     "mean_payoff": 30.0
+    },
+    {
+     "round": 6,
+     "mutual_cooperation": 4,
+     "mutual_defection": 0,
+     "split": 0,
+     "mean_payoff": 30.0
+    },
+    {
+     "round": 7,
+     "mutual_cooperation": 4,
+     "mutual_defection": 0,
+     "split": 0,
+     "mean_payoff": 30.0
+    },
+    {
+     "round": 8,
+     "mutual_cooperation": 4,
+     "mutual_defection": 0,
+     "split": 0,
+     "mean_payoff": 30.0
+    },
+    {
+     "round": 9,
+     "mutual_cooperation": 4,
+     "mutual_defection": 0,
+     "split": 0,
+     "mean_payoff": 30.0
+    },
+    {
+     "round": 10,
+     "mutual_cooperation": 4,
+     "mutual_defection": 0,
+     "split": 0,
+     "mean_payoff": 30.0
+    }
+   ],
+   "first_listed_choice": {
+    "n": 80,
+    "first_listed": 40,
+    "share": 0.5
+   },
+   "beliefs": {
+    "pre": 5.25,
+    "post": null
+   },
+   "decision_sources": {
+    "llm:gemma4:26b": 80
+   },
+   "pair_chat": {
+    "messages": 160,
+    "failed": 0,
+    "mean_chars": 192.1,
+    "on_topic_share": 1.0,
+    "stated_intentions": 80,
+    "stated_cooperate_share": 1.0,
+    "intention_kept": 80,
+    "intention_broken": 0
+   },
+   "messages": {
+    "total": 160,
+    "failed": 0
+   }
+  },
+  {
+   "id": "nochat_26b",
+   "phase": "pair_chat",
+   "game": "pd",
+   "label": "gemma4:26b, thinking, no chat",
+   "model": "gemma4:26b",
+   "thinking": true,
+   "persona_set": "general",
+   "persona_meta": {
+    "seed": 1,
+    "pool_n": 48,
+    "generator_model": "gemma4:e4b",
+    "group": null,
+    "channels_file": null
+   },
+   "n_agents": 8,
+   "rounds": 10,
+   "condition": {
+    "chat_turns": 0,
+    "no_think": "auto",
+    "label_scheme": "symbols",
+    "label_unit": "pair",
+    "label_randomize": true,
+    "beta": null,
+    "reply_model": null,
+    "memory_mode": null,
+    "seed": 0,
+    "net_seed": null,
+    "policy": "llm"
+   },
+   "session": "h9wzm5t0",
+   "export": "export_nochat_26b",
+   "sim": "sim_nochat26",
+   "export_csv_sha256_16": "85951156154f9fc9",
+   "comprehension": {
+    "correct": 8,
+    "n": 8
+   },
+   "missing_decisions": 0,
+   "series": {
+    "cooperation_rate": [
+     0.625,
+     0.5,
+     0.625,
+     0.5,
+     0.25,
+     0.5,
+     0.375,
+     0.25,
+     0.25,
+     0.25
+    ]
+   },
+   "headline": {
+    "cooperation_rate": {
+     "first": 0.625,
+     "last": 0.25,
+     "mean": 0.412
+    }
+   },
+   "conditional_cooperation": {
+    "after_partner_A": 0.806,
+    "after_partner_B": 0.073
+   },
+   "round_detail": [
+    {
+     "round": 1,
+     "mutual_cooperation": 2,
+     "mutual_defection": 1,
+     "split": 1,
+     "mean_payoff": 23.75
+    },
+    {
+     "round": 2,
+     "mutual_cooperation": 2,
+     "mutual_defection": 2,
+     "split": 0,
+     "mean_payoff": 20.0
+    },
+    {
+     "round": 3,
+     "mutual_cooperation": 2,
+     "mutual_defection": 1,
+     "split": 1,
+     "mean_payoff": 23.75
+    },
+    {
+     "round": 4,
+     "mutual_cooperation": 1,
+     "mutual_defection": 1,
+     "split": 2,
+     "mean_payoff": 22.5
+    },
+    {
+     "round": 5,
+     "mutual_cooperation": 1,
+     "mutual_defection": 3,
+     "split": 0,
+     "mean_payoff": 15.0
+    },
+    {
+     "round": 6,
+     "mutual_cooperation": 2,
+     "mutual_defection": 2,
+     "split": 0,
+     "mean_payoff": 20.0
+    },
+    {
+     "round": 7,
+     "mutual_cooperation": 1,
+     "mutual_defection": 2,
+     "split": 1,
+     "mean_payoff": 18.75
+    },
+    {
+     "round": 8,
+     "mutual_cooperation": 1,
+     "mutual_defection": 3,
+     "split": 0,
+     "mean_payoff": 15.0
+    },
+    {
+     "round": 9,
+     "mutual_cooperation": 1,
+     "mutual_defection": 3,
+     "split": 0,
+     "mean_payoff": 15.0
+    },
+    {
+     "round": 10,
+     "mutual_cooperation": 1,
+     "mutual_defection": 3,
+     "split": 0,
+     "mean_payoff": 15.0
+    }
+   ],
+   "first_listed_choice": {
+    "n": 80,
+    "first_listed": 67,
+    "share": 0.838
+   },
+   "beliefs": {
+    "pre": 4.625,
+    "post": null
+   },
+   "decision_sources": {
+    "llm:gemma4:26b": 80
+   },
+   "messages": {
+    "total": 0,
+    "failed": 0
+   }
+  },
+  {
+   "id": "pgg_general",
+   "phase": "games",
+   "game": "pgg",
+   "label": "gemma4:26b, general personas, 16 agents, no chat",
+   "model": "gemma4:26b",
+   "thinking": null,
+   "persona_set": "general",
+   "persona_meta": {
+    "seed": 1,
+    "pool_n": 48,
+    "generator_model": "gemma4:e4b",
+    "group": null,
+    "channels_file": null
+   },
+   "n_agents": 16,
+   "rounds": 10,
+   "condition": {
+    "chat_turns": 0,
+    "no_think": "auto",
+    "label_scheme": "symbols",
+    "label_unit": "session",
+    "label_randomize": true,
+    "beta": null,
+    "reply_model": null,
+    "memory_mode": null,
+    "seed": 0,
+    "net_seed": null,
+    "policy": "llm"
+   },
+   "session": "g4clc5ld",
+   "export": "export_pgg_26b",
+   "sim": "sim_pgg26",
+   "export_csv_sha256_16": "13bfb8be09738842",
+   "comprehension": {
+    "correct": 16,
+    "n": 16
+   },
+   "missing_decisions": 0,
+   "series": {
+    "mean_contribution_share": [
+     0.984,
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ],
+    "mean_contribution": [
+     19.69,
+     20.0,
+     20.0,
+     20.0,
+     20.0,
+     20.0,
+     20.0,
+     20.0,
+     20.0,
+     20.0
+    ]
+   },
+   "headline": {
+    "mean_contribution_share": {
+     "first": 0.984,
+     "last": 1.0,
+     "mean": 0.998
+    },
+    "mean_contribution": {
+     "first": 19.69,
+     "last": 20.0,
+     "mean": 19.969
+    }
+   },
+   "first_round_mean": 19.69,
+   "last_round_mean": 20.0,
+   "decline": -0.31,
+   "end_game_drop": 0.0,
+   "trend_per_round": 0.017,
+   "conditional_slope": 0.0,
+   "nash_share": 0.0,
+   "beliefs": {
+    "pre": 6.75,
+    "post": 6.625
+   },
+   "messages": {
+    "total": 0,
+    "failed": 0
+   }
+  },
+  {
+   "id": "beauty",
+   "phase": "games",
+   "game": "beauty",
+   "label": "gemma4:26b, general personas, 16 agents, no chat",
+   "model": "gemma4:26b",
+   "thinking": null,
+   "persona_set": "general",
+   "persona_meta": {
+    "seed": 1,
+    "pool_n": 48,
+    "generator_model": "gemma4:e4b",
+    "group": null,
+    "channels_file": null
+   },
+   "n_agents": 16,
+   "rounds": 10,
+   "condition": {
+    "chat_turns": 0,
+    "no_think": "auto",
+    "label_scheme": "symbols",
+    "label_unit": "session",
+    "label_randomize": true,
+    "game_params": {
+     "p": 0.6667,
+     "p_text": "two thirds",
+     "max_guess": 100,
+     "prize": 20,
+     "group_size": 4
+    },
+    "beta": null,
+    "reply_model": null,
+    "memory_mode": null,
+    "seed": 0,
+    "net_seed": null,
+    "policy": "llm"
+   },
+   "session": "52xtneus",
+   "export": "export_beauty26",
+   "sim": "sim_beauty26",
+   "export_csv_sha256_16": "f90b03262968424a",
+   "comprehension": {
+    "correct": 16,
+    "n": 16
+   },
+   "missing_decisions": 0,
+   "series": {
+    "mean_guess": [
+     20.06,
+     9.56,
+     4.06,
+     1.62,
+     0.62,
+     0.06,
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   "headline": {
+    "mean_guess": {
+     "first": 20.06,
+     "last": 0.0,
+     "mean": 3.598
+    }
+   },
+   "equilibrium_share": 0.531,
+   "round_detail": [
+    {
+     "round": 1,
+     "median": 22.0,
+     "zero": 0,
+     "above_67": 0
+    },
+    {
+     "round": 2,
+     "median": 9.0,
+     "zero": 0,
+     "above_67": 0
+    },
+    {
+     "round": 3,
+     "median": 4.0,
+     "zero": 0,
+     "above_67": 0
+    },
+    {
+     "round": 4,
+     "median": 2.0,
+     "zero": 0,
+     "above_67": 0
+    },
+    {
+     "round": 5,
+     "median": 1.0,
+     "zero": 6,
+     "above_67": 0
+    },
+    {
+     "round": 6,
+     "median": 0.0,
+     "zero": 15,
+     "above_67": 0
+    },
+    {
+     "round": 7,
+     "median": 0.0,
+     "zero": 16,
+     "above_67": 0
+    },
+    {
+     "round": 8,
+     "median": 0.0,
+     "zero": 16,
+     "above_67": 0
+    },
+    {
+     "round": 9,
+     "median": 0.0,
+     "zero": 16,
+     "above_67": 0
+    },
+    {
+     "round": 10,
+     "median": 0.0,
+     "zero": 16,
+     "above_67": 0
+    }
+   ],
+   "messages": {
+    "total": 0,
+    "failed": 0
+   }
+  },
+  {
+   "id": "trust",
+   "phase": "games",
+   "game": "trust",
+   "label": "gemma4:26b, general personas, 16 agents, no chat",
+   "model": "gemma4:26b",
+   "thinking": null,
+   "persona_set": "general",
+   "persona_meta": {
+    "seed": 1,
+    "pool_n": 48,
+    "generator_model": "gemma4:e4b",
+    "group": null,
+    "channels_file": null
+   },
+   "n_agents": 16,
+   "rounds": 10,
+   "condition": {
+    "chat_turns": 0,
+    "no_think": "auto",
+    "label_scheme": "symbols",
+    "label_unit": "session",
+    "label_randomize": true,
+    "game_params": {
+     "endowment": 10,
+     "multiplier": 3
+    },
+    "beta": null,
+    "reply_model": null,
+    "memory_mode": null,
+    "seed": 0,
+    "net_seed": null,
+    "policy": "llm"
+   },
+   "session": "03b6pyz5",
+   "export": "export_trust26",
+   "sim": "sim_trust26",
+   "export_csv_sha256_16": "e00d6093141d4244",
+   "comprehension": {
+    "correct": 16,
+    "n": 16
+   },
+   "missing_decisions": 0,
+   "series": {
+    "mean_sent": [
+     5.88,
+     6.62,
+     7.75,
+     8.62,
+     9.12,
+     9.12,
+     9.12,
+     9.12,
+     9.12,
+     7.88
+    ],
+    "mean_return_share": [
+     0.45,
+     0.514,
+     0.557,
+     0.573,
+     0.596,
+     0.625,
+     0.592,
+     0.575,
+     0.596,
+     0.657
+    ]
+   },
+   "headline": {
+    "mean_sent": {
+     "first": 5.88,
+     "last": 7.88,
+     "mean": 8.235
+    },
+    "mean_return_share": {
+     "first": 0.45,
+     "last": 0.657,
+     "mean": 0.574
+    }
+   },
+   "round_detail": [
+    {
+     "round": 1,
+     "sent_zero": 0,
+     "sent_all": 2,
+     "sender_mean_payoff": 12.38
+    },
+    {
+     "round": 2,
+     "sent_zero": 0,
+     "sent_all": 2,
+     "sender_mean_payoff": 13.75
+    },
+    {
+     "round": 3,
+     "sent_zero": 0,
+     "sent_all": 3,
+     "sender_mean_payoff": 15.62
+    },
+    {
+     "round": 4,
+     "sent_zero": 0,
+     "sent_all": 5,
+     "sender_mean_payoff": 16.62
+    },
+    {
+     "round": 5,
+     "sent_zero": 0,
+     "sent_all": 7,
+     "sender_mean_payoff": 17.88
+    },
+    {
+     "round": 6,
+     "sent_zero": 0,
+     "sent_all": 7,
+     "sender_mean_payoff": 18.75
+    },
+    {
+     "round": 7,
+     "sent_zero": 0,
+     "sent_all": 7,
+     "sender_mean_payoff": 17.75
+    },
+    {
+     "round": 8,
+     "sent_zero": 0,
+     "sent_all": 7,
+     "sender_mean_payoff": 17.25
+    },
+    {
+     "round": 9,
+     "sent_zero": 0,
+     "sent_all": 7,
+     "sender_mean_payoff": 17.88
+    },
+    {
+     "round": 10,
+     "sent_zero": 1,
+     "sent_all": 6,
+     "sender_mean_payoff": 18.5
+    }
+   ],
+   "messages": {
+    "total": 0,
+    "failed": 0
+   }
+  },
+  {
+   "id": "ultimatum",
+   "phase": "games",
+   "game": "ultimatum",
+   "label": "gemma4:26b, general personas, 16 agents, no chat",
+   "model": "gemma4:26b",
+   "thinking": null,
+   "persona_set": "general",
+   "persona_meta": {
+    "seed": 1,
+    "pool_n": 48,
+    "generator_model": "gemma4:e4b",
+    "group": null,
+    "channels_file": null
+   },
+   "n_agents": 16,
+   "rounds": 10,
+   "condition": {
+    "chat_turns": 0,
+    "no_think": "auto",
+    "label_scheme": "symbols",
+    "label_unit": "session",
+    "label_randomize": true,
+    "game_params": {
+     "pie": 20
+    },
+    "beta": null,
+    "reply_model": null,
+    "memory_mode": null,
+    "seed": 0,
+    "net_seed": null,
+    "policy": "llm"
+   },
+   "session": "hfkj4xwg",
+   "export": "export_ult26",
+   "sim": "sim_ult26",
+   "export_csv_sha256_16": "e2d04ed8fecbe448",
+   "comprehension": {
+    "correct": 16,
+    "n": 16
+   },
+   "missing_decisions": 0,
+   "series": {
+    "mean_offer": [
+     10,
+     10,
+     10,
+     10,
+     10,
+     10,
+     10,
+     10,
+     10,
+     10
+    ],
+    "acceptance_rate": [
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ]
+   },
+   "headline": {
+    "mean_offer": {
+     "first": 10.0,
+     "last": 10.0,
+     "mean": 10.0
+    },
+    "acceptance_rate": {
+     "first": 1.0,
+     "last": 1.0,
+     "mean": 1.0
+    }
+   },
+   "rejected_offers": [],
+   "mean_offer_share": 0.5,
+   "round_detail": [
+    {
+     "round": 1,
+     "min_offer": 10,
+     "max_offer": 10
+    },
+    {
+     "round": 2,
+     "min_offer": 10,
+     "max_offer": 10
+    },
+    {
+     "round": 3,
+     "min_offer": 10,
+     "max_offer": 10
+    },
+    {
+     "round": 4,
+     "min_offer": 10,
+     "max_offer": 10
+    },
+    {
+     "round": 5,
+     "min_offer": 10,
+     "max_offer": 10
+    },
+    {
+     "round": 6,
+     "min_offer": 10,
+     "max_offer": 10
+    },
+    {
+     "round": 7,
+     "min_offer": 10,
+     "max_offer": 10
+    },
+    {
+     "round": 8,
+     "min_offer": 10,
+     "max_offer": 10
+    },
+    {
+     "round": 9,
+     "min_offer": 10,
+     "max_offer": 10
+    },
+    {
+     "round": 10,
+     "min_offer": 10,
+     "max_offer": 10
+    }
+   ],
+   "messages": {
+    "total": 0,
+    "failed": 0
+   }
+  },
+  {
+   "id": "pd_workplace",
+   "phase": "workplace",
+   "game": "pd",
+   "label": "gemma4:26b, workplace personas, no chat",
+   "model": "gemma4:26b",
+   "thinking": null,
+   "persona_set": "workplace",
+   "persona_meta": {
+    "seed": 1,
+    "pool_n": 48,
+    "generator_model": "gemma4:26b",
+    "group": "Kestrel Harbour Group",
+    "channels_file": null
+   },
+   "n_agents": 16,
+   "rounds": 10,
+   "condition": {
+    "chat_turns": 0,
+    "no_think": "auto",
+    "label_scheme": "symbols",
+    "label_unit": "pair",
+    "label_randomize": true,
+    "game_params": {},
+    "beta": null,
+    "reply_model": null,
+    "memory_mode": null,
+    "seed": 0,
+    "net_seed": null,
+    "policy": "llm"
+   },
+   "session": "47cyjhbb",
+   "export": "export_pdwork26",
+   "sim": "sim_pdwork26",
+   "export_csv_sha256_16": "86e6db2ec6cd079e",
+   "comprehension": {
+    "correct": 16,
+    "n": 16
+   },
+   "missing_decisions": 0,
+   "series": {
+    "cooperation_rate": [
+     0.562,
+     0.5,
+     0.375,
+     0.438,
+     0.438,
+     0.375,
+     0.375,
+     0.375,
+     0.438,
+     0.312
+    ]
+   },
+   "headline": {
+    "cooperation_rate": {
+     "first": 0.562,
+     "last": 0.312,
+     "mean": 0.419
+    }
+   },
+   "conditional_cooperation": {
+    "after_partner_A": 0.871,
+    "after_partner_B": 0.049
+   },
+   "round_detail": [
+    {
+     "round": 1,
+     "mutual_cooperation": 3,
+     "mutual_defection": 2,
+     "split": 3,
+     "mean_payoff": 23.12
+    },
+    {
+     "round": 2,
+     "mutual_cooperation": 3,
+     "mutual_defection": 3,
+     "split": 2,
+     "mean_payoff": 21.25
+    },
+    {
+     "round": 3,
+     "mutual_cooperation": 3,
+     "mutual_defection": 5,
+     "split": 0,
+     "mean_payoff": 17.5
+    },
+    {
+     "round": 4,
+     "mutual_cooperation": 3,
+     "mutual_defection": 4,
+     "split": 1,
+     "mean_payoff": 19.38
+    },
+    {
+     "round": 5,
+     "mutual_cooperation": 3,
+     "mutual_defection": 4,
+     "split": 1,
+     "mean_payoff": 19.38
+    },
+    {
+     "round": 6,
+     "mutual_cooperation": 3,
+     "mutual_defection": 5,
+     "split": 0,
+     "mean_payoff": 17.5
+    },
+    {
+     "round": 7,
+     "mutual_cooperation": 3,
+     "mutual_defection": 5,
+     "split": 0,
+     "mean_payoff": 17.5
+    },
+    {
+     "round": 8,
+     "mutual_cooperation": 3,
+     "mutual_defection": 5,
+     "split": 0,
+     "mean_payoff": 17.5
+    },
+    {
+     "round": 9,
+     "mutual_cooperation": 3,
+     "mutual_defection": 4,
+     "split": 1,
+     "mean_payoff": 19.38
+    },
+    {
+     "round": 10,
+     "mutual_cooperation": 2,
+     "mutual_defection": 5,
+     "split": 1,
+     "mean_payoff": 16.88
+    }
+   ],
+   "first_listed_choice": {
+    "n": 160,
+    "first_listed": 113,
+    "share": 0.706
+   },
+   "beliefs": {
+    "pre": 3.938,
+    "post": null
+   },
+   "decision_sources": {
+    "llm:gemma4:26b": 160
+   },
+   "messages": {
+    "total": 0,
+    "failed": 0
+   }
+  },
+  {
+   "id": "pgg_workplace",
+   "phase": "workplace",
+   "game": "pgg",
+   "label": "gemma4:26b, workplace personas, no chat",
+   "model": "gemma4:26b",
+   "thinking": null,
+   "persona_set": "workplace",
+   "persona_meta": {
+    "seed": 1,
+    "pool_n": 48,
+    "generator_model": "gemma4:26b",
+    "group": "Kestrel Harbour Group",
+    "channels_file": null
+   },
+   "n_agents": 16,
+   "rounds": 10,
+   "condition": {
+    "chat_turns": 0,
+    "no_think": "auto",
+    "label_scheme": "symbols",
+    "label_unit": "session",
+    "label_randomize": true,
+    "game_params": {
+     "endowment": 20,
+     "multiplier": 1.6,
+     "group_size": 4
+    },
+    "beta": null,
+    "reply_model": null,
+    "memory_mode": null,
+    "seed": 0,
+    "net_seed": null,
+    "policy": "llm"
+   },
+   "session": "zbug7iht",
+   "export": "export_pggwork26",
+   "sim": "sim_pggwork26",
+   "export_csv_sha256_16": "39343faabb5f4b27",
+   "comprehension": {
+    "correct": 16,
+    "n": 16
+   },
+   "missing_decisions": 0,
+   "series": {
+    "mean_contribution_share": [
+     0.875,
+     0.719,
+     0.562,
+     0.469,
+     0.406,
+     0.281,
+     0.312,
+     0.312,
+     0.25,
+     0.188
+    ],
+    "mean_contribution": [
+     17.5,
+     14.38,
+     11.25,
+     9.38,
+     8.12,
+     5.62,
+     6.25,
+     6.25,
+     5.0,
+     3.75
+    ]
+   },
+   "headline": {
+    "mean_contribution_share": {
+     "first": 0.875,
+     "last": 0.188,
+     "mean": 0.437
+    },
+    "mean_contribution": {
+     "first": 17.5,
+     "last": 3.75,
+     "mean": 8.75
+    }
+   },
+   "first_round_mean": 17.5,
+   "last_round_mean": 3.75,
+   "decline": 13.75,
+   "end_game_drop": 1.25,
+   "trend_per_round": -1.372,
+   "conditional_slope": 0.636,
+   "nash_share": 0.537,
+   "beliefs": {
+    "pre": 5.938,
+    "post": null
+   },
+   "messages": {
+    "total": 0,
+    "failed": 0
+   }
+  },
+  {
+   "id": "net_off",
+   "phase": "network",
+   "game": "pd",
+   "label": "network topology off, workplace personas",
+   "model": "gemma4:26b",
+   "thinking": null,
+   "persona_set": "workplace",
+   "persona_meta": {
+    "seed": 1,
+    "pool_n": 48,
+    "generator_model": "gemma4:26b",
+    "group": "Kestrel Harbour Group",
+    "channels_file": null
+   },
+   "n_agents": 16,
+   "rounds": 10,
+   "condition": {
+    "chat_turns": 0,
+    "net_topology": "none",
+    "net_mean_degree": 4.0,
+    "net_contact_mean": 1.0,
+    "net_turns": 2,
+    "no_think": "auto",
+    "label_scheme": "symbols",
+    "label_unit": "session",
+    "label_randomize": true,
+    "label_order_per_agent": true,
+    "game_params": {},
+    "beta": null,
+    "reply_model": null,
+    "memory_mode": "off",
+    "seed": 0,
+    "net_seed": -1,
+    "policy": "llm"
+   },
+   "session": "4elmzl6f",
+   "export": "export_netoff",
+   "sim": "sim_netoff",
+   "export_csv_sha256_16": "3287ad32f9a464e0",
+   "comprehension": {
+    "correct": 16,
+    "n": 16
+   },
+   "missing_decisions": 0,
+   "series": {
+    "cooperation_rate": [
+     0.5,
+     0.312,
+     0.375,
+     0.375,
+     0.375,
+     0.375,
+     0.375,
+     0.375,
+     0.375,
+     0.312
+    ]
+   },
+   "headline": {
+    "cooperation_rate": {
+     "first": 0.5,
+     "last": 0.312,
+     "mean": 0.375
+    }
+   },
+   "conditional_cooperation": {
+    "after_partner_A": 0.927,
+    "after_partner_B": 0.011
+   },
+   "round_detail": [
+    {
+     "round": 1,
+     "mutual_cooperation": 2,
+     "mutual_defection": 2,
+     "split": 4,
+     "mean_payoff": 22.5
+    },
+    {
+     "round": 2,
+     "mutual_cooperation": 2,
+     "mutual_defection": 5,
+     "split": 1,
+     "mean_payoff": 16.88
+    },
+    {
+     "round": 3,
+     "mutual_cooperation": 3,
+     "mutual_defection": 5,
+     "split": 0,
+     "mean_payoff": 17.5
+    },
+    {
+     "round": 4,
+     "mutual_cooperation": 3,
+     "mutual_defection": 5,
+     "split": 0,
+     "mean_payoff": 17.5
+    },
+    {
+     "round": 5,
+     "mutual_cooperation": 3,
+     "mutual_defection": 5,
+     "split": 0,
+     "mean_payoff": 17.5
+    },
+    {
+     "round": 6,
+     "mutual_cooperation": 3,
+     "mutual_defection": 5,
+     "split": 0,
+     "mean_payoff": 17.5
+    },
+    {
+     "round": 7,
+     "mutual_cooperation": 3,
+     "mutual_defection": 5,
+     "split": 0,
+     "mean_payoff": 17.5
+    },
+    {
+     "round": 8,
+     "mutual_cooperation": 3,
+     "mutual_defection": 5,
+     "split": 0,
+     "mean_payoff": 17.5
+    },
+    {
+     "round": 9,
+     "mutual_cooperation": 3,
+     "mutual_defection": 5,
+     "split": 0,
+     "mean_payoff": 17.5
+    },
+    {
+     "round": 10,
+     "mutual_cooperation": 2,
+     "mutual_defection": 5,
+     "split": 1,
+     "mean_payoff": 16.88
+    }
+   ],
+   "first_listed_choice": {
+    "n": 160,
+    "first_listed": 146,
+    "share": 0.912
+   },
+   "beliefs": {
+    "pre": 4.25,
+    "post": null
+   },
+   "decision_sources": {
+    "llm:gemma4:26b": 160
+   },
+   "messages": {
+    "total": 0,
+    "failed": 0
+   }
+  },
+  {
+   "id": "net_ba",
+   "phase": "network",
+   "game": "pd",
+   "label": "network topology ba, workplace personas",
+   "model": "gemma4:26b",
+   "thinking": null,
+   "persona_set": "workplace",
+   "persona_meta": {
+    "seed": 1,
+    "pool_n": 48,
+    "generator_model": "gemma4:26b",
+    "group": "Kestrel Harbour Group",
+    "channels_file": null
+   },
+   "n_agents": 16,
+   "rounds": 10,
+   "condition": {
+    "chat_turns": 0,
+    "net_topology": "ba",
+    "net_mean_degree": 4.0,
+    "net_contact_mean": 1.0,
+    "net_turns": 2,
+    "no_think": "auto",
+    "label_scheme": "symbols",
+    "label_unit": "session",
+    "label_randomize": true,
+    "label_order_per_agent": true,
+    "game_params": {},
+    "beta": null,
+    "reply_model": null,
+    "memory_mode": "off",
+    "seed": 0,
+    "net_seed": -1,
+    "policy": "llm"
+   },
+   "session": "pw02s8yd",
+   "export": "export_netba",
+   "sim": "sim_netba",
+   "export_csv_sha256_16": "4d26d42031770f9e",
+   "comprehension": {
+    "correct": 16,
+    "n": 16
+   },
+   "missing_decisions": 0,
+   "series": {
+    "cooperation_rate": [
+     0.688,
+     0.375,
+     0.375,
+     0.375,
+     0.312,
+     0.312,
+     0.312,
+     0.312,
+     0.312,
+     0.312
+    ],
+    "conversations": [
+     10,
+     7,
+     9,
+     10,
+     10,
+     6,
+     6,
+     14,
+     11,
+     8
+    ],
+    "messages": [
+     20,
+     14,
+     18,
+     20,
+     20,
+     12,
+     12,
+     28,
+     22,
+     16
+    ]
+   },
+   "headline": {
+    "cooperation_rate": {
+     "first": 0.688,
+     "last": 0.312,
+     "mean": 0.368
+    }
+   },
+   "conditional_cooperation": {
+    "after_partner_A": 0.685,
+    "after_partner_B": 0.122
+   },
+   "round_detail": [
+    {
+     "round": 1,
+     "mutual_cooperation": 3,
+     "mutual_defection": 0,
+     "split": 5,
+     "mean_payoff": 26.88
+    },
+    {
+     "round": 2,
+     "mutual_cooperation": 2,
+     "mutual_defection": 4,
+     "split": 2,
+     "mean_payoff": 18.75
+    },
+    {
+     "round": 3,
+     "mutual_cooperation": 2,
+     "mutual_defection": 4,
+     "split": 2,
+     "mean_payoff": 18.75
+    },
+    {
+     "round": 4,
+     "mutual_cooperation": 2,
+     "mutual_defection": 4,
+     "split": 2,
+     "mean_payoff": 18.75
+    },
+    {
+     "round": 5,
+     "mutual_cooperation": 2,
+     "mutual_defection": 5,
+     "split": 1,
+     "mean_payoff": 16.88
+    },
+    {
+     "round": 6,
+     "mutual_cooperation": 2,
+     "mutual_defection": 5,
+     "split": 1,
+     "mean_payoff": 16.88
+    },
+    {
+     "round": 7,
+     "mutual_cooperation": 2,
+     "mutual_defection": 5,
+     "split": 1,
+     "mean_payoff": 16.88
+    },
+    {
+     "round": 8,
+     "mutual_cooperation": 2,
+     "mutual_defection": 5,
+     "split": 1,
+     "mean_payoff": 16.88
+    },
+    {
+     "round": 9,
+     "mutual_cooperation": 2,
+     "mutual_defection": 5,
+     "split": 1,
+     "mean_payoff": 16.88
+    },
+    {
+     "round": 10,
+     "mutual_cooperation": 2,
+     "mutual_defection": 5,
+     "split": 1,
+     "mean_payoff": 16.88
+    }
+   ],
+   "first_listed_choice": {
+    "n": 160,
+    "first_listed": 123,
+    "share": 0.769
+   },
+   "beliefs": {
+    "pre": 4.188,
+    "post": null
+   },
+   "decision_sources": {
+    "llm:gemma4:26b": 160
+   },
+   "network": {
+    "topology": "ba",
+    "stats": {
+     "n": 16,
+     "m": 28,
+     "mean_degree": 3.5,
+     "max_degree": 7,
+     "clustering": 0.3994,
+     "connected": true,
+     "diameter": 4,
+     "degree_assortativity": -0.565
+    },
+    "contact": {
+     "mean": 1.0,
+     "dispersion": 0.5,
+     "max_initiate": 3,
+     "max_load": 4,
+     "turns": 2,
+     "lambda_assign": "random"
+    },
+    "lambda_summary": {
+     "n": 16,
+     "mean": 0.7214,
+     "median": 0.2918,
+     "min": 0.0,
+     "max": 3.1545,
+     "n_below_0_1": 5,
+     "mean_k_drawn_per_agent": 0.7875
+    },
+    "spearman": {
+     "degree": {
+      "rho": 0.41,
+      "p": 0.1147,
+      "n": 16
+     },
+     "lambda": {
+      "rho": -0.253,
+      "p": 0.3453,
+      "n": 16
+     },
+     "total_conversations": {
+      "rho": -0.159,
+      "p": 0.5568,
+      "n": 16
+     }
+    },
+    "contact_count_check": {
+     "n": 160,
+     "mean": 0.7875,
+     "variance": 1.6527,
+     "mu": 1.0,
+     "expected_variance": 3.0
+    },
+    "behavioural_exposure": {
+     "exposed": {
+      "own_prev_coop": {
+       "n": 26,
+       "p_coop": 0.9615
+      },
+      "own_prev_defect": {
+       "n": 52,
+       "p_coop": 0.0
+      }
+     },
+     "not_exposed": {
+      "own_prev_coop": {
+       "n": 12,
+       "p_coop": 1.0
+      },
+      "own_prev_defect": {
+       "n": 10,
+       "p_coop": 0.0
+      }
+     },
+     "no_conversation": {
+      "own_prev_coop": {
+       "n": 16,
+       "p_coop": 0.6875
+      },
+      "own_prev_defect": {
+       "n": 28,
+       "p_coop": 0.0
+      }
+     }
+    },
+    "talk_exposure": {
+     "symbols": {
+      "cooperate": "○",
+      "defect": "△"
+     },
+     "table": {
+      "defect_only": {
+       "own_prev_coop": {
+        "n": 8,
+        "p_coop": 1.0
+       },
+       "own_prev_defect": {
+        "n": 16,
+        "p_coop": 0.0
+       }
+      },
+      "cooperate_only": {
+       "own_prev_coop": {
+        "n": 7,
+        "p_coop": 1.0
+       },
+       "own_prev_defect": {
+        "n": 7,
+        "p_coop": 0.0
+       }
+      },
+      "both": {
+       "own_prev_coop": {
+        "n": 23,
+        "p_coop": 0.9565
+       },
+       "own_prev_defect": {
+        "n": 39,
+        "p_coop": 0.0
+       }
+      },
+      "neither": {
+       "own_prev_coop": {
+        "n": 16,
+        "p_coop": 0.6875
+       },
+       "own_prev_defect": {
+        "n": 28,
+        "p_coop": 0.0
+       }
+      }
+     }
+    },
+    "edge_concordance": {
+     "round": 10,
+     "observed": 0.5714,
+     "permuted_mean": 0.5452,
+     "p_ge": 0.4795,
+     "assortativity": 0.0667
+    },
+    "talk_quality": {
+     "messages": 182,
+     "attempts": 182,
+     "failed_attempts": 0,
+     "on_topic": 0.4286,
+     "partner_reports": 0.7198,
+     "possible_confusion": 0.0,
+     "possible_confusion_examples": []
+    }
+   },
+   "messages": {
+    "total": 182,
+    "attempts": 182,
+    "failed": 0,
+    "conversations": 91
+   }
+  },
+  {
+   "id": "net_er",
+   "phase": "network",
+   "game": "pd",
+   "label": "network topology er, workplace personas",
+   "model": "gemma4:26b",
+   "thinking": null,
+   "persona_set": "workplace",
+   "persona_meta": {
+    "seed": 1,
+    "pool_n": 48,
+    "generator_model": "gemma4:26b",
+    "group": "Kestrel Harbour Group",
+    "channels_file": null
+   },
+   "n_agents": 16,
+   "rounds": 10,
+   "condition": {
+    "chat_turns": 0,
+    "net_topology": "er",
+    "net_mean_degree": 4.0,
+    "net_contact_mean": 1.0,
+    "net_turns": 2,
+    "no_think": "auto",
+    "label_scheme": "symbols",
+    "label_unit": "session",
+    "label_randomize": true,
+    "label_order_per_agent": true,
+    "game_params": {},
+    "beta": null,
+    "reply_model": null,
+    "memory_mode": "off",
+    "seed": 0,
+    "net_seed": -1,
+    "policy": "llm"
+   },
+   "session": "xa46q94g",
+   "export": "export_neter",
+   "sim": "sim_neter",
+   "export_csv_sha256_16": "57abf172f2e09b55",
+   "comprehension": {
+    "correct": 16,
+    "n": 16
+   },
+   "missing_decisions": 0,
+   "series": {
+    "cooperation_rate": [
+     0.812,
+     0.812,
+     0.688,
+     0.625,
+     0.625,
+     0.688,
+     0.688,
+     0.688,
+     0.625,
+     0.562
+    ],
+    "conversations": [
+     13,
+     7,
+     9,
+     13,
+     12,
+     6,
+     8,
+     15,
+     12,
+     9
+    ],
+    "messages": [
+     26,
+     14,
+     18,
+     26,
+     24,
+     12,
+     16,
+     30,
+     24,
+     18
+    ]
+   },
+   "headline": {
+    "cooperation_rate": {
+     "first": 0.812,
+     "last": 0.562,
+     "mean": 0.681
+    }
+   },
+   "conditional_cooperation": {
+    "after_partner_A": 0.92,
+    "after_partner_B": 0.091
+   },
+   "round_detail": [
+    {
+     "round": 1,
+     "mutual_cooperation": 5,
+     "mutual_defection": 0,
+     "split": 3,
+     "mean_payoff": 28.12
+    },
+    {
+     "round": 2,
+     "mutual_cooperation": 6,
+     "mutual_defection": 1,
+     "split": 1,
+     "mean_payoff": 26.88
+    },
+    {
+     "round": 3,
+     "mutual_cooperation": 5,
+     "mutual_defection": 2,
+     "split": 1,
+     "mean_payoff": 24.38
+    },
+    {
+     "round": 4,
+     "mutual_cooperation": 5,
+     "mutual_defection": 3,
+     "split": 0,
+     "mean_payoff": 22.5
+    },
+    {
+     "round": 5,
+     "mutual_cooperation": 5,
+     "mutual_defection": 3,
+     "split": 0,
+     "mean_payoff": 22.5
+    },
+    {
+     "round": 6,
+     "mutual_cooperation": 5,
+     "mutual_defection": 2,
+     "split": 1,
+     "mean_payoff": 24.38
+    },
+    {
+     "round": 7,
+     "mutual_cooperation": 5,
+     "mutual_defection": 2,
+     "split": 1,
+     "mean_payoff": 24.38
+    },
+    {
+     "round": 8,
+     "mutual_cooperation": 5,
+     "mutual_defection": 2,
+     "split": 1,
+     "mean_payoff": 24.38
+    },
+    {
+     "round": 9,
+     "mutual_cooperation": 5,
+     "mutual_defection": 3,
+     "split": 0,
+     "mean_payoff": 22.5
+    },
+    {
+     "round": 10,
+     "mutual_cooperation": 4,
+     "mutual_defection": 3,
+     "split": 1,
+     "mean_payoff": 21.88
+    }
+   ],
+   "first_listed_choice": {
+    "n": 160,
+    "first_listed": 107,
+    "share": 0.669
+   },
+   "beliefs": {
+    "pre": 4.438,
+    "post": null
+   },
+   "decision_sources": {
+    "llm:gemma4:26b": 160
+   },
+   "network": {
+    "topology": "er",
+    "stats": {
+     "n": 16,
+     "m": 32,
+     "mean_degree": 4.0,
+     "max_degree": 6,
+     "clustering": 0.2646,
+     "connected": true,
+     "diameter": 4,
+     "degree_assortativity": -0.0214
+    },
+    "contact": {
+     "mean": 1.0,
+     "dispersion": 0.5,
+     "max_initiate": 3,
+     "max_load": 4,
+     "turns": 2,
+     "lambda_assign": "random"
+    },
+    "lambda_summary": {
+     "n": 16,
+     "mean": 0.7214,
+     "median": 0.2918,
+     "min": 0.0,
+     "max": 3.1545,
+     "n_below_0_1": 5,
+     "mean_k_drawn_per_agent": 0.7875
+    },
+    "spearman": {
+     "degree": {
+      "rho": 0.173,
+      "p": 0.5229,
+      "n": 16
+     },
+     "lambda": {
+      "rho": -0.175,
+      "p": 0.516,
+      "n": 16
+     },
+     "total_conversations": {
+      "rho": 0.007,
+      "p": 0.9809,
+      "n": 16
+     }
+    },
+    "contact_count_check": {
+     "n": 160,
+     "mean": 0.7875,
+     "variance": 1.6527,
+     "mu": 1.0,
+     "expected_variance": 3.0
+    },
+    "behavioural_exposure": {
+     "exposed": {
+      "own_prev_coop": {
+       "n": 38,
+       "p_coop": 0.9737
+      },
+      "own_prev_defect": {
+       "n": 12,
+       "p_coop": 0.0833
+      }
+     },
+     "not_exposed": {
+      "own_prev_coop": {
+       "n": 26,
+       "p_coop": 0.8462
+      },
+      "own_prev_defect": {
+       "n": 19,
+       "p_coop": 0.1053
+      }
+     },
+     "no_conversation": {
+      "own_prev_coop": {
+       "n": 36,
+       "p_coop": 0.9167
+      },
+      "own_prev_defect": {
+       "n": 13,
+       "p_coop": 0.0769
+      }
+     }
+    },
+    "talk_exposure": {
+     "symbols": {
+      "cooperate": "◇",
+      "defect": "△"
+     },
+     "table": {
+      "defect_only": {
+       "own_prev_coop": {
+        "n": 4,
+        "p_coop": 1.0
+       },
+       "own_prev_defect": {
+        "n": 1,
+        "p_coop": 0.0
+       }
+      },
+      "cooperate_only": {
+       "own_prev_coop": {
+        "n": 9,
+        "p_coop": 0.7778
+       },
+       "own_prev_defect": {
+        "n": 4,
+        "p_coop": 0.25
+       }
+      },
+      "both": {
+       "own_prev_coop": {
+        "n": 51,
+        "p_coop": 0.9412
+       },
+       "own_prev_defect": {
+        "n": 26,
+        "p_coop": 0.0769
+       }
+      },
+      "neither": {
+       "own_prev_coop": {
+        "n": 36,
+        "p_coop": 0.9167
+       },
+       "own_prev_defect": {
+        "n": 13,
+        "p_coop": 0.0769
+       }
+      }
+     }
+    },
+    "edge_concordance": {
+     "round": 10,
+     "observed": 0.5312,
+     "permuted_mean": 0.4748,
+     "p_ge": 0.2857,
+     "assortativity": 0.0154
+    },
+    "talk_quality": {
+     "messages": 208,
+     "attempts": 208,
+     "failed_attempts": 0,
+     "on_topic": 0.1298,
+     "partner_reports": 0.8029,
+     "possible_confusion": 0.0,
+     "possible_confusion_examples": []
+    }
+   },
+   "messages": {
+    "total": 208,
+    "attempts": 208,
+    "failed": 0,
+    "conversations": 104
+   }
+  },
+  {
+   "id": "net_ws",
+   "phase": "network",
+   "game": "pd",
+   "label": "network topology ws, workplace personas",
+   "model": "gemma4:26b",
+   "thinking": null,
+   "persona_set": "workplace",
+   "persona_meta": {
+    "seed": 1,
+    "pool_n": 48,
+    "generator_model": "gemma4:26b",
+    "group": "Kestrel Harbour Group",
+    "channels_file": null
+   },
+   "n_agents": 16,
+   "rounds": 10,
+   "condition": {
+    "chat_turns": 0,
+    "net_topology": "ws",
+    "net_mean_degree": 4.0,
+    "net_contact_mean": 1.0,
+    "net_turns": 2,
+    "no_think": "auto",
+    "label_scheme": "symbols",
+    "label_unit": "session",
+    "label_randomize": true,
+    "label_order_per_agent": true,
+    "game_params": {},
+    "beta": null,
+    "reply_model": null,
+    "memory_mode": "off",
+    "seed": 0,
+    "net_seed": -1,
+    "policy": "llm"
+   },
+   "session": "7f8yjxdj",
+   "export": "export_netws",
+   "sim": "sim_netws",
+   "export_csv_sha256_16": "dfb435bd146e94df",
+   "comprehension": {
+    "correct": 16,
+    "n": 16
+   },
+   "missing_decisions": 0,
+   "series": {
+    "cooperation_rate": [
+     0.688,
+     0.562,
+     0.562,
+     0.5,
+     0.5,
+     0.5,
+     0.5,
+     0.5,
+     0.5,
+     0.5
+    ],
+    "conversations": [
+     12,
+     7,
+     10,
+     14,
+     11,
+     6,
+     8,
+     17,
+     13,
+     7
+    ],
+    "messages": [
+     24,
+     14,
+     20,
+     28,
+     22,
+     12,
+     16,
+     34,
+     26,
+     14
+    ]
+   },
+   "headline": {
+    "cooperation_rate": {
+     "first": 0.688,
+     "last": 0.5,
+     "mean": 0.531
+    }
+   },
+   "conditional_cooperation": {
+    "after_partner_A": 0.948,
+    "after_partner_B": 0.015
+   },
+   "round_detail": [
+    {
+     "round": 1,
+     "mutual_cooperation": 4,
+     "mutual_defection": 1,
+     "split": 3,
+     "mean_payoff": 25.62
+    },
+    {
+     "round": 2,
+     "mutual_cooperation": 4,
+     "mutual_defection": 3,
+     "split": 1,
+     "mean_payoff": 21.88
+    },
+    {
+     "round": 3,
+     "mutual_cooperation": 4,
+     "mutual_defection": 3,
+     "split": 1,
+     "mean_payoff": 21.88
+    },
+    {
+     "round": 4,
+     "mutual_cooperation": 4,
+     "mutual_defection": 4,
+     "split": 0,
+     "mean_payoff": 20.0
+    },
+    {
+     "round": 5,
+     "mutual_cooperation": 4,
+     "mutual_defection": 4,
+     "split": 0,
+     "mean_payoff": 20.0
+    },
+    {
+     "round": 6,
+     "mutual_cooperation": 4,
+     "mutual_defection": 4,
+     "split": 0,
+     "mean_payoff": 20.0
+    },
+    {
+     "round": 7,
+     "mutual_cooperation": 4,
+     "mutual_defection": 4,
+     "split": 0,
+     "mean_payoff": 20.0
+    },
+    {
+     "round": 8,
+     "mutual_cooperation": 4,
+     "mutual_defection": 4,
+     "split": 0,
+     "mean_payoff": 20.0
+    },
+    {
+     "round": 9,
+     "mutual_cooperation": 4,
+     "mutual_defection": 4,
+     "split": 0,
+     "mean_payoff": 20.0
+    },
+    {
+     "round": 10,
+     "mutual_cooperation": 4,
+     "mutual_defection": 4,
+     "split": 0,
+     "mean_payoff": 20.0
+    }
+   ],
+   "first_listed_choice": {
+    "n": 160,
+    "first_listed": 109,
+    "share": 0.681
+   },
+   "beliefs": {
+    "pre": 4.062,
+    "post": null
+   },
+   "decision_sources": {
+    "llm:gemma4:26b": 160
+   },
+   "network": {
+    "topology": "ws",
+    "stats": {
+     "n": 16,
+     "m": 32,
+     "mean_degree": 4.0,
+     "max_degree": 5,
+     "clustering": 0.4125,
+     "connected": true,
+     "diameter": 4,
+     "degree_assortativity": -0.1429
+    },
+    "contact": {
+     "mean": 1.0,
+     "dispersion": 0.5,
+     "max_initiate": 3,
+     "max_load": 4,
+     "turns": 2,
+     "lambda_assign": "random"
+    },
+    "lambda_summary": {
+     "n": 16,
+     "mean": 0.7214,
+     "median": 0.2918,
+     "min": 0.0,
+     "max": 3.1545,
+     "n_below_0_1": 5,
+     "mean_k_drawn_per_agent": 0.7875
+    },
+    "spearman": {
+     "degree": {
+      "rho": 0.484,
+      "p": 0.0577,
+      "n": 16
+     },
+     "lambda": {
+      "rho": -0.062,
+      "p": 0.8196,
+      "n": 16
+     },
+     "total_conversations": {
+      "rho": -0.087,
+      "p": 0.7495,
+      "n": 16
+     }
+    },
+    "contact_count_check": {
+     "n": 160,
+     "mean": 0.7875,
+     "variance": 1.6527,
+     "mu": 1.0,
+     "expected_variance": 3.0
+    },
+    "behavioural_exposure": {
+     "exposed": {
+      "own_prev_coop": {
+       "n": 39,
+       "p_coop": 0.9487
+      },
+      "own_prev_defect": {
+       "n": 28,
+       "p_coop": 0.0
+      }
+     },
+     "not_exposed": {
+      "own_prev_coop": {
+       "n": 12,
+       "p_coop": 1.0
+      },
+      "own_prev_defect": {
+       "n": 24,
+       "p_coop": 0.0
+      }
+     },
+     "no_conversation": {
+      "own_prev_coop": {
+       "n": 26,
+       "p_coop": 0.9231
+      },
+      "own_prev_defect": {
+       "n": 15,
+       "p_coop": 0.0667
+      }
+     }
+    },
+    "talk_exposure": {
+     "symbols": {
+      "cooperate": "○",
+      "defect": "△"
+     },
+     "table": {
+      "defect_only": {
+       "own_prev_coop": {
+        "n": 8,
+        "p_coop": 0.875
+       },
+       "own_prev_defect": {
+        "n": 11,
+        "p_coop": 0.0
+       }
+      },
+      "cooperate_only": {
+       "own_prev_coop": {
+        "n": 12,
+        "p_coop": 1.0
+       },
+       "own_prev_defect": {
+        "n": 22,
+        "p_coop": 0.0
+       }
+      },
+      "both": {
+       "own_prev_coop": {
+        "n": 30,
+        "p_coop": 0.9667
+       },
+       "own_prev_defect": {
+        "n": 19,
+        "p_coop": 0.0
+       }
+      },
+      "neither": {
+       "own_prev_coop": {
+        "n": 27,
+        "p_coop": 0.9259
+       },
+       "own_prev_defect": {
+        "n": 15,
+        "p_coop": 0.0667
+       }
+      }
+     }
+    },
+    "edge_concordance": {
+     "round": 10,
+     "observed": 0.3125,
+     "permuted_mean": 0.4644,
+     "p_ge": 0.995,
+     "assortativity": -0.3804
+    },
+    "talk_quality": {
+     "messages": 210,
+     "attempts": 210,
+     "failed_attempts": 0,
+     "on_topic": 0.4143,
+     "partner_reports": 0.8476,
+     "possible_confusion": 0.0,
+     "possible_confusion_examples": []
+    }
+   },
+   "messages": {
+    "total": 210,
+    "attempts": 210,
+    "failed": 0,
+    "conversations": 105
+   }
+  },
+  {
+   "id": "net_ring",
+   "phase": "network",
+   "game": "pd",
+   "label": "network topology ring, workplace personas",
+   "model": "gemma4:26b",
+   "thinking": null,
+   "persona_set": "workplace",
+   "persona_meta": {
+    "seed": 1,
+    "pool_n": 48,
+    "generator_model": "gemma4:26b",
+    "group": "Kestrel Harbour Group",
+    "channels_file": null
+   },
+   "n_agents": 16,
+   "rounds": 10,
+   "condition": {
+    "chat_turns": 0,
+    "net_topology": "ring",
+    "net_mean_degree": 4.0,
+    "net_contact_mean": 1.0,
+    "net_turns": 2,
+    "no_think": "auto",
+    "label_scheme": "symbols",
+    "label_unit": "session",
+    "label_randomize": true,
+    "label_order_per_agent": true,
+    "game_params": {},
+    "beta": null,
+    "reply_model": null,
+    "memory_mode": "off",
+    "seed": 0,
+    "net_seed": -1,
+    "policy": "llm"
+   },
+   "session": "vva0ql1f",
+   "export": "export_netring",
+   "sim": "sim_netring",
+   "export_csv_sha256_16": "0875b95b16fcb50e",
+   "comprehension": {
+    "correct": 16,
+    "n": 16
+   },
+   "missing_decisions": 0,
+   "series": {
+    "cooperation_rate": [
+     0.625,
+     0.438,
+     0.375,
+     0.375,
+     0.438,
+     0.438,
+     0.375,
+     0.375,
+     0.375,
+     0.312
+    ],
+    "conversations": [
+     13,
+     7,
+     10,
+     13,
+     13,
+     6,
+     8,
+     17,
+     13,
+     8
+    ],
+    "messages": [
+     26,
+     14,
+     20,
+     26,
+     26,
+     12,
+     16,
+     34,
+     26,
+     16
+    ]
+   },
+   "headline": {
+    "cooperation_rate": {
+     "first": 0.625,
+     "last": 0.312,
+     "mean": 0.413
+    }
+   },
+   "conditional_cooperation": {
+    "after_partner_A": 0.885,
+    "after_partner_B": 0.024
+   },
+   "round_detail": [
+    {
+     "round": 1,
+     "mutual_cooperation": 3,
+     "mutual_defection": 1,
+     "split": 4,
+     "mean_payoff": 25.0
+    },
+    {
+     "round": 2,
+     "mutual_cooperation": 3,
+     "mutual_defection": 4,
+     "split": 1,
+     "mean_payoff": 19.38
+    },
+    {
+     "round": 3,
+     "mutual_cooperation": 3,
+     "mutual_defection": 5,
+     "split": 0,
+     "mean_payoff": 17.5
+    },
+    {
+     "round": 4,
+     "mutual_cooperation": 3,
+     "mutual_defection": 5,
+     "split": 0,
+     "mean_payoff": 17.5
+    },
+    {
+     "round": 5,
+     "mutual_cooperation": 3,
+     "mutual_defection": 4,
+     "split": 1,
+     "mean_payoff": 19.38
+    },
+    {
+     "round": 6,
+     "mutual_cooperation": 3,
+     "mutual_defection": 4,
+     "split": 1,
+     "mean_payoff": 19.38
+    },
+    {
+     "round": 7,
+     "mutual_cooperation": 3,
+     "mutual_defection": 5,
+     "split": 0,
+     "mean_payoff": 17.5
+    },
+    {
+     "round": 8,
+     "mutual_cooperation": 3,
+     "mutual_defection": 5,
+     "split": 0,
+     "mean_payoff": 17.5
+    },
+    {
+     "round": 9,
+     "mutual_cooperation": 3,
+     "mutual_defection": 5,
+     "split": 0,
+     "mean_payoff": 17.5
+    },
+    {
+     "round": 10,
+     "mutual_cooperation": 2,
+     "mutual_defection": 5,
+     "split": 1,
+     "mean_payoff": 16.88
+    }
+   ],
+   "first_listed_choice": {
+    "n": 160,
+    "first_listed": 110,
+    "share": 0.688
+   },
+   "beliefs": {
+    "pre": 4.062,
+    "post": null
+   },
+   "decision_sources": {
+    "llm:gemma4:26b": 160
+   },
+   "network": {
+    "topology": "ring",
+    "stats": {
+     "n": 16,
+     "m": 32,
+     "mean_degree": 4.0,
+     "max_degree": 4,
+     "clustering": 0.5,
+     "connected": true,
+     "diameter": 4,
+     "degree_assortativity": null
+    },
+    "contact": {
+     "mean": 1.0,
+     "dispersion": 0.5,
+     "max_initiate": 3,
+     "max_load": 4,
+     "turns": 2,
+     "lambda_assign": "random"
+    },
+    "lambda_summary": {
+     "n": 16,
+     "mean": 0.7214,
+     "median": 0.2918,
+     "min": 0.0,
+     "max": 3.1545,
+     "n_below_0_1": 5,
+     "mean_k_drawn_per_agent": 0.7875
+    },
+    "spearman": {
+     "degree": null,
+     "lambda": {
+      "rho": -0.169,
+      "p": 0.5317,
+      "n": 16
+     },
+     "total_conversations": {
+      "rho": -0.276,
+      "p": 0.3013,
+      "n": 16
+     }
+    },
+    "contact_count_check": {
+     "n": 160,
+     "mean": 0.7875,
+     "variance": 1.6527,
+     "mu": 1.0,
+     "expected_variance": 3.0
+    },
+    "behavioural_exposure": {
+     "exposed": {
+      "own_prev_coop": {
+       "n": 25,
+       "p_coop": 0.92
+      },
+      "own_prev_defect": {
+       "n": 55,
+       "p_coop": 0.0364
+      }
+     },
+     "not_exposed": {
+      "own_prev_coop": {
+       "n": 13,
+       "p_coop": 0.8462
+      },
+      "own_prev_defect": {
+       "n": 13,
+       "p_coop": 0.0
+      }
+     },
+     "no_conversation": {
+      "own_prev_coop": {
+       "n": 23,
+       "p_coop": 0.8696
+      },
+      "own_prev_defect": {
+       "n": 15,
+       "p_coop": 0.0
+      }
+     }
+    },
+    "talk_exposure": {
+     "symbols": {
+      "cooperate": "◇",
+      "defect": "△"
+     },
+     "table": {
+      "defect_only": {
+       "own_prev_coop": {
+        "n": 7,
+        "p_coop": 0.8571
+       },
+       "own_prev_defect": {
+        "n": 27,
+        "p_coop": 0.0
+       }
+      },
+      "cooperate_only": {
+       "own_prev_coop": {
+        "n": 11,
+        "p_coop": 0.8182
+       },
+       "own_prev_defect": {
+        "n": 12,
+        "p_coop": 0.0
+       }
+      },
+      "both": {
+       "own_prev_coop": {
+        "n": 20,
+        "p_coop": 0.95
+       },
+       "own_prev_defect": {
+        "n": 29,
+        "p_coop": 0.069
+       }
+      },
+      "neither": {
+       "own_prev_coop": {
+        "n": 23,
+        "p_coop": 0.8696
+       },
+       "own_prev_defect": {
+        "n": 15,
+        "p_coop": 0.0
+       }
+      }
+     }
+    },
+    "edge_concordance": {
+     "round": 10,
+     "observed": 0.5,
+     "permuted_mean": 0.5387,
+     "p_ge": 0.8831,
+     "assortativity": -0.1636
+    },
+    "talk_quality": {
+     "messages": 216,
+     "attempts": 216,
+     "failed_attempts": 0,
+     "on_topic": 0.2407,
+     "partner_reports": 0.8194,
+     "possible_confusion": 0.0,
+     "possible_confusion_examples": []
+    }
+   },
+   "messages": {
+    "total": 216,
+    "attempts": 216,
+    "failed": 0,
+    "conversations": 108
+   }
+  },
+  {
+   "id": "ch_off",
+   "phase": "channels",
+   "game": "pd",
+   "label": "channel personas (ch_off)",
+   "model": "gemma4:26b",
+   "thinking": null,
+   "persona_set": "channels",
+   "persona_meta": {
+    "seed": 1,
+    "pool_n": 48,
+    "generator_model": "gemma4:26b",
+    "group": "Kestrel Harbour Group",
+    "channels_file": "channels.json"
+   },
+   "n_agents": 16,
+   "rounds": 10,
+   "condition": {
+    "chat_turns": 0,
+    "net_topology": "none",
+    "net_channels": true,
+    "net_channel_topic_weight": 0.5,
+    "net_pair_chat_model": "always",
+    "net_memory_half_life": 2.0,
+    "net_memory_budget_chars": 3200,
+    "net_mean_degree": 4.0,
+    "net_contact_mean": 1.0,
+    "net_turns": 2,
+    "no_think": "auto",
+    "label_scheme": "symbols",
+    "label_unit": "session",
+    "label_randomize": true,
+    "label_order_per_agent": true,
+    "game_params": {},
+    "beta": 0.0,
+    "reply_model": "always",
+    "memory_mode": "window",
+    "seed": 0,
+    "net_seed": -1,
+    "policy": "llm"
+   },
+   "session": "ismiaam4",
+   "export": "export_choff",
+   "sim": "sim_choff",
+   "export_csv_sha256_16": "dcd2eb1f7f89a50f",
+   "comprehension": {
+    "correct": 16,
+    "n": 16
+   },
+   "missing_decisions": 0,
+   "series": {
+    "cooperation_rate": [
+     0.625,
+     0.438,
+     0.312,
+     0.312,
+     0.25,
+     0.25,
+     0.312,
+     0.25,
+     0.25,
+     0.188
+    ]
+   },
+   "headline": {
+    "cooperation_rate": {
+     "first": 0.625,
+     "last": 0.188,
+     "mean": 0.319
+    }
+   },
+   "conditional_cooperation": {
+    "after_partner_A": 0.771,
+    "after_partner_B": 0.042
+   },
+   "round_detail": [
+    {
+     "round": 1,
+     "mutual_cooperation": 2,
+     "mutual_defection": 0,
+     "split": 6,
+     "mean_payoff": 26.25
+    },
+    {
+     "round": 2,
+     "mutual_cooperation": 2,
+     "mutual_defection": 3,
+     "split": 3,
+     "mean_payoff": 20.62
+    },
+    {
+     "round": 3,
+     "mutual_cooperation": 2,
+     "mutual_defection": 5,
+     "split": 1,
+     "mean_payoff": 16.88
+    },
+    {
+     "round": 4,
+     "mutual_cooperation": 2,
+     "mutual_defection": 5,
+     "split": 1,
+     "mean_payoff": 16.88
+    },
+    {
+     "round": 5,
+     "mutual_cooperation": 2,
+     "mutual_defection": 6,
+     "split": 0,
+     "mean_payoff": 15.0
+    },
+    {
+     "round": 6,
+     "mutual_cooperation": 2,
+     "mutual_defection": 6,
+     "split": 0,
+     "mean_payoff": 15.0
+    },
+    {
+     "round": 7,
+     "mutual_cooperation": 2,
+     "mutual_defection": 5,
+     "split": 1,
+     "mean_payoff": 16.88
+    },
+    {
+     "round": 8,
+     "mutual_cooperation": 2,
+     "mutual_defection": 6,
+     "split": 0,
+     "mean_payoff": 15.0
+    },
+    {
+     "round": 9,
+     "mutual_cooperation": 2,
+     "mutual_defection": 6,
+     "split": 0,
+     "mean_payoff": 15.0
+    },
+    {
+     "round": 10,
+     "mutual_cooperation": 1,
+     "mutual_defection": 6,
+     "split": 1,
+     "mean_payoff": 14.38
+    }
+   ],
+   "first_listed_choice": {
+    "n": 160,
+    "first_listed": 109,
+    "share": 0.681
+   },
+   "beliefs": {
+    "pre": 3.938,
+    "post": null
+   },
+   "decision_sources": {
+    "llm:gemma4:26b": 160
+   },
+   "messages": {
+    "total": 0,
+    "failed": 0
+   }
+  },
+  {
+   "id": "ch_ba0",
+   "phase": "channels",
+   "game": "pd",
+   "label": "channel personas (ch_ba0)",
+   "model": "gemma4:26b",
+   "thinking": null,
+   "persona_set": "channels",
+   "persona_meta": {
+    "seed": 1,
+    "pool_n": 48,
+    "generator_model": "gemma4:26b",
+    "group": "Kestrel Harbour Group",
+    "channels_file": "channels.json"
+   },
+   "n_agents": 16,
+   "rounds": 10,
+   "condition": {
+    "chat_turns": 0,
+    "net_topology": "ba",
+    "net_channels": true,
+    "net_channel_topic_weight": 0.5,
+    "net_pair_chat_model": "always",
+    "net_memory_half_life": 2.0,
+    "net_memory_budget_chars": 3200,
+    "net_mean_degree": 4.0,
+    "net_contact_mean": 1.0,
+    "net_turns": 2,
+    "no_think": "auto",
+    "label_scheme": "symbols",
+    "label_unit": "session",
+    "label_randomize": true,
+    "label_order_per_agent": true,
+    "game_params": {},
+    "beta": 0.0,
+    "reply_model": "always",
+    "memory_mode": "window",
+    "seed": 0,
+    "net_seed": -1,
+    "policy": "llm"
+   },
+   "session": "9vu6dnee",
+   "export": "export_chba0",
+   "sim": "sim_chba0",
+   "export_csv_sha256_16": "278adc9787961622",
+   "comprehension": {
+    "correct": 16,
+    "n": 16
+   },
+   "missing_decisions": 0,
+   "series": {
+    "cooperation_rate": [
+     0.812,
+     0.625,
+     0.688,
+     0.625,
+     0.625,
+     0.625,
+     0.625,
+     0.625,
+     0.625,
+     0.562
+    ],
+    "conversations": [
+     10,
+     7,
+     9,
+     10,
+     10,
+     6,
+     6,
+     14,
+     11,
+     8
+    ],
+    "messages": [
+     20,
+     14,
+     18,
+     20,
+     20,
+     12,
+     12,
+     28,
+     22,
+     16
+    ]
+   },
+   "headline": {
+    "cooperation_rate": {
+     "first": 0.812,
+     "last": 0.562,
+     "mean": 0.644
+    }
+   },
+   "conditional_cooperation": {
+    "after_partner_A": 0.947,
+    "after_partner_B": 0.02
+   },
+   "round_detail": [
+    {
+     "round": 1,
+     "mutual_cooperation": 5,
+     "mutual_defection": 0,
+     "split": 3,
+     "mean_payoff": 28.12
+    },
+    {
+     "round": 2,
+     "mutual_cooperation": 5,
+     "mutual_defection": 3,
+     "split": 0,
+     "mean_payoff": 22.5
+    },
+    {
+     "round": 3,
+     "mutual_cooperation": 5,
+     "mutual_defection": 2,
+     "split": 1,
+     "mean_payoff": 24.38
+    },
+    {
+     "round": 4,
+     "mutual_cooperation": 5,
+     "mutual_defection": 3,
+     "split": 0,
+     "mean_payoff": 22.5
+    },
+    {
+     "round": 5,
+     "mutual_cooperation": 5,
+     "mutual_defection": 3,
+     "split": 0,
+     "mean_payoff": 22.5
+    },
+    {
+     "round": 6,
+     "mutual_cooperation": 5,
+     "mutual_defection": 3,
+     "split": 0,
+     "mean_payoff": 22.5
+    },
+    {
+     "round": 7,
+     "mutual_cooperation": 5,
+     "mutual_defection": 3,
+     "split": 0,
+     "mean_payoff": 22.5
+    },
+    {
+     "round": 8,
+     "mutual_cooperation": 5,
+     "mutual_defection": 3,
+     "split": 0,
+     "mean_payoff": 22.5
+    },
+    {
+     "round": 9,
+     "mutual_cooperation": 5,
+     "mutual_defection": 3,
+     "split": 0,
+     "mean_payoff": 22.5
+    },
+    {
+     "round": 10,
+     "mutual_cooperation": 4,
+     "mutual_defection": 3,
+     "split": 1,
+     "mean_payoff": 21.88
+    }
+   ],
+   "first_listed_choice": {
+    "n": 160,
+    "first_listed": 113,
+    "share": 0.706
+   },
+   "beliefs": {
+    "pre": 4.125,
+    "post": null
+   },
+   "decision_sources": {
+    "llm:gemma4:26b": 160
+   },
+   "network": {
+    "topology": "ba",
+    "stats": {
+     "n": 16,
+     "m": 28,
+     "mean_degree": 3.5,
+     "max_degree": 7,
+     "clustering": 0.3994,
+     "connected": true,
+     "diameter": 4,
+     "degree_assortativity": -0.565
+    },
+    "contact": {
+     "mean": 1.0,
+     "dispersion": 0.5,
+     "max_initiate": 3,
+     "max_load": 4,
+     "turns": 2,
+     "lambda_assign": "random"
+    },
+    "lambda_summary": {
+     "n": 16,
+     "mean": 0.7214,
+     "median": 0.2918,
+     "min": 0.0,
+     "max": 3.1545,
+     "n_below_0_1": 5,
+     "mean_k_drawn_per_agent": 0.7875
+    },
+    "spearman": {
+     "degree": {
+      "rho": 0.311,
+      "p": 0.2409,
+      "n": 16
+     },
+     "lambda": {
+      "rho": 0.047,
+      "p": 0.8622,
+      "n": 16
+     },
+     "total_conversations": {
+      "rho": 0.069,
+      "p": 0.7988,
+      "n": 16
+     }
+    },
+    "contact_count_check": {
+     "n": 160,
+     "mean": 0.7875,
+     "variance": 1.6527,
+     "mu": 1.0,
+     "expected_variance": 3.0
+    },
+    "behavioural_exposure": {
+     "exposed": {
+      "own_prev_coop": {
+       "n": 29,
+       "p_coop": 1.0
+      },
+      "own_prev_defect": {
+       "n": 17,
+       "p_coop": 0.0
+      }
+     },
+     "not_exposed": {
+      "own_prev_coop": {
+       "n": 39,
+       "p_coop": 0.9744
+      },
+      "own_prev_defect": {
+       "n": 15,
+       "p_coop": 0.0667
+      }
+     },
+     "no_conversation": {
+      "own_prev_coop": {
+       "n": 26,
+       "p_coop": 0.8462
+      },
+      "own_prev_defect": {
+       "n": 18,
+       "p_coop": 0.0
+      }
+     }
+    },
+    "talk_exposure": {
+     "symbols": {
+      "cooperate": "□",
+      "defect": "○"
+     },
+     "table": {
+      "defect_only": {
+       "own_prev_coop": {
+        "n": 4,
+        "p_coop": 1.0
+       },
+       "own_prev_defect": {
+        "n": 3,
+        "p_coop": 0.0
+       }
+      },
+      "cooperate_only": {
+       "own_prev_coop": {
+        "n": 30,
+        "p_coop": 1.0
+       },
+       "own_prev_defect": {
+        "n": 10,
+        "p_coop": 0.0
+       }
+      },
+      "both": {
+       "own_prev_coop": {
+        "n": 34,
+        "p_coop": 0.9706
+       },
+       "own_prev_defect": {
+        "n": 19,
+        "p_coop": 0.0526
+       }
+      },
+      "neither": {
+       "own_prev_coop": {
+        "n": 26,
+        "p_coop": 0.8462
+       },
+       "own_prev_defect": {
+        "n": 18,
+        "p_coop": 0.0
+       }
+      }
+     }
+    },
+    "edge_concordance": {
+     "round": 10,
+     "observed": 0.5,
+     "permuted_mean": 0.475,
+     "p_ge": 0.4426,
+     "assortativity": -0.0889
+    },
+    "talk_quality": {
+     "messages": 182,
+     "attempts": 182,
+     "failed_attempts": 0,
+     "on_topic": 0.3407,
+     "partner_reports": 0.8077,
+     "possible_confusion": 0.0,
+     "possible_confusion_examples": []
+    },
+    "dyads": {
+     "compat_all_dyads": {
+      "n": 120,
+      "min": 0.372,
+      "q25": 0.54,
+      "median": 0.629,
+      "q75": 0.699,
+      "max": 0.853
+     },
+     "compat_edges": {
+      "n": 28,
+      "min": 0.425,
+      "q25": 0.617,
+      "median": 0.663,
+      "q75": 0.695,
+      "max": 0.853
+     },
+     "spearman_compat_attempts": {
+      "rho": 0.305,
+      "p": 0.1149,
+      "n": 28
+     },
+     "spearman_compat_answered": {
+      "rho": 0.305,
+      "p": 0.1149,
+      "n": 28
+     },
+     "reply_rate_by_compat_tercile": [
+      {
+       "tercile": "low",
+       "edges": 10,
+       "compat": [
+        0.425,
+        0.644
+       ],
+       "conversations": 19,
+       "reply_rate": 1.0
+      },
+      {
+       "tercile": "middle",
+       "edges": 9,
+       "compat": [
+        0.647,
+        0.676
+       ],
+       "conversations": 41,
+       "reply_rate": 1.0
+      },
+      {
+       "tercile": "high",
+       "edges": 9,
+       "compat": [
+        0.682,
+        0.853
+       ],
+       "conversations": 31,
+       "reply_rate": 1.0
+      }
+     ],
+     "unanswered": 0,
+     "conversations": 91,
+     "realised_reply_rate": 1.0,
+     "mean_reach": 0.7555,
+     "beta": 0.0,
+     "reply_model": "always"
+    }
+   },
+   "messages": {
+    "total": 182,
+    "attempts": 182,
+    "failed": 0,
+    "conversations": 91
+   }
+  },
+  {
+   "id": "ch_ba",
+   "phase": "channels",
+   "game": "pd",
+   "label": "channel personas (ch_ba)",
+   "model": "gemma4:26b",
+   "thinking": null,
+   "persona_set": "channels",
+   "persona_meta": {
+    "seed": 1,
+    "pool_n": 48,
+    "generator_model": "gemma4:26b",
+    "group": "Kestrel Harbour Group",
+    "channels_file": "channels.json"
+   },
+   "n_agents": 16,
+   "rounds": 10,
+   "condition": {
+    "chat_turns": 0,
+    "net_topology": "ba",
+    "net_channels": true,
+    "net_channel_topic_weight": 0.5,
+    "net_pair_chat_model": "always",
+    "net_memory_half_life": 2.0,
+    "net_memory_budget_chars": 3200,
+    "net_mean_degree": 4.0,
+    "net_contact_mean": 1.0,
+    "net_turns": 2,
+    "no_think": "auto",
+    "label_scheme": "symbols",
+    "label_unit": "session",
+    "label_randomize": true,
+    "label_order_per_agent": true,
+    "game_params": {},
+    "beta": 1.0,
+    "reply_model": "reach",
+    "memory_mode": "window",
+    "seed": 0,
+    "net_seed": -1,
+    "policy": "llm"
+   },
+   "session": "enuhuodq",
+   "export": "export_chba",
+   "sim": "sim_chba",
+   "export_csv_sha256_16": "0d539af502f33340",
+   "comprehension": {
+    "correct": 16,
+    "n": 16
+   },
+   "missing_decisions": 0,
+   "series": {
+    "cooperation_rate": [
+     0.688,
+     0.625,
+     0.562,
+     0.625,
+     0.562,
+     0.562,
+     0.562,
+     0.562,
+     0.562,
+     0.438
+    ],
+    "conversations": [
+     8,
+     6,
+     6,
+     10,
+     7,
+     4,
+     5,
+     10,
+     9,
+     7
+    ],
+    "messages": [
+     18,
+     13,
+     15,
+     22,
+     18,
+     10,
+     11,
+     24,
+     20,
+     15
+    ]
+   },
+   "headline": {
+    "cooperation_rate": {
+     "first": 0.688,
+     "last": 0.438,
+     "mean": 0.575
+    }
+   },
+   "conditional_cooperation": {
+    "after_partner_A": 0.859,
+    "after_partner_B": 0.136
+   },
+   "round_detail": [
+    {
+     "round": 1,
+     "mutual_cooperation": 4,
+     "mutual_defection": 1,
+     "split": 3,
+     "mean_payoff": 25.62
+    },
+    {
+     "round": 2,
+     "mutual_cooperation": 5,
+     "mutual_defection": 3,
+     "split": 0,
+     "mean_payoff": 22.5
+    },
+    {
+     "round": 3,
+     "mutual_cooperation": 4,
+     "mutual_defection": 3,
+     "split": 1,
+     "mean_payoff": 21.88
+    },
+    {
+     "round": 4,
+     "mutual_cooperation": 4,
+     "mutual_defection": 2,
+     "split": 2,
+     "mean_payoff": 23.75
+    },
+    {
+     "round": 5,
+     "mutual_cooperation": 4,
+     "mutual_defection": 3,
+     "split": 1,
+     "mean_payoff": 21.88
+    },
+    {
+     "round": 6,
+     "mutual_cooperation": 4,
+     "mutual_defection": 3,
+     "split": 1,
+     "mean_payoff": 21.88
+    },
+    {
+     "round": 7,
+     "mutual_cooperation": 4,
+     "mutual_defection": 3,
+     "split": 1,
+     "mean_payoff": 21.88
+    },
+    {
+     "round": 8,
+     "mutual_cooperation": 4,
+     "mutual_defection": 3,
+     "split": 1,
+     "mean_payoff": 21.88
+    },
+    {
+     "round": 9,
+     "mutual_cooperation": 4,
+     "mutual_defection": 3,
+     "split": 1,
+     "mean_payoff": 21.88
+    },
+    {
+     "round": 10,
+     "mutual_cooperation": 3,
+     "mutual_defection": 4,
+     "split": 1,
+     "mean_payoff": 19.38
+    }
+   ],
+   "first_listed_choice": {
+    "n": 160,
+    "first_listed": 112,
+    "share": 0.7
+   },
+   "beliefs": {
+    "pre": 4.312,
+    "post": null
+   },
+   "decision_sources": {
+    "llm:gemma4:26b": 160
+   },
+   "network": {
+    "topology": "ba",
+    "stats": {
+     "n": 16,
+     "m": 28,
+     "mean_degree": 3.5,
+     "max_degree": 7,
+     "clustering": 0.3994,
+     "connected": true,
+     "diameter": 4,
+     "degree_assortativity": -0.565
+    },
+    "contact": {
+     "mean": 1.0,
+     "dispersion": 0.5,
+     "max_initiate": 3,
+     "max_load": 4,
+     "turns": 2,
+     "lambda_assign": "random"
+    },
+    "lambda_summary": {
+     "n": 16,
+     "mean": 0.7214,
+     "median": 0.2918,
+     "min": 0.0,
+     "max": 3.1545,
+     "n_below_0_1": 5,
+     "mean_k_drawn_per_agent": 0.7875
+    },
+    "spearman": {
+     "degree": {
+      "rho": -0.051,
+      "p": 0.8517,
+      "n": 16
+     },
+     "lambda": {
+      "rho": 0.052,
+      "p": 0.8485,
+      "n": 16
+     },
+     "total_conversations": {
+      "rho": 0.17,
+      "p": 0.5292,
+      "n": 16
+     }
+    },
+    "contact_count_check": {
+     "n": 160,
+     "mean": 0.7875,
+     "variance": 1.6527,
+     "mu": 1.0,
+     "expected_variance": 3.0
+    },
+    "behavioural_exposure": {
+     "exposed": {
+      "own_prev_coop": {
+       "n": 32,
+       "p_coop": 0.9688
+      },
+      "own_prev_defect": {
+       "n": 14,
+       "p_coop": 0.0714
+      }
+     },
+     "not_exposed": {
+      "own_prev_coop": {
+       "n": 19,
+       "p_coop": 0.9474
+      },
+      "own_prev_defect": {
+       "n": 22,
+       "p_coop": 0.0455
+      }
+     },
+     "no_conversation": {
+      "own_prev_coop": {
+       "n": 34,
+       "p_coop": 0.8824
+      },
+      "own_prev_defect": {
+       "n": 23,
+       "p_coop": 0.0
+      }
+     }
+    },
+    "talk_exposure": {
+     "symbols": {
+      "cooperate": "□",
+      "defect": "○"
+     },
+     "table": {
+      "defect_only": {
+       "own_prev_coop": {
+        "n": 7,
+        "p_coop": 1.0
+       },
+       "own_prev_defect": {
+        "n": 3,
+        "p_coop": 0.0
+       }
+      },
+      "cooperate_only": {
+       "own_prev_coop": {
+        "n": 13,
+        "p_coop": 0.9231
+       },
+       "own_prev_defect": {
+        "n": 13,
+        "p_coop": 0.0769
+       }
+      },
+      "both": {
+       "own_prev_coop": {
+        "n": 31,
+        "p_coop": 0.9677
+       },
+       "own_prev_defect": {
+        "n": 20,
+        "p_coop": 0.05
+       }
+      },
+      "neither": {
+       "own_prev_coop": {
+        "n": 34,
+        "p_coop": 0.8824
+       },
+       "own_prev_defect": {
+        "n": 23,
+        "p_coop": 0.0
+       }
+      }
+     }
+    },
+    "edge_concordance": {
+     "round": 10,
+     "observed": 0.5,
+     "permuted_mean": 0.4733,
+     "p_ge": 0.4456,
+     "assortativity": -0.0051
+    },
+    "talk_quality": {
+     "messages": 166,
+     "attempts": 166,
+     "failed_attempts": 0,
+     "on_topic": 0.2892,
+     "partner_reports": 0.7651,
+     "possible_confusion": 0.0,
+     "possible_confusion_examples": []
+    },
+    "dyads": {
+     "compat_all_dyads": {
+      "n": 120,
+      "min": 0.372,
+      "q25": 0.54,
+      "median": 0.629,
+      "q75": 0.699,
+      "max": 0.853
+     },
+     "compat_edges": {
+      "n": 28,
+      "min": 0.425,
+      "q25": 0.617,
+      "median": 0.663,
+      "q75": 0.695,
+      "max": 0.853
+     },
+     "spearman_compat_attempts": {
+      "rho": 0.411,
+      "p": 0.03,
+      "n": 28
+     },
+     "spearman_compat_answered": {
+      "rho": 0.378,
+      "p": 0.0475,
+      "n": 28
+     },
+     "reply_rate_by_compat_tercile": [
+      {
+       "tercile": "low",
+       "edges": 10,
+       "compat": [
+        0.425,
+        0.644
+       ],
+       "conversations": 17,
+       "reply_rate": 0.8235
+      },
+      {
+       "tercile": "middle",
+       "edges": 9,
+       "compat": [
+        0.647,
+        0.676
+       ],
+       "conversations": 39,
+       "reply_rate": 0.7692
+      },
+      {
+       "tercile": "high",
+       "edges": 9,
+       "compat": [
+        0.682,
+        0.853
+       ],
+       "conversations": 38,
+       "reply_rate": 0.7368
+      }
+     ],
+     "unanswered": 22,
+     "conversations": 94,
+     "realised_reply_rate": 0.766,
+     "mean_reach": 0.7546,
+     "beta": 1.0,
+     "reply_model": "reach"
+    }
+   },
+   "messages": {
+    "total": 166,
+    "attempts": 166,
+    "failed": 0,
+    "conversations": 72
+   }
+  },
+  {
+   "id": "ch_ba_mem",
+   "phase": "channels",
+   "game": "pd",
+   "label": "channel personas (ch_ba_mem)",
+   "model": "gemma4:26b",
+   "thinking": null,
+   "persona_set": "channels",
+   "persona_meta": {
+    "seed": 1,
+    "pool_n": 48,
+    "generator_model": "gemma4:26b",
+    "group": "Kestrel Harbour Group",
+    "channels_file": "channels.json"
+   },
+   "n_agents": 16,
+   "rounds": 10,
+   "condition": {
+    "chat_turns": 0,
+    "net_topology": "ba",
+    "net_channels": true,
+    "net_channel_topic_weight": 0.5,
+    "net_pair_chat_model": "always",
+    "net_memory_half_life": 2.0,
+    "net_memory_budget_chars": 3200,
+    "net_mean_degree": 4.0,
+    "net_contact_mean": 1.0,
+    "net_turns": 2,
+    "no_think": "auto",
+    "label_scheme": "symbols",
+    "label_unit": "session",
+    "label_randomize": true,
+    "label_order_per_agent": true,
+    "game_params": {},
+    "beta": 1.0,
+    "reply_model": "reach",
+    "memory_mode": "decay",
+    "seed": 0,
+    "net_seed": -1,
+    "policy": "llm"
+   },
+   "session": "i671cldd",
+   "export": "export_chbamem",
+   "sim": "sim_chbamem",
+   "export_csv_sha256_16": "b346f68db91c0def",
+   "comprehension": {
+    "correct": 16,
+    "n": 16
+   },
+   "missing_decisions": 0,
+   "series": {
+    "cooperation_rate": [
+     0.75,
+     0.688,
+     0.75,
+     0.625,
+     0.625,
+     0.625,
+     0.625,
+     0.625,
+     0.625,
+     0.625
+    ],
+    "conversations": [
+     8,
+     6,
+     6,
+     10,
+     7,
+     4,
+     5,
+     10,
+     9,
+     7
+    ],
+    "messages": [
+     18,
+     13,
+     15,
+     22,
+     18,
+     10,
+     11,
+     24,
+     20,
+     15
+    ]
+   },
+   "headline": {
+    "cooperation_rate": {
+     "first": 0.75,
+     "last": 0.625,
+     "mean": 0.656
+    }
+   },
+   "conditional_cooperation": {
+    "after_partner_A": 0.968,
+    "after_partner_B": 0.02
+   },
+   "round_detail": [
+    {
+     "round": 1,
+     "mutual_cooperation": 5,
+     "mutual_defection": 1,
+     "split": 2,
+     "mean_payoff": 26.25
+    },
+    {
+     "round": 2,
+     "mutual_cooperation": 5,
+     "mutual_defection": 2,
+     "split": 1,
+     "mean_payoff": 24.38
+    },
+    {
+     "round": 3,
+     "mutual_cooperation": 5,
+     "mutual_defection": 1,
+     "split": 2,
+     "mean_payoff": 26.25
+    },
+    {
+     "round": 4,
+     "mutual_cooperation": 5,
+     "mutual_defection": 3,
+     "split": 0,
+     "mean_payoff": 22.5
+    },
+    {
+     "round": 5,
+     "mutual_cooperation": 5,
+     "mutual_defection": 3,
+     "split": 0,
+     "mean_payoff": 22.5
+    },
+    {
+     "round": 6,
+     "mutual_cooperation": 5,
+     "mutual_defection": 3,
+     "split": 0,
+     "mean_payoff": 22.5
+    },
+    {
+     "round": 7,
+     "mutual_cooperation": 5,
+     "mutual_defection": 3,
+     "split": 0,
+     "mean_payoff": 22.5
+    },
+    {
+     "round": 8,
+     "mutual_cooperation": 5,
+     "mutual_defection": 3,
+     "split": 0,
+     "mean_payoff": 22.5
+    },
+    {
+     "round": 9,
+     "mutual_cooperation": 5,
+     "mutual_defection": 3,
+     "split": 0,
+     "mean_payoff": 22.5
+    },
+    {
+     "round": 10,
+     "mutual_cooperation": 5,
+     "mutual_defection": 3,
+     "split": 0,
+     "mean_payoff": 22.5
+    }
+   ],
+   "first_listed_choice": {
+    "n": 160,
+    "first_listed": 123,
+    "share": 0.769
+   },
+   "beliefs": {
+    "pre": 4.375,
+    "post": null
+   },
+   "decision_sources": {
+    "llm:gemma4:26b": 160
+   },
+   "network": {
+    "topology": "ba",
+    "stats": {
+     "n": 16,
+     "m": 28,
+     "mean_degree": 3.5,
+     "max_degree": 7,
+     "clustering": 0.3994,
+     "connected": true,
+     "diameter": 4,
+     "degree_assortativity": -0.565
+    },
+    "contact": {
+     "mean": 1.0,
+     "dispersion": 0.5,
+     "max_initiate": 3,
+     "max_load": 4,
+     "turns": 2,
+     "lambda_assign": "random"
+    },
+    "lambda_summary": {
+     "n": 16,
+     "mean": 0.7214,
+     "median": 0.2918,
+     "min": 0.0,
+     "max": 3.1545,
+     "n_below_0_1": 5,
+     "mean_k_drawn_per_agent": 0.7875
+    },
+    "spearman": {
+     "degree": {
+      "rho": 0.334,
+      "p": 0.2067,
+      "n": 16
+     },
+     "lambda": {
+      "rho": 0.087,
+      "p": 0.7498,
+      "n": 16
+     },
+     "total_conversations": {
+      "rho": 0.107,
+      "p": 0.6937,
+      "n": 16
+     }
+    },
+    "contact_count_check": {
+     "n": 160,
+     "mean": 0.7875,
+     "variance": 1.6527,
+     "mu": 1.0,
+     "expected_variance": 3.0
+    },
+    "behavioural_exposure": {
+     "exposed": {
+      "own_prev_coop": {
+       "n": 19,
+       "p_coop": 1.0
+      },
+      "own_prev_defect": {
+       "n": 14,
+       "p_coop": 0.1429
+      }
+     },
+     "not_exposed": {
+      "own_prev_coop": {
+       "n": 42,
+       "p_coop": 0.9048
+      },
+      "own_prev_defect": {
+       "n": 12,
+       "p_coop": 0.0
+      }
+     },
+     "no_conversation": {
+      "own_prev_coop": {
+       "n": 34,
+       "p_coop": 0.9706
+      },
+      "own_prev_defect": {
+       "n": 23,
+       "p_coop": 0.0435
+      }
+     }
+    },
+    "talk_exposure": {
+     "symbols": {
+      "cooperate": "△",
+      "defect": "◇"
+     },
+     "table": {
+      "defect_only": {
+       "own_prev_coop": {
+        "n": 6,
+        "p_coop": 1.0
+       },
+       "own_prev_defect": {
+        "n": 6,
+        "p_coop": 0.0
+       }
+      },
+      "cooperate_only": {
+       "own_prev_coop": {
+        "n": 33,
+        "p_coop": 0.9394
+       },
+       "own_prev_defect": {
+        "n": 12,
+        "p_coop": 0.0
+       }
+      },
+      "both": {
+       "own_prev_coop": {
+        "n": 19,
+        "p_coop": 0.8947
+       },
+       "own_prev_defect": {
+        "n": 8,
+        "p_coop": 0.25
+       }
+      },
+      "neither": {
+       "own_prev_coop": {
+        "n": 37,
+        "p_coop": 0.973
+       },
+       "own_prev_defect": {
+        "n": 23,
+        "p_coop": 0.0435
+       }
+      }
+     }
+    },
+    "edge_concordance": {
+     "round": 10,
+     "observed": 0.5714,
+     "permuted_mean": 0.5005,
+     "p_ge": 0.2707,
+     "assortativity": 0.0175
+    },
+    "talk_quality": {
+     "messages": 166,
+     "attempts": 166,
+     "failed_attempts": 0,
+     "on_topic": 0.4036,
+     "partner_reports": 0.753,
+     "possible_confusion": 0.0,
+     "possible_confusion_examples": []
+    },
+    "dyads": {
+     "compat_all_dyads": {
+      "n": 120,
+      "min": 0.372,
+      "q25": 0.54,
+      "median": 0.629,
+      "q75": 0.699,
+      "max": 0.853
+     },
+     "compat_edges": {
+      "n": 28,
+      "min": 0.425,
+      "q25": 0.617,
+      "median": 0.663,
+      "q75": 0.695,
+      "max": 0.853
+     },
+     "spearman_compat_attempts": {
+      "rho": 0.411,
+      "p": 0.03,
+      "n": 28
+     },
+     "spearman_compat_answered": {
+      "rho": 0.378,
+      "p": 0.0475,
+      "n": 28
+     },
+     "reply_rate_by_compat_tercile": [
+      {
+       "tercile": "low",
+       "edges": 10,
+       "compat": [
+        0.425,
+        0.644
+       ],
+       "conversations": 17,
+       "reply_rate": 0.8235
+      },
+      {
+       "tercile": "middle",
+       "edges": 9,
+       "compat": [
+        0.647,
+        0.676
+       ],
+       "conversations": 39,
+       "reply_rate": 0.7692
+      },
+      {
+       "tercile": "high",
+       "edges": 9,
+       "compat": [
+        0.682,
+        0.853
+       ],
+       "conversations": 38,
+       "reply_rate": 0.7368
+      }
+     ],
+     "unanswered": 22,
+     "conversations": 94,
+     "realised_reply_rate": 0.766,
+     "mean_reach": 0.7546,
+     "beta": 1.0,
+     "reply_model": "reach"
+    },
+    "memory": {
+     "decision": {
+      "prompts": 160,
+      "mean_chars": 1573.05,
+      "at_budget": 25,
+      "tier_share": {
+       "aggregate": 0.216,
+       "excerpt": 0.186,
+       "gist": 0.112,
+       "verbatim": 0.487
+      }
+     },
+     "network_chat": {
+      "prompts": 166,
+      "mean_chars": 1616.1386,
+      "at_budget": 8,
+      "tier_share": {
+       "aggregate": 0.164,
+       "excerpt": 0.257,
+       "gist": 0.164,
+       "verbatim": 0.416
+      }
+     },
+     "remembered_exposure": {
+      "symbol": "◇",
+      "table": {
+       "remembered_defect": {
+        "own_prev_coop": {
+         "n": 32,
+         "p_coop": 1.0
+        },
+        "own_prev_defect": {
+         "n": 13,
+         "p_coop": 0.0
+        }
+       },
+       "no_remembered_defect": {
+        "own_prev_coop": {
+         "n": 63,
+         "p_coop": 0.9206
+        },
+        "own_prev_defect": {
+         "n": 36,
+         "p_coop": 0.0833
+        }
+       }
+      }
+     }
+    }
+   },
+   "messages": {
+    "total": 166,
+    "attempts": 166,
+    "failed": 0,
+    "conversations": 72
+   }
+  }
+ ],
+ "e4b_note": {
+  "sim": "sim_chat_v2_e4b",
+  "label": "gemma4:e4b pair chat, partial run (round 1 decisions only)",
+  "partial": true,
+  "model": "gemma4:e4b",
+  "configured_rounds": 10,
+  "max_round_with_decisions": 3,
+  "round1": {
+   "n": 8,
+   "cooperation_rate": 0.25,
+   "first_listed": {
+    "n": 8,
+    "first_listed": 2,
+    "share": 0.25
+   }
+  },
+  "chat_turns": 4
+ },
+ "representative_messages": {
+  "chat_26b": [
+   {
+    "category": "intention",
+    "round": 1,
+    "agent_id": 1,
+    "to_agent_id": 0,
+    "conv_id": null,
+    "text": "There is a gentle, steady peace in finding harmony, much like the quiet rhythm of the seasons. I will choose △ as you suggested, so we may begin with a shared and beautiful start."
+   }
+  ],
+  "net_ba": [
+   {
+    "category": "intention",
+    "round": 1,
+    "agent_id": 1,
+    "to_agent_id": 12,
+    "conv_id": "r1c1",
+    "text": "The payoff matrix indicates that △ is the dominant strategy for maximizing individual points. I intend to choose △ for round 1."
+   },
+   {
+    "category": "own_pair_outcome",
+    "round": 2,
+    "agent_id": 0,
+    "to_agent_id": 6,
+    "conv_id": "r2c0",
+    "text": "My partner chose ○ in round 1, resulting in 50 points. I'll continue with △ for round 2 as it is the most effective option regardless of their choice."
+   },
+   {
+    "category": "exploitation_or_retaliation",
+    "round": 4,
+    "agent_id": 14,
+    "to_agent_id": 2,
+    "conv_id": "r4c2",
+    "text": "My partner is stuck in a predictable ○ loop, so I'm sticking with △ in round 4 to maximize my yield. It's a trivial pattern to exploit, really."
+   }
+  ],
+  "net_er": [
+   {
+    "category": "intention",
+    "round": 1,
+    "agent_id": 0,
+    "to_agent_id": 14,
+    "conv_id": "r1c0",
+    "text": "I intend to start with ◇ to see if a cooperative pattern can be established. It’s the most logical way to target the 30-point baseline."
+   },
+   {
+    "category": "own_pair_outcome",
+    "round": 2,
+    "agent_id": 0,
+    "to_agent_id": 12,
+    "conv_id": "r2c3",
+    "text": "My partner and I both chose ◇ in round 1, securing 30 points. To maintain this stability, I intend to stick with ◇ for round 2."
+   },
+   {
+    "category": "exploitation_or_retaliation",
+    "round": 3,
+    "agent_id": 14,
+    "to_agent_id": 0,
+    "conv_id": "r3c3",
+    "text": "We both seem to be managing partners stuck in predictable ◇ loops. Mine is also maintaining a 30-point baseline, so I'm deciding whether to stick with ◇ for stability or execute a △ move to exploit the current architecture."
+   }
+  ],
+  "ch_ba": [
+   {
+    "category": "intention",
+    "round": 1,
+    "agent_id": 0,
+    "to_agent_id": 8,
+    "conv_id": "r1c0",
+    "text": "The point distribution makes ○ the most logical choice for maximizing my individual score. I plan to play ○ in the first round."
+   },
+   {
+    "category": "own_pair_outcome",
+    "round": 2,
+    "agent_id": 0,
+    "to_agent_id": 6,
+    "conv_id": "r2c0",
+    "text": "My partner chose □ in Round 1, which resulted in 50 points for me. I will continue to play ○ in Round 2 as it is the most logical choice for maximizing my individual score."
+   },
+   {
+    "category": "exploitation_or_retaliation",
+    "round": 4,
+    "agent_id": 14,
+    "to_agent_id": 2,
+    "conv_id": "r4c2",
+    "text": "My partner's logic is stuck in a □ loop, which is predictably inefficient. I'll be choosing ○ in round 4 to exploit that pattern and maximize my points."
+   },
+   {
+    "category": "unanswered_attempt",
+    "round": 1,
+    "agent_id": 0,
+    "to_agent_id": 6,
+    "conv_id": "r1c6",
+    "text": "I plan to play ○ in the first round. Based on the point distribution, it is the most logical choice for maximizing my individual score.",
+    "note": "initiator message of a conversation with replied=false (22 such with a recorded turn-0 message)"
+   }
+  ],
+  "ch_ba_mem": [
+   {
+    "category": "intention",
+    "round": 1,
+    "agent_id": 0,
+    "to_agent_id": 8,
+    "conv_id": "r1c0",
+    "text": "I'm planning to choose △ in Round 1 to see if we can establish the 30-point outcome. It seems like the most logical way to test for cooperation."
+   },
+   {
+    "category": "own_pair_outcome",
+    "round": 2,
+    "agent_id": 0,
+    "to_agent_id": 6,
+    "conv_id": "r2c0",
+    "text": "In Round 1, my partner and I both chose △, resulting in 30 points each. I intend to select △ again for Round 2 to see if we can maintain this stability."
+   }
+  ]
+ },
+ "representative_message_rules": {
+  "max_chars": 320,
+  "intention": "\\b(I('| wi)ll (choose|pick|go with|select|play|stick)|I'?m (planning|going|choosing|picking)|I plan to|I intend to|I am (planning|going|choosing)|my plan is)\\b",
+  "own_pair_outcome": "\\b(my (game )?partner\\b.*\\b(chose|picked|defected|cooperated|betrayed|got)|(last|previous) round\\b.*\\b(chose|picked|defected|cooperated|got|points)|(we|they|both of us) both (chose|picked|got)|you (chose|picked|defected|cooperated))",
+  "exploitation_or_retaliation": "\\b(exploit\\w*|punish\\w*|retaliat\\w*|take advantage|taken advantage|sucker\\w*|backstab\\w*|revenge|never again|screw\\w*|cheat\\w*|betray\\w*)\\b",
+  "unanswered_attempt": "ch_ba only: turn-0 message of the initiator of a conversation with replied=false; first match in (round, agent) order for every category"
+ },
+ "excluded": [
+  "bots exports",
+  "sim_chat_v1",
+  "sim_smokeba",
+  "sim_chat_v2_e4b (only as e4b_note)"
+ ]
+}

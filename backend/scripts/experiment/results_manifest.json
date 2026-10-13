@@ -1,0 +1,197 @@
+{
+  "data_root": "/Users/nakaoka/workspace/research/mirofish_runs/runs",
+  "runs": [
+    {
+      "id": "chat_12b",
+      "export": "export_chat_12b",
+      "sim": "sim_chat_12b",
+      "phase": "pair_chat",
+      "game": "pd",
+      "persona_set": "general",
+      "label": "gemma4:12b, no thinking, pair chat 4 turns",
+      "thinking": false
+    },
+    {
+      "id": "nochat_12b",
+      "export": "export_nochat_12b",
+      "sim": "sim_nochat",
+      "phase": "pair_chat",
+      "game": "pd",
+      "persona_set": "general",
+      "label": "gemma4:12b, no thinking, no chat",
+      "thinking": false
+    },
+    {
+      "id": "chat_26b",
+      "export": "export_chat_26b",
+      "sim": "sim_chat26",
+      "phase": "pair_chat",
+      "game": "pd",
+      "persona_set": "general",
+      "label": "gemma4:26b, thinking, pair chat 4 turns",
+      "thinking": true
+    },
+    {
+      "id": "nochat_26b",
+      "export": "export_nochat_26b",
+      "sim": "sim_nochat26",
+      "phase": "pair_chat",
+      "game": "pd",
+      "persona_set": "general",
+      "label": "gemma4:26b, thinking, no chat",
+      "thinking": true
+    },
+    {
+      "id": "pgg_general",
+      "export": "export_pgg_26b",
+      "sim": "sim_pgg26",
+      "phase": "games",
+      "game": "pgg",
+      "persona_set": "general",
+      "label": "gemma4:26b, general personas, 16 agents, no chat"
+    },
+    {
+      "id": "beauty",
+      "export": "export_beauty26",
+      "sim": "sim_beauty26",
+      "phase": "games",
+      "game": "beauty",
+      "persona_set": "general",
+      "label": "gemma4:26b, general personas, 16 agents, no chat"
+    },
+    {
+      "id": "trust",
+      "export": "export_trust26",
+      "sim": "sim_trust26",
+      "phase": "games",
+      "game": "trust",
+      "persona_set": "general",
+      "label": "gemma4:26b, general personas, 16 agents, no chat"
+    },
+    {
+      "id": "ultimatum",
+      "export": "export_ult26",
+      "sim": "sim_ult26",
+      "phase": "games",
+      "game": "ultimatum",
+      "persona_set": "general",
+      "label": "gemma4:26b, general personas, 16 agents, no chat"
+    },
+    {
+      "id": "pd_workplace",
+      "export": "export_pdwork26",
+      "sim": "sim_pdwork26",
+      "phase": "workplace",
+      "game": "pd",
+      "persona_set": "workplace",
+      "label": "gemma4:26b, workplace personas, no chat"
+    },
+    {
+      "id": "pgg_workplace",
+      "export": "export_pggwork26",
+      "sim": "sim_pggwork26",
+      "phase": "workplace",
+      "game": "pgg",
+      "persona_set": "workplace",
+      "label": "gemma4:26b, workplace personas, no chat"
+    },
+    {
+      "id": "net_off",
+      "export": "export_netoff",
+      "sim": "sim_netoff",
+      "phase": "network",
+      "game": "pd",
+      "persona_set": "workplace",
+      "label": "network topology off, workplace personas"
+    },
+    {
+      "id": "net_ba",
+      "export": "export_netba",
+      "sim": "sim_netba",
+      "phase": "network",
+      "game": "pd",
+      "persona_set": "workplace",
+      "label": "network topology ba, workplace personas"
+    },
+    {
+      "id": "net_er",
+      "export": "export_neter",
+      "sim": "sim_neter",
+      "phase": "network",
+      "game": "pd",
+      "persona_set": "workplace",
+      "label": "network topology er, workplace personas"
+    },
+    {
+      "id": "net_ws",
+      "export": "export_netws",
+      "sim": "sim_netws",
+      "phase": "network",
+      "game": "pd",
+      "persona_set": "workplace",
+      "label": "network topology ws, workplace personas"
+    },
+    {
+      "id": "net_ring",
+      "export": "export_netring",
+      "sim": "sim_netring",
+      "phase": "network",
+      "game": "pd",
+      "persona_set": "workplace",
+      "label": "network topology ring, workplace personas"
+    },
+    {
+      "id": "ch_off",
+      "export": "export_choff",
+      "sim": "sim_choff",
+      "phase": "channels",
+      "game": "pd",
+      "persona_set": "channels",
+      "label": "channel personas (ch_off)"
+    },
+    {
+      "id": "ch_ba0",
+      "export": "export_chba0",
+      "sim": "sim_chba0",
+      "phase": "channels",
+      "game": "pd",
+      "persona_set": "channels",
+      "label": "channel personas (ch_ba0)"
+    },
+    {
+      "id": "ch_ba",
+      "export": "export_chba",
+      "sim": "sim_chba",
+      "phase": "channels",
+      "game": "pd",
+      "persona_set": "channels",
+      "label": "channel personas (ch_ba)"
+    },
+    {
+      "id": "ch_ba_mem",
+      "export": "export_chbamem",
+      "sim": "sim_chbamem",
+      "phase": "channels",
+      "game": "pd",
+      "persona_set": "channels",
+      "label": "channel personas (ch_ba_mem)"
+    }
+  ],
+  "e4b_note": {
+    "sim": "sim_chat_v2_e4b",
+    "label": "gemma4:e4b pair chat, partial run (round 1 decisions only)"
+  },
+  "representative_messages": [
+    "chat_26b",
+    "net_ba",
+    "net_er",
+    "ch_ba",
+    "ch_ba_mem"
+  ],
+  "excluded": [
+    "bots exports",
+    "sim_chat_v1",
+    "sim_smokeba",
+    "sim_chat_v2_e4b (only as e4b_note)"
+  ]
+}

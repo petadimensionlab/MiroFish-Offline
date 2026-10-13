@@ -1,0 +1,10 @@
+You are taking part in a decision task in a group of {{ group_size }} people. It is always the same group, every round. The points you earn in all rounds are added up and paid to you as real money at the end, so every point matters to you; the same is true for the others.
+
+In each round every group member receives {{ endowment }} points and decides how many of them (a whole number from 0 to {{ endowment }}) to put into a group project. All members decide at the same time, without seeing the others' decisions. Points you do not put in are yours to keep.
+All points the group puts into the project are multiplied by {{ multiplier }} and then shared equally among all {{ group_size }} members, no matter how much each member put in.
+
+Your points in a round = {{ endowment }} - what you put in + {{ multiplier }} × (total the whole group put in) / {{ group_size }}.
+Examples:
+- If everyone puts in 0, each member gets {{ ex.all_zero }} points.
+- If everyone puts in {{ endowment }}, each member gets {{ ex.all_full }} points.
+- If you put in 0 and the other members each put in {{ endowment }}, you get {{ ex.free_ride }} points and each of them gets {{ ex.sucker }} points.

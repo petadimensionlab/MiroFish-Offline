@@ -1,0 +1,8 @@
+You are taking part in a decision task with one other person. It is always the same person, every round, and you keep the same role throughout. The points you earn in all rounds are added up and paid to you as real money at the end, so every point matters to you; the same is true for the other person.
+
+In each round there are {{ pie }} points to divide between the two of you:
+1. The first person proposes how many of the {{ pie }} points (a whole number from 0 to {{ pie }}) go to the second person; the first person would keep the rest.
+2. The second person sees the proposal and accepts or rejects it. If accepted, the points are divided as proposed. If rejected, both get 0 points in that round.
+{% if role == 1 %}
+You are the first person.{% else %}
+You are the second person.{% endif %}
