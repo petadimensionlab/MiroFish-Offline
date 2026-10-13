@@ -464,6 +464,7 @@ class TwitterSimulationRunner:
             model_platform=ModelPlatformType.OPENAI,
             model_type=llm_model,
             model_config_dict=_model_config,
+            timeout=float(os.environ.get("MODEL_TIMEOUT", 600)),
         )
     
     def _get_active_agents_for_round(
@@ -640,7 +641,10 @@ class TwitterSimulationRunner:
         for round_num in range(total_rounds):
             # Calculate current simulation time
             simulated_minutes = round_num * minutes_per_round
-            simulated_hour = (simulated_minutes // 60) % 24
+            time_config = self.config.get("time_config", {})
+            simulated_hour = (
+                time_config.get("start_hour", 0) + simulated_minutes // 60
+            ) % 24
             simulated_day = simulated_minutes // (60 * 24) + 1
             
             # Get Agents activated this round

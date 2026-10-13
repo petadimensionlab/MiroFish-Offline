@@ -472,6 +472,7 @@ class RedditSimulationRunner:
             model_platform=ModelPlatformType.OPENAI,
             model_type=llm_model,
             model_config_dict=_model_config,
+            timeout=float(os.environ.get("MODEL_TIMEOUT", 600)),
         )
     
     def _get_active_agents_for_round(
@@ -633,7 +634,9 @@ class RedditSimulationRunner:
         
         for round_num in range(total_rounds):
             simulated_minutes = round_num * minutes_per_round
-            simulated_hour = (simulated_minutes // 60) % 24
+            simulated_hour = (
+                time_config.get("start_hour", 0) + simulated_minutes // 60
+            ) % 24
             simulated_day = simulated_minutes // (60 * 24) + 1
             
             active_agents = self._get_active_agents_for_round(
