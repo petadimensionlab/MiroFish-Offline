@@ -18,6 +18,7 @@ import asyncio
 import json
 import logging
 import os
+import httpx
 import random
 import signal
 import sys
@@ -472,7 +473,16 @@ class RedditSimulationRunner:
             model_platform=ModelPlatformType.OPENAI,
             model_type=llm_model,
             model_config_dict=_model_config,
-            timeout=float(os.environ.get("MODEL_TIMEOUT", 600)),
+            # camel defaults to max_retries=3; with a 600s per-request timeout
+            # a stalled request would block its agent for up to 4x600s. Cap
+            # retries and set a read timeout so slow backends cannot wedge the
+            # round loop.
+            max_retries=int(os.environ.get("MODEL_MAX_RETRIES", "1")),
+            timeout=httpx.Timeout(
+                float(os.environ.get("MODEL_TIMEOUT", 600)),
+                connect=30.0,
+                read=float(os.environ.get("MODEL_READ_TIMEOUT", 300)),
+                pool=30.0),
         )
     
     def _get_active_agents_for_round(
@@ -651,15 +661,17 @@ class RedditSimulationRunner:
                 for _, agent in active_agents
             }
             
+            round_start = datetime.now()
             await self.env.step(actions)
             
-            if (round_num + 1) % 10 == 0 or round_num == 0:
+            if True:
                 elapsed = (datetime.now() - start_time).total_seconds()
                 progress = (round_num + 1) / total_rounds * 100
-                print(f"  [Day {simulated_day}, {simulated_hour:02d}:00] "
+                sys.stdout.write(f"  [Day {simulated_day}, {simulated_hour:02d}:00] "
                       f"Round {round_num + 1}/{total_rounds} ({progress:.1f}%) "
                       f"- {len(active_agents)} agents active "
-                      f"- elapsed: {elapsed:.1f}s")
+                      f"- elapsed: {elapsed:.1f}s" + chr(10))
+                sys.stdout.flush()
         
         total_elapsed = (datetime.now() - start_time).total_seconds()
         print(f"\nSimulation loop completed!")

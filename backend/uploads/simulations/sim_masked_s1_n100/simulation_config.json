@@ -3332,84 +3332,189 @@
   "event_config": {
     "initial_posts": [
       {
-        "content": "Kenji T. 17との関係が終盤で崩れた。一度裏切ると戻せないと、身にしみた。",
-        "poster_type": "MaskedRespondent",
-        "poster_agent_id": 72
-      },
-      {
-        "content": "Kenji T. 32との16ターンは最後まで協力し合えた。関係が続くと分かっていたのが効いたと思う。",
+        "content": "Kenji T. 32との配分ゲームは平均4.1点で6回拒否された。断られたのは3・3・3・3・2・1点だった。",
         "poster_type": "MaskedRespondent",
         "poster_agent_id": 44
       },
       {
-        "content": "Kenta S.との16ターンは最後まで協力し合えた。関係が続くと分かっていたのが効いたと思う。",
+        "content": "ところが同じ相手の共有基金では相手8.3点、グループ7.8点と誠実だった。断り方は協力そのものを傷つけなかった。",
         "poster_type": "MaskedRespondent",
         "poster_agent_id": 44
       },
       {
-        "content": "Kenji T. 12との16ターンは最後まで協力し合えた。関係が続くと分かっていたのが効いたと思う。",
-        "poster_type": "MaskedRespondent",
-        "poster_agent_id": 64
-      },
-      {
-        "content": "Kenji Takedaとの16ターンは最後まで協力し合えた。関係が続くと分かっていたのが効いたと思う。",
-        "poster_type": "MaskedRespondent",
-        "poster_agent_id": 64
-      },
-      {
-        "content": "Kenji T. 28との16ターンは最後まで協力し合えた。関係が続くと分かっていたのが効いたと思う。",
-        "poster_type": "MaskedRespondent",
-        "poster_agent_id": 66
-      },
-      {
-        "content": "Toshiro K. 2との16ターンは最後まで協力し合えた。関係が続くと分かっていたのが効いたと思う。",
-        "poster_type": "MaskedRespondent",
-        "poster_agent_id": 66
-      },
-      {
-        "content": "Kenji T. 17との関係が終盤で崩れた。こちらは0回、あちらは1回裏切った。上司が握る評価の重さを改めて感じた。",
-        "poster_type": "MaskedRespondent",
-        "poster_agent_id": 72
-      },
-      {
-        "content": "Kenji S. 2との16ターンは最後まで協力し合えた。関係が続くと分かっていたのが効いたと思う。",
-        "poster_type": "MaskedRespondent",
-        "poster_agent_id": 72
-      },
-      {
-        "content": "Kenji T. Takedaとの16ターンは最後まで協力し合えた。関係が続くと分かっていたのが効いたと思う。",
-        "poster_type": "MaskedRespondent",
-        "poster_agent_id": 96
-      },
-      {
-        "content": "Yuko T.との16ターンは最後まで協力し合えた。関係が続くと分かっていたのが効いたと思う。",
-        "poster_type": "MaskedRespondent",
-        "poster_agent_id": 96
-      },
-      {
-        "content": "Kenji T. 13との16ターンは最後まで協力し合えた。関係が続くと分かっていたのが効いたと思う。",
+        "content": "Akemi T.からの配分提案は4点未満が6回で、6回断った。従うしかない立場でも、線引きは残る。",
         "poster_type": "MaskedRespondent",
         "poster_agent_id": 89
       },
       {
-        "content": "Kenji T. 5との16ターンは最後まで協力し合えた。関係が続くと分かっていたのが効いたと思う。",
+        "content": "Kenta S.との配分ゲームは平均4.6点で、拒否は一度も出なかった。",
+        "poster_type": "MaskedRespondent",
+        "poster_agent_id": 44
+      },
+      {
+        "content": "Akemi T.からの配分提案は平均4.6点で、断る理由がなかった。上下があっても、公平なら文句はない。",
+        "poster_type": "MaskedRespondent",
+        "poster_agent_id": 43
+      },
+      {
+        "content": "Kenji T. 12との配分ゲームは平均4.1点で5回拒否された。断られたのは2・1・4・1・4点だった。",
+        "poster_type": "MaskedRespondent",
+        "poster_agent_id": 64
+      },
+      {
+        "content": "ところが同じ相手の共有基金では相手5.6点、グループ5.4点と誠実だった。断り方は協力そのものを傷つけなかった。",
+        "poster_type": "MaskedRespondent",
+        "poster_agent_id": 64
+      },
+      {
+        "content": "Satomi T.からの配分提案は4点未満が3回で、5回断った。従うしかない立場でも、線引きは残る。",
         "poster_type": "MaskedRespondent",
         "poster_agent_id": 25
       },
       {
-        "content": "K. Tanakaとの16ターンは最後まで協力し合えた。関係が続くと分かっていたのが効いたと思う。",
+        "content": "Kenji Takedaとの配分ゲームは平均4.3点で、拒否は一度も出なかった。",
+        "poster_type": "MaskedRespondent",
+        "poster_agent_id": 64
+      },
+      {
+        "content": "Satomi T.からの配分提案は平均4.3点で、断る理由がなかった。上下があっても、公平なら文句はない。",
+        "poster_type": "MaskedRespondent",
+        "poster_agent_id": 70
+      },
+      {
+        "content": "Kenji T. 28との配分ゲームは平均4.6点で3回拒否された。断られたのは3・4・4点だった。",
+        "poster_type": "MaskedRespondent",
+        "poster_agent_id": 66
+      },
+      {
+        "content": "ところが同じ相手の共有基金では相手10.0点、グループ9.5点と誠実だった。断り方は協力そのものを傷つけなかった。",
+        "poster_type": "MaskedRespondent",
+        "poster_agent_id": 66
+      },
+      {
+        "content": "Akemi T. 2からの配分提案は4点未満が2回で、3回断った。従うしかない立場でも、線引きは残る。",
         "poster_type": "MaskedRespondent",
         "poster_agent_id": 69
       },
       {
-        "content": "Kenji Takaishiとの16ターンは最後まで協力し合えた。関係が続くと分かっていたのが効いたと思う。",
+        "content": "Toshiro K. 2との配分ゲームは平均3.4点で、拒否は一度も出なかった。",
+        "poster_type": "MaskedRespondent",
+        "poster_agent_id": 66
+      },
+      {
+        "content": "Akemi T. 2からの配分提案は平均3.4点で、断る理由がなかった。上下があっても、公平なら文句はない。",
+        "poster_type": "MaskedRespondent",
+        "poster_agent_id": 74
+      },
+      {
+        "content": "Kenji T. 17との配分ゲームは平均4.0点で6回拒否された。断られたのは2・1・4・3・4・4点だった。",
+        "poster_type": "MaskedRespondent",
+        "poster_agent_id": 72
+      },
+      {
+        "content": "ところが同じ相手の共有基金では相手9.9点、グループ9.5点と誠実だった。断り方は協力そのものを傷つけなかった。",
+        "poster_type": "MaskedRespondent",
+        "poster_agent_id": 72
+      },
+      {
+        "content": "Akari T. 4からの配分提案は4点未満が4回で、6回断った。従うしかない立場でも、線引きは残る。",
         "poster_type": "MaskedRespondent",
         "poster_agent_id": 46
       },
       {
-        "content": "部長・課長・一般社員で16回繰り返す相互作用を試した。結果は 部長→課長 94% / 部長→一般社員 100% / 課長→一般社員 100%。崩れたのは1組だけで、上司からの制裁が裏切りを押し戻していた。",
+        "content": "Kenji S. 2との配分ゲームは平均4.9点で、拒否は一度も出なかった。",
+        "poster_type": "MaskedRespondent",
+        "poster_agent_id": 72
+      },
+      {
+        "content": "Akari T. 4からの配分提案は平均4.9点で、断る理由がなかった。上下があっても、公平なら文句はない。",
+        "poster_type": "MaskedRespondent",
+        "poster_agent_id": 94
+      },
+      {
+        "content": "Kenji T. Takedaとの配分ゲームは平均4.3点で4回拒否された。断られたのは3・1・3・1点だった。",
         "poster_type": "MaskedRespondent",
         "poster_agent_id": 96
+      },
+      {
+        "content": "ところが同じ相手の共有基金では相手8.8点、グループ8.7点と誠実だった。断り方は協力そのものを傷つけなかった。",
+        "poster_type": "MaskedRespondent",
+        "poster_agent_id": 96
+      },
+      {
+        "content": "Kenji T. 35からの配分提案は4点未満が4回で、4回断った。従うしかない立場でも、線引きは残る。",
+        "poster_type": "MaskedRespondent",
+        "poster_agent_id": 85
+      },
+      {
+        "content": "Yuko T.との配分ゲームは平均4.2点で、拒否は一度も出なかった。",
+        "poster_type": "MaskedRespondent",
+        "poster_agent_id": 96
+      },
+      {
+        "content": "Kenji T. 35からの配分提案は平均4.2点で、断る理由がなかった。上下があっても、公平なら文句はない。",
+        "poster_type": "MaskedRespondent",
+        "poster_agent_id": 33
+      },
+      {
+        "content": "Kenji T. 13との配分ゲームは平均4.2点で1回拒否された。断られたのは5点だった。",
+        "poster_type": "MaskedRespondent",
+        "poster_agent_id": 89
+      },
+      {
+        "content": "ところが同じ相手の共有基金では相手8.6点、グループ8.4点と誠実だった。断り方は協力そのものを傷つけなかった。",
+        "poster_type": "MaskedRespondent",
+        "poster_agent_id": 89
+      },
+      {
+        "content": "Kenji T. 32からの配分提案は4点未満が2回で、1回断った。従うしかない立場でも、線引きは残る。",
+        "poster_type": "MaskedRespondent",
+        "poster_agent_id": 32
+      },
+      {
+        "content": "Kenji T. 5との配分ゲームは平均4.3点で2回拒否された。断られたのは5・4点だった。",
+        "poster_type": "MaskedRespondent",
+        "poster_agent_id": 25
+      },
+      {
+        "content": "ところが同じ相手の共有基金では相手9.4点、グループ9.4点と誠実だった。断り方は協力そのものを傷つけなかった。",
+        "poster_type": "MaskedRespondent",
+        "poster_agent_id": 25
+      },
+      {
+        "content": "Kenji T. 12からの配分提案は4点未満が5回で、2回断った。従うしかない立場でも、線引きは残る。",
+        "poster_type": "MaskedRespondent",
+        "poster_agent_id": 9
+      },
+      {
+        "content": "K. Tanakaとの配分ゲームは平均4.1点で、拒否は一度も出なかった。",
+        "poster_type": "MaskedRespondent",
+        "poster_agent_id": 69
+      },
+      {
+        "content": "Kenji T. 28からの配分提案は平均4.1点で、断る理由がなかった。上下があっても、公平なら文句はない。",
+        "poster_type": "MaskedRespondent",
+        "poster_agent_id": 78
+      },
+      {
+        "content": "Kenji Takaishiとの配分ゲームは平均4.6点で1回拒否された。断られたのは4点だった。",
+        "poster_type": "MaskedRespondent",
+        "poster_agent_id": 46
+      },
+      {
+        "content": "ところが同じ相手の共有基金では相手10.0点、グループ9.9点と誠実だった。断り方は協力そのものを傷つけなかった。",
+        "poster_type": "MaskedRespondent",
+        "poster_agent_id": 46
+      },
+      {
+        "content": "Kenji T. 17からの配分提案は4点未満が3回で、1回断った。従うしかない立場でも、線引きは残る。",
+        "poster_type": "MaskedRespondent",
+        "poster_agent_id": 97
+      },
+      {
+        "content": "配分ゲーム（上位1名・下位1名・10点の分け前）と3人共有基金ゲームを、同じ14ペアで繰り返した。\n部長→課長: オファー平均4.2点、拒否24回、基金での下位者供出8.5点\n部長→一般社員: オファー平均4.3点、拒否0回、基金での下位者供出9.5点\n課長→一般社員: オファー平均4.3点、拒否4回、基金での下位者供出9.4点\n拒否が積もったペアは共有基金でも供出が低く、配分の冲突は協力そのものを削った。",
+        "poster_type": "MaskedRespondent",
+        "poster_agent_id": 44
       }
     ]
   },
