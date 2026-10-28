@@ -1189,7 +1189,8 @@ class ReportAgent:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                temperature=0.3
+                temperature=0.3,
+                max_tokens=3000
             )
             
             if progress_callback:
@@ -1469,7 +1470,7 @@ class ReportAgent:
                     "role": "user",
                     "content": REACT_OBSERVATION_TEMPLATE.format(
                         tool_name=call["name"],
-                        result=result,
+                        result=result[:4000],
                         tool_calls_count=tool_calls_count,
                         max_tool_calls=self.MAX_TOOL_CALLS_PER_SECTION,
                         used_tools_str=", ".join(used_tools),
@@ -1500,6 +1501,17 @@ class ReportAgent:
             # directlyconvertthis contentas finalanswer, no more waiting
             logger.info(f"Section {section.title} did not detectto 'Final Answer:' prefix, directlyadoptLLM outputas finalcontent（Tool call: {tool_calls_count}times)")
             final_answer = response.strip()
+            final_answer = re.sub(r'\s*<tool_call>\s*\{.*?\}\s*</tool_call>\s*', ' ', final_answer, flags=re.DOTALL)
+            final_answer = final_answer.strip()
+            if len(final_answer) < 200:
+                # Truncated/streaming noise is not a usable section; keep the
+                # best earlier assistant turn instead of a near-empty section.
+                cands = [m.get("content", "").strip() for m in messages
+                         if m.get("role") == "assistant" and len(m.get("content", "").strip()) > len(final_answer)]
+                if cands:
+                    logger.info(f"Section {section.title}: answer too short ({len(final_answer)}), "
+                                f"falling back to longest assistant turn ({len(cands[0])})")
+                    final_answer = cands[0]
 
             if self.report_logger:
                 self.report_logger.log_section_content(
@@ -1520,15 +1532,63 @@ class ReportAgent:
             max_tokens=4096
         )
 
-        # Check forceconclusion when LLM return is None
         if response is None:
-            final_answer = f"(This section generation failed: LLM returned empty response, please retry later)"
-            final_answer = f"(ThisSectiongeneratefailed: LLM returnedemptyresponse, pleaselaterretry)"
+            final_answer = "(This section generation failed: LLM returned empty response, please retry later)"
         elif "Final Answer:" in response:
             final_answer = response.split("Final Answer:")[-1].strip()
         else:
-            final_answer = response
-        
+            final_answer = (response or "").strip()
+        # strip any <tool_call> the model emitted in the forced conclusion
+        final_answer = re.sub(r'\s*<tool_call>\s*\{.*?\}\s*</tool_call>\s*', ' ', final_answer,
+                              flags=re.DOTALL).strip()
+
+        # Force-final must never return empty; the "longest assistant turn"
+        # fallback would re-select the same tool-call text we just stripped,
+        # so exclude tool-call turns and fall through to the tool results.
+        if len(final_answer) < 200:
+            logger.warning(f"Section {section.title}: forced answer too short "
+                           f"({len(final_answer)}); gathering evidence")
+            # one more try: ask only for prose, no tools allowed
+            msgs2 = [m for m in messages if m.get("role") != "system"]
+            msgs2 = [{"role": "system",
+                      "content": "You write the final section of a simulation report as plain prose. "
+                                 "Do NOT call tools, do NOT emit <tool_call>. Output the section text only."}
+                     ] + msgs2 + [{"role": "user",
+                                   "content": "Write this section now as plain prose, "
+                                              "based on the observations above."}]
+            try:
+                retry = self.llm.chat(messages=msgs2, temperature=0.5, max_tokens=4096)
+            except Exception as e:
+                logger.warning(f"Section {section.title}: retry-after-tools failed: {str(e)[:100]}")
+                retry = None
+            if retry and "Final Answer:" in retry:
+                retry = retry.split("Final Answer:")[-1]
+            retry = re.sub(r'\s*<tool_call>\s*\{.*?\}\s*</tool_call>\s*', ' ', retry or '', flags=re.DOTALL).strip()
+            if len(retry) > len(final_answer):
+                final_answer = retry
+        if not final_answer or not final_answer.strip():
+            cands = sorted((m.get("content", "").strip() for m in messages
+                            if m.get("role") == "assistant"), key=len, reverse=True)
+            cands = [c for c in cands if c
+                     and "tool_call" not in c[:80].lower()
+                     and not c.lstrip().startswith('{"name"')]
+            if cands:
+                final_answer = cands[0]
+            else:
+                # build a synthesis prompt from the tool observations
+                tool_texts = [m.get("content", "") for m in messages if m.get("role") == "user"]
+                joined = "\n\n".join(t for t in tool_texts if t)[:6000]
+                final_answer = (
+                    "The gathered simulation evidence for this section:\n\n"
+                    + joined
+                    + "\n\n(Section narrative could not be finalized by the model; "
+                      "raw evidence above is included for manual synthesis.)"
+                )
+
+        # Strip ReACT tool-call artifacts from the final section text.
+        final_answer = re.sub(r'\s*<tool_call>\s*\{.*?\}\s*</tool_call>\s*', ' ', final_answer, flags=re.DOTALL)
+        final_answer = re.sub(r'\s*\[TOOL_CALL\]\s*\(.*?\)\s*', ' ', final_answer, flags=re.DOTALL)
+        final_answer = final_answer.strip()
         # Log sectioncontentgeneratecompletion log
         if self.report_logger:
             self.report_logger.log_section_content(
@@ -2298,6 +2358,9 @@ class ReportManager:
         
         # post-processing：clean entireReporttitlequestion
         md_content = cls._post_process_report(md_content, outline)
+        # remove leftover ReACT tool-call artifacts from the assembled report
+        md_content = re.sub(r'\s*<tool_call>\s*\{.*?\}\s*</tool_call>\s*', ' ', md_content, flags=re.DOTALL)
+        md_content = re.sub(r'\s*\[TOOL_CALL\]\s*\(.*?\)\s*', ' ', md_content, flags=re.DOTALL)
         
         # saveComplete report
         full_path = cls._get_report_markdown_path(report_id)

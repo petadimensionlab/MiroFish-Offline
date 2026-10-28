@@ -304,3 +304,191 @@ oMLX は `scheduler.max_concurrent_requests`（既定 8）で同時実行数を�
   を実行し、検出0件を確認する（検出は機械、判断は人間の方針）。
 - スキル本体: https://github.com/coji/natural-japanese（手動配置で取り込み済み・
   `uv run .../lint.py .../outline.py .../terms.py` が単体で使える）
+
+## R16. TensorFold 0.6.6 バックエンド（本机 M1 Ultra / 127.0.0.1:11510・11511）— 2026-10-25 実測
+
+- 起動: `scripts/start_tensorfold.sh`（停止 `--stop`）。TensorFold は **ashhart/TensorFold**。
+  **native 1.1.4 は M1 Ultra を refuse**（`GemmaNeedsTensorUnits` / `UnqualifiedQwenShape`、
+  M5 系 Tensor Units 必須）。**Python lane engine の 0.6.6** を使う:
+  `brew install ashhart/tensorfold/tensorfold@0.6`（kag-only → `/opt/homebrew/opt/tensorfold@0.6/bin/tensorfold`）。
+- **Native 1.1.4 は e4b/27B を refuse、0.6.6 lane engine は e4b(26B MoE) のみ OK**:
+  27B は native で `MCPFTV2KVDescriptorMismatch` で落ちる → **0.6.6 lane engine で serve** する
+  （両方 0.6.6 で動かすのが最も安定。起動は `scripts/start_tensorfold.sh`）。
+- サーバ構成（port 固定・単一 key `~/.tensorfold/api_key`）:
+  - bulk `:11510` = `mirofish` = `mlx-community/gemma-4-26b-a4b-it-4bit`（MoE, --no-thinking, --parallel 8, ctx 16384）
+  - large `:11511` = `mirofish-27b` = `TensorFold/Qwen3.8-27B-MLX-4bit`（tested checkpoint,
+    **--reasoning-effort low + --decode-share 100**, --parallel 16, ctx 8192）
+- **Flash Next は不採用（ユーザー明示禁止・2026-10-26）**。再提案・再 pull しないこと。
+- 実測（200tok prompt / 512 out、集約 tok/s）:
+
+  | 形状 | n=1 | n=4 | n=8 | n=16 | n=32 | n=64 |
+  |---|---|---|---|---|---|---|
+  | 26B MoE bulk (no thinking) | 74 | 71 | ~65 | — | — | — |
+  | **27B low thinking (ds=100)** | ~52 | 64 | 81 | **84** | 91 | 94 |
+
+  → **27B は TensorFold で並列可**（Ollama qwen35 の `-np 1` 直列・oMLX 27B の C=1 必須と違い、
+  **同一ポートで n=16 まで実効並列**）。n>16 は集約ほぼ横ばいでレイテンシのみ増（n=64 p-max 347s）。
+  **`--decode-share 100` が鍵**: 既定(~50%)では n=8 で 40 tok/s しか出なかった（大バルク prefill に
+  時間を取り分られる）。M1 Ultra には Tensor Units が無いので lane decoder は 128-row shared round
+  でも 1-row と同コスト（ログの "ms by rows" 表がそれを示す）→ prefill に時間を取り分るほど decode が餓える。
+- 27B は思考モデル: `reasoning_effort: "low"` で thinking 量を抑制しつつ answer を返す（oMLX 時代と
+  同様に **`content` が空で `reasoning_content` に全消費** になり得る → `max_tokens` は 1024+ を置く。
+  512 指定では finish_reason=length で content が空になった実測あり）。
+- lmstudio-community/Qwen3.5-9B-MLX-4bit は 0.6.6 でも **UnqualifiedQwenShape** で不可
+  （9B 系は TensorFold kernels 非対応）。e4b/12B dense Gemma も不可（MoE のみ）。
+- **Qwen3.8-Flash-Next**: 0.6.6 で serve 可能（`--ssd-experts 20` で weights 25GiB常駐+expert を
+  SSD stream、ロード 5分）だが実測 n=8 で集約 13 tok/s と遅い（本番不採用。oMLX 27B のまま）。
+  **ユーザーが明示禁止（2026-10-26）** — 再提案・再 pull しない。
+- 比較（oMLX e4b 実測 145.6 tok/s @n=16）: TensorFold 26B bulk n=8 ≈ 65-72 tok/s と見劣りするが、
+  **27B low thinking が並列で使える**のが利点（oMLX では 27B は C=1 必須・stall 経験あり）。
+- **xgrammar 未導入（0.6.6・本机）**: `response_format:{"type":"json_object"}` は **HTTP 400**
+  （"structured output needs xgrammar on the server"）。oMLX 時代のような無音フォールバックは
+  起きない。→ `llm_client.chat()` に 400 検知フォールバック（prompt-only JSON 誘導へ切替、
+  サーバごとに一度だけ検知・キャッシュ、以後 response_format を送らない）を実装済み・2回検証 PASS。
+  **xgrammar 導入済み・稼働中（2026-10-26 確定）**: TensorFold 0.6.6 は pure python の
+  xgrammar を import する（`engine/grammar.py:112,125` — `import xgrammar as xgr` と
+  `from transformers import PreTrainedTokenizerFast`）。`pip install xgrammar` で
+  transformers も共に入るので、libexec 側（`/opt/homebrew/Cellar/tensorfold@0.6/0.6.6/libexec/bin/python`）に
+  導入→サーバ重启すれば `response_format:{"type":"json_object"}` が **400 ではなく制約付き生成で通る**
+  （実測: 初回 compile ~2s、以降 cached、コードフェンスなしの素の JSON が返る）。
+  backend/.venv 側の導入は不要（フォールバックは保険として残置）。
+  `response_format: json_schema`（strict）も検証済み: schema 準拠の JSON が返り型一致。
+  grammar 制約下でも per-call レートは実測維持（profile 10体@n=8 = 72s、8.3体/分）。
+- **large ctx=8192 の制約**: TensorFold は prompt+max_tokens が ctx を超えると 400 で拒否
+  （Ollama のような暗黙 truncation はしない）。ontology は prompt ≤4k 文字＋max_tokens 4096 で
+  実測 OK（147s、entity_types=10）。大きな文書は前処理で切るか `TF_LARGE_CTX` を上げる。
+  **report planning も同じ制約**: planning プロンプト ~4925tok + max_tokens 4096 = 9021tok で
+  400 を実測（2026-10-27 23:57）。対策: planning/生成の max_tokens を 3000 に下げ、レポートを
+  数セクションに分けて合成する（`TF_LARGE_CTX` を 16384 に上げる手もあるが model_config の
+  content_length を超えるため再起動が要る）。`report_agent.py` の planning/生成 calls に
+  max_tokens 指定が必要。
+- **simulation env は fresh 起動が必須**（run_reddit_simulation.py:590-592 が起動時に
+  `reddit_simulation.db` を **os.remove して再生成**する）。前回の DB を再利用すると
+  OASIS/camel が history 復元で無限 loop に入り、server 応答は正常でも無限に固まる
+  （396 体分 ~450 件の API 呼び出しが `Load Agent Profile...` で空振りした実測あり）。
+  再起動なら `kill -STOP` で確認後、DB をリネームして fresh 起動すること。
+  **修正済み**: `os.remove(db_path)` を **`os.rename(db_path, db_path+".prev_<ts>")`** に変更
+  （run_reddit_simulation.py:592 付近）。これで OASIS は毎回 fresh DB を作り、残留 DB による
+  history 復元ハングが再発しない。旧データは `.prev_*` で残る。
+- **シミュレーション実行の待受ハング（2026-10-27 確定）**: run_reddit_simulation の
+  `_shutdown_event` は `main()` で `global` 宣言されず `setup_signal_handlers()` の
+  **ローカル変数**に束縛される（run_reddit_simulation.py:744 付近）。そのため SIGTERM に対して
+  ハンドラは `global _shutdown_event` で **module 側の None（truthy 判定をすり抜け `await
+  wait_for(None.wait())` → TypeError）** を参照し、環境 loop は終了しない。server 応答正常でも
+  `Simulation already running` が残り、**round が一切進まない**（`round 0/2` 固定）。
+  回避策: 親を kill して module の待受を閉じ、`fresh_state()` で PID 生死判定→stale を消し、
+  DB をリネームしてから start すること（`/tmp/sim_run_foreground.py` に実装）。
+  **修正済み**: `main()` に `global _shutdown_event` を追加（:720）し、IPC 待受ループの
+  `wait_for(_shutdown_event.wait(), 0.5)` の `except TimeoutError: break` を **`continue`** に修正
+  （:698 付近）。timeout で抜けていたため待受が1回で終了し `Environment closed` →
+  COMPLETED 扱いになっていた。これで round 完遂後の interview 待受が正しく動く。
+  **追加修正（2026-10-27 確定）**: `setup_signal_handlers()` を `asyncio.run(main())` の
+  **前**に呼ぶよう修正（スクリプト末尾の `if __name__` で既に呼ばれていたが、main() 内の
+  `_shutdown_event = asyncio.Event()` が **モジュール側 None を上書き**し、ハンドラは
+  古い None を参照していた）。これで SIGTERM がイベントを set → env loop が break →
+  環境が正常 close する。同時に **シグナルハンドラは `return` で抜ける**（`sys.exit(1)` は
+  asyncio.run の cleanup をスキップして env loop が孤児化→无限ハングの原因）。
+  残課題: OASIS 側 env の round ループが `posts` を増やさない（`Load Agent Profile...`
+  後、profile 596体の LLM 生成が始まらず停止。原因は camel の agent_graph
+  `process_agent(i)` で `await asyncio.gather(*tasks)` の 596 並列が bulk server
+  の prompt cache 上限で絞まる可能性。  `wait_for(_shutdown_event.wait())` を `continue` で
+  抜けるよう修正済みだが、round loop が進行するか別途要調査）。
+- **シミュレーション実行の待受ハング（2026-10-27 確定）**: run_reddit_simulation の
+  `_shutdown_event` は `main()` で `global` 宣言されず `setup_signal_handlers()` の
+  **ローカル変数**に束縛される（run_reddit_simulation.py:744 付近）。そのため SIGTERM に対して
+  ハンドラは `global _shutdown_event` で **module 側の None（truthy 判定をすり抜け `await
+  wait_for(None.wait())` → TypeError）** を参照し、環境 loop は終了しない。server 応答正常でも
+  `Simulation already running` が残り、**round が一切進まない**（`round 0/2` 固定）。
+  回避策: 親を kill して module の待受を閉じ、`fresh_state()` で PID 生死判定→stale を消し、
+  DB をリネームしてから start すること（`/tmp/sim_run_foreground.py` に実装）。
+  **修正済み**: `main()` に `global _shutdown_event` を追加（:720）し、IPC 待受ループの
+  `wait_for(_shutdown_event.wait(), 0.5)` の `except TimeoutError: break` を **`continue`** に修正
+  （:698 付近）。timeout で抜けていたため待受が1回で終了し `Environment closed` →
+  COMPLETED 扱いになっていた。これで round 完遂後の interview 待受が正しく動く。
+  **追加修正（2026-10-27 確定）**: `setup_signal_handlers()` を `asyncio.run(main())` の
+  **前**に呼ぶよう修正（スクリプト末尾の `if __name__` で既に呼ばれていたが、main() 内の
+  `_shutdown_event = asyncio.Event()` が **モジュール側 None を上書き**し、ハンドラは
+  古い None を参照していた）。これで SIGTERM がイベントを set → env loop が break →
+  環境が正常 close する。同時に **シグナルハンドラは `return` で抜ける**（`sys.exit(1)` は
+  asyncio.run の cleanup をスキップして env loop が孤児化→无限ハングの原因）。
+  **追加修正（2026-10-27 確定）**: `setup_signal_handlers()` を `asyncio.run(main())` の
+  **前**に呼ぶよう修正（スクリプト末尾の `if __name__` で既に呼ばれていたが、main() 内の
+  `_shutdown_event = asyncio.Event()` が **モジュール側 None を上書き**し、ハンドラは
+  古い None を参照していた）。これで SIGTERM がイベントを set → env loop が break →
+  環境が正常 close する。同時に **シグナルハンドラは `return` で抜ける**（`sys.exit(1)` は
+  asyncio.run の cleanup をスキップして env loop が孤児化→无限ハングの原因）。
+  **SIM_NO_WAIT**: simulation_runner.py に `SIM_NO_WAIT=1` で child に `--no-wait` を
+  渡す分岐を追加。Flask サーバなしの CLI 実行では round 完遂後の interview 待受が
+  永久に空振りするため、env を閉じて exit させる（round 完遂→COMPLETED を実測確認）。
+  **round loop の進行を実測（2026-10-27 21:12）**: `SIM_NO_WAIT=1` + DB リネーム +
+  fresh `run_state.json` で 12 rounds が完遂（posts=7, comments=79, acts=249,
+  COMPLETED）。前回の「posts が増えない」は **env 待受ハングと残留 DB が原因**で、
+  OASIS 側は正常。`agents_per_hour_max` は 5-60、activity_level の平均 0.6 × 596体
+  で action/round ≈ 359 となり、72 rounds なら 2.6 万アクション（bulk 集約 65-72 tok/s
+  で約 10 時間）。検証は 12 rounds 相当のスケール（~30 分）で回せる。
+  **残留ハングの再発防止**: run_state.json の `runner_status` を `stopped` にし、
+  DB を `.test_<ts>` でリネーム退避してから `start_simulation` を呼ぶこと。
+  **再現実測（22:35）**: 同じ手順で 12 rounds = 700s（posts=7, comments=76, acts=196,
+  COMPLETED、verify_outputs 15/15 PASS）。`attempt to write a readonly database` は
+  リネーム退避済みの DB を後から読んだときのみで、実行中の DB では発生しない。
+  手順は `/tmp/sim_run_bounded.py`（PID 生死判定→stale run_state クリア→DB リネーム→
+  SIM_NO_WAIT=1 で start→20秒間隔で posts/cmts/acts を監視）。
+  **残課題（2026-10-27 23:31 再発）**: 3度目の再実行（`/tmp/sim_run_forever.py` +
+  監視スクリプトの二重起動）では round 10 付近でまた `attempt to write a readonly
+  database` で FAILED。**原因は実行中に reddit_simulation.db を別プロセスが
+  os.remove/os.rename したこと**（run_reddit_simulation.py は env.reset() 前に
+  os.remove する設計＋私の監視スクリプトが run 中に DB を触った）。
+  → **教訓**: run 中に DB を削除/リネームしない。再実行手順を固定:
+  `kill -9` 残留プロセス確認 → DB 退避（run 開始**前**のみ）→ run →
+  `tail -F simulation.log` で `Simulation process exited` を待つ。
+  **修正済み**: `os.remove(db_path)` を **`os.rename(db_path, db_path+".prev_<ts>")`** に変更
+  （run_reddit_simulation.py:592 付近）。これで OASIS は毎回 fresh DB を作り、残留 DB による
+  history 復元ハングが再発しない。旧データは `.prev_*` で残る。
+  **残課題（2026-10-27 23:31 再発）**: 3度目の再実行（`/tmp/sim_run_forever.py` +
+  監視スクリプトの二重起動）では round 10 付近でまた `attempt to write a readonly
+  database` で FAILED。**原因は実行中に reddit_simulation.db を別プロセスが
+  os.remove/os.rename したこと**（run_reddit_simulation.py は env.reset() 前に
+  os.remove する設計＋私の監視スクリプトが run 中に DB を触った）。
+  → **教訓**: run 中に DB を削除/リネームしない。再実行手順を固定:
+  `kill -9` 残留プロセス確認 → DB 退避（run 開始**前**のみ）→ run →
+  `tail -F simulation.log` で `Simulation process exited` を待つ。
+  **修正済み**: `os.remove(db_path)` を **`os.rename(db_path, db_path+".prev_<ts>")`** に変更
+  （run_reddit_simulation.py:592 付近）。これで OASIS は毎回 fresh DB を作り、残留 DB による
+  history 復元ハングが再発しない。旧データは `.prev_*` で残る。
+  **再現実測（22:35）**: 同じ手順で 12 rounds = 700s（posts=7, comments=76, acts=196,
+  COMPLETED、verify_outputs 15/15 PASS）。`attempt to write a readonly database` は
+  リネーム退避済みの DB を後から読んだときのみで、実行中の DB では発生しない。
+  手順は `/tmp/sim_run_bounded.py`（PID 生死判定→stale run_state クリア→DB リネーム→
+  SIM_NO_WAIT=1 で start→20秒間隔で posts/cmts/acts を監視）。
+  **残課題（2026-10-27 23:31 再発）**: 3度目の再実行（`/tmp/sim_run_forever.py` +
+  監視スクリプトの二重起動）では round 10 付近でまた `attempt to write a readonly
+  database` で FAILED。**原因は実行中に reddit_simulation.db を別プロセスが
+  os.remove/os.rename したこと**（run_reddit_simulation.py は env.reset() 前に
+  os.remove する設計＋私の監視スクリプトが run 中に DB を触った）。
+  → **教訓**: run 中に DB を削除/リネームしない。再実行手順を固定:
+  `kill -9` 残留プロセス確認 → DB 退避（run 開始**前**のみ）→ run →
+  `tail -F simulation.log` で `Simulation process exited` を待つ。
+  **修正済み**: `os.remove(db_path)` を **`os.rename(db_path, db_path+".prev_<ts>")`** に変更
+  （run_reddit_simulation.py:592 付近）。これで OASIS は毎回 fresh DB を作り、残留 DB による
+  history 復元ハングが再発しない。旧データは `.prev_*` で残る。
+  **再現実測（22:35）**: 同じ手順で 12 rounds = 700s（posts=7, comments=76, acts=196,
+  COMPLETED、verify_outputs 15/15 PASS）。`attempt to write a readonly database` は
+  リネーム退避済みの DB を後から読んだときのみで、実行中の DB では発生しない。
+  手順は `/tmp/sim_run_bounded.py`（PID 生死判定→stale run_state クリア→DB リネーム→
+  SIM_NO_WAIT=1 で start→20秒間隔で posts/cmts/acts を監視）。
+  残課題: OASIS 側 env の round ループが `posts` を増やさない（`Load Agent Profile...`
+  後、profile 596体の LLM 生成が始まらず停止。原因は camel の agent_graph
+  `process_agent(i)` で `await asyncio.gather(*tasks)` の 596 並列が bulk server
+  の prompt cache 上限で絞まる可能性。  `wait_for(_shutdown_event.wait())` を `continue` で
+  抜けるよう修正済みだが、round loop が進行するか別途要調査）。
+- **シグナルハンドラ二重束縛の修正（2026-10-27 確定）**: `main()` に `global _shutdown_event`
+  を追加（:743）、`setup_signal_handlers()` のハンドラも `global _cleanup_done, _shutdown_event`
+  を宣言（:768）。これで SIGTERM が module の event を set し env loop が break する。
+  ハンドラは最後に `return`（`sys.exit(1)` は asyncio.run の task cancel をスキップして
+  env loop を孤児化させ无限ハングの原因）。`wait_for(...)` は `TimeoutError: continue`、
+  `break` はイベントが**実際に set されたときだけ**通る。
+- Ollama は **embedding 専用**（:11434 nomic-embed-text）に残す。LLM 経路の切替は .env の
+  LLM_BASE_URL / OPENAI_API_BASE_URL / LLM_API_KEY / OPENAI_API_KEY を 11510 と api_key の値へ。
+- **ディスク注意**: HF cache に未使用の大容量 checkpoint を pull すると swap スラッシング
+  （本机で 45GiB swap 使用・全サーバ応答不能化）に直結する。pull は `tensorfold plan`/`info` で
+  必要を確認してから。不要な dump は即削除すること。

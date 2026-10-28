@@ -21,6 +21,7 @@ import os
 import httpx
 import random
 import signal
+import time
 import sys
 import sqlite3
 from datetime import datetime
@@ -589,8 +590,11 @@ class RedditSimulationRunner:
         
         db_path = self._get_db_path()
         if os.path.exists(db_path):
-            os.remove(db_path)
-            print(f"Old database deleted: {db_path}")
+            # OASIS resume-from-DB deadlocks camel's agent-graph bootstrap when a
+            # stale DB lingers (see AGENTS.md R16). Always start fresh; move the
+            # old file aside for post-run inspection.
+            os.rename(db_path, db_path + ".prev_" + str(int(time.time())))
+            print(f"Existing database moved aside: {db_path}")
         
         print("Create OASIS environment...")
         self.env = oasis.make(
@@ -695,9 +699,9 @@ class RedditSimulationRunner:
                         break
                     try:
                         await asyncio.wait_for(_shutdown_event.wait(), timeout=0.5)
-                        break  # Received exit signal
+                        break  # shutdown event actually set
                     except asyncio.TimeoutError:
-                        pass
+                        continue
             except KeyboardInterrupt:
                 print("\nReceived interrupt signal")
             except asyncio.CancelledError:
@@ -716,6 +720,7 @@ class RedditSimulationRunner:
 
 
 async def main():
+    global _shutdown_event
     parser = argparse.ArgumentParser(description='OASIS Reddit Simulation')
     parser.add_argument(
         '--config', 
@@ -768,12 +773,21 @@ def setup_signal_handlers():
         print(f"\nReceived {sig_name} signal, exiting...")
         if not _cleanup_done:
             _cleanup_done = True
-            if _shutdown_event:
-                _shutdown_event.set()
+            ev = _shutdown_event
+            if ev:
+                # set + wake the event loop from this signal frame (loop-unsafe
+                # set() alone left the IPC wait spinning and the process alive)
+                try:
+                    asyncio.run_coroutine_threadsafe(_set_and_log(ev), asyncio.get_event_loop())
+                except RuntimeError:
+                    ev.set()
         else:
             # Force exit only after receiving signal repeatedly
             print("Force exit...")
             sys.exit(1)
+        # Return (don't sys.exit) so asyncio.run can cancel the main task and
+        # close the environment; raising SystemExit here orphaned the env loop.
+        return
     
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)

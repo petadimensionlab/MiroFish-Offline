@@ -80,10 +80,14 @@ class NERExtractor:
         last_error = None
         for attempt in range(self.max_retries + 1):
             try:
+                # TensorFold: pin this NER request to a single-row round while
+                # 8-way parallel NER saturates the GPU (400 "ran out of memory
+                # with 8 streams decoding" otherwise). Harmless on other servers.
                 result = self.llm.chat_json(
                     messages=messages,
                     temperature=0.1,  # Low temp for extraction precision
                     max_tokens=4096,
+                    extra_headers={"x-tensorfold-shared": "0"},
                 )
                 return self._validate_and_clean(result, ontology)
 

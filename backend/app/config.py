@@ -36,6 +36,12 @@ class Config:
     # num_ctx) so they run fast and parallelize. Empty -> same as LLM_MODEL_NAME.
     LLM_MODEL_NAME_LARGE = os.environ.get('LLM_MODEL_NAME_LARGE', '') or LLM_MODEL_NAME
 
+    # The LARGE stage (ontology / config / report) may be served from a different
+    # TensorFold server than the bulk stage (different port, same key). Empty ->
+    # use LLM_BASE_URL / LLM_API_KEY.
+    LLM_LARGE_BASE_URL = os.environ.get('LLM_LARGE_BASE_URL', '') or LLM_BASE_URL
+    LLM_LARGE_API_KEY = os.environ.get('LLM_LARGE_API_KEY', '') or LLM_API_KEY
+
     # Ollama context window per request. Most steps use the small default;
     # ontology generation needs a larger one (it may feed up to 50,000 chars).
     # NOTE: Ollama's OpenAI-compatible endpoint ignores extra_body.options.num_ctx,
@@ -49,6 +55,11 @@ class Config:
     # thinking. Set to 'none' to force direct answers for JSON pipelines.
     # Empty string = do not send the parameter (non-reasoning models unaffected).
     LLM_REASONING_EFFORT = os.environ.get('LLM_REASONING_EFFORT', '')
+
+    # Per-request HTTP timeout for LLM calls (seconds). TensorFold answers
+    # requests in parallel on a single port, so a modest timeout is safe; with
+    # a serialized backend (Ollama -np 1) raise this or use LLM_TIMEOUT_LARGE.
+    LLM_TIMEOUT = float(os.environ.get('LLM_TIMEOUT', '1800'))
 
     # Neo4j configuration
     NEO4J_URI = os.environ.get('NEO4J_URI', 'bolt://localhost:7687')

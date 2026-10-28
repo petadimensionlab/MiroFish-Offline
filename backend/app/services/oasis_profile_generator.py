@@ -197,7 +197,7 @@ class OasisProfileGenerator:
         self.client = OpenAI(
             api_key=self.api_key,
             base_url=self.base_url,
-            timeout=float(os.environ.get("LLM_TIMEOUT", "1800")),
+            timeout=Config.LLM_TIMEOUT,
         )
 
         # GraphStorage for hybrid search enrichment

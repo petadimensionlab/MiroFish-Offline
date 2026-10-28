@@ -424,6 +424,11 @@ class SimulationRunner:
             # If max_rounds specified, add to command-line arguments
             if max_rounds is not None and max_rounds > 0:
                 cmd.extend(["--max-rounds", str(max_rounds)])
+
+            # Without a Flask/IPC server loop, nothing drains ipc_commands after
+            # the rounds finish; close the env and exit instead of waiting forever.
+            if os.environ.get("SIM_NO_WAIT", ""):
+                cmd.append("--no-wait")
             
             # Create main log file to avoid stdout/stderr pipe buffer overflow
             main_log_path = os.path.join(sim_dir, "simulation.log")

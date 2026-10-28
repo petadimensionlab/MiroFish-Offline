@@ -229,8 +229,8 @@ class SimulationConfigGenerator:
         base_url: Optional[str] = None,
         model_name: Optional[str] = None
     ):
-        self.api_key = api_key or Config.LLM_API_KEY
-        self.base_url = base_url or Config.LLM_BASE_URL
+        self.api_key = api_key or getattr(Config, 'LLM_LARGE_API_KEY', None) or Config.LLM_API_KEY
+        self.base_url = base_url or getattr(Config, 'LLM_LARGE_BASE_URL', '') or Config.LLM_BASE_URL
         self.model_name = model_name or Config.LLM_MODEL_NAME_LARGE
 
         if not self.api_key:
